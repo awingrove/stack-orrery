@@ -50,7 +50,7 @@ them before their step: <https://github.com/awingrove/factory-kit/blob/main/>
       Verify: `npm run guard` green; `git status` clean.
 - [x] **Step 7: Full gate** — `npm run verify` green end-to-end
       (format:check → lint → unit → guard → e2e).
-- [ ] **Step 8: Ship** — push `feature/phase1-bootstrap`, open PR.
+- [x] **Step 8: Ship** — push `feature/phase1-bootstrap`, open PR.
       Verify: CI job `build` green on the PR; report ready for human merge.
 
 ## Negative-path proofs (guardrail discipline, kit TEST-RULES)
