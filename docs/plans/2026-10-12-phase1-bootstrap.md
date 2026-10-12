@@ -34,20 +34,21 @@ them before their step: <https://github.com/awingrove/factory-kit/blob/main/>
       context: format:check → lint → unit → guard → e2e).
       Verify: `npx prettier --check . && npx eslint .` clean; server smoke
       serves `index.html` with CSP.
-- [ ] **Step 4: Guardrail scripts** — `scripts/guard-plan-ticks.mjs`,
-      `guard-debt.mjs`, `guard-slices.mjs`, `guard-story-refs.mjs`,
-      `guard-file-size.mjs`, `guard-all.mjs` (kit-derived, own copies).
+- [x] **Step 4: Guardrail scripts** — `scripts/guard-plan-ticks.mjs`,
+      `scripts/guard-debt.mjs`, `scripts/guard-slices.mjs`,
+      `scripts/guard-story-refs.mjs`, `scripts/guard-file-size.mjs`,
+      `scripts/guard-all.mjs` (kit-derived, own copies).
       Verify: `npm run guard` green once Step 5 lands; each guard observed red
       once on a mutated input (recorded below), reverted.
-- [ ] **Step 5: Tracer bullet — first slice** — `index.html`, `panel.html`,
+- [x] **Step 5: Tracer bullet — first slice** — `index.html`, `panel.html`,
       `css/shell/**`, `css/panel/**`, `js/sim/**` (rng, webserver, users,
       engine — discrete tick loop), `js/panel/**` (model + render),
       `test/sim/**`, `test/panel/**`, `e2e/shell.spec.js`, `e2e/panel.spec.js`.
       Verify: `npm run unit && npm run test:e2e` green.
-- [ ] **Step 6: Flip the map** — storymap story statuses to `done`, plan
+- [x] **Step 6: Flip the map** — storymap story statuses to `done`, plan
       ticks recorded, `slices.yaml`/`storymap.yaml` consistent with what shipped.
       Verify: `npm run guard` green; `git status` clean.
-- [ ] **Step 7: Full gate** — `npm run verify` green end-to-end
+- [x] **Step 7: Full gate** — `npm run verify` green end-to-end
       (format:check → lint → unit → guard → e2e).
 - [ ] **Step 8: Ship** — push `feature/phase1-bootstrap`, open PR.
       Verify: CI job `build` green on the PR; report ready for human merge.
