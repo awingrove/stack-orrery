@@ -27,7 +27,7 @@ them before their step: <https://github.com/awingrove/factory-kit/blob/main/>
       `slices.yaml`, `storymap.yaml`, `docs/factory/technical-debt.yaml`,
       `.gitignore`, `.opencode/` (identity plugin) committed.
       Verify: `git status` clean.
-- [ ] **Step 3: Tooling scaffold** — `package.json` (+lock), `.prettierrc`,
+- [x] **Step 3: Tooling scaffold** — `package.json` (+lock), `.prettierrc`,
       `.prettierignore`, `eslint.config.js`, `vitest.config.js`,
       `playwright.config.js`, `scripts/static-server.mjs` (CSP headers),
       `.github/workflows/ci.yml` (single job **`build`** — required check
@@ -54,4 +54,17 @@ them before their step: <https://github.com/awingrove/factory-kit/blob/main/>
 
 ## Negative-path proofs (guardrail discipline, kit TEST-RULES)
 
-_Filled in at Step 4: each guard's observed-red mutation and revert._
+Each guard observed red once on a mutated real input, then reverted
+(2026-10-12):
+
+| Guard      | Mutation                                                                          | Observed red                                                                       | Reverted |
+| ---------- | --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | -------- |
+| plan-ticks | ticked step naming `docs/plans/never-landed.md`                                   | `… does not exist`                                                                 | ✓ green  |
+| debt       | open entry missing `paydown` + `where` at a nonexistent path + duplicate `TD-001` | all three: `missing required field`, `where path … does not exist`, `duplicate id` | ✓ green  |
+| slices     | stray `js/rogue-proof.js`                                                         | `orphan: … meta-rule 1`                                                            | ✓ green  |
+| story-refs | fragment rewritten to text found nowhere                                          | `fragment … not found`                                                             | ✓ green  |
+| file-size  | 301-line `js/too-big-proof.js`                                                    | `is 301 lines (> 300)`                                                             | ✓ green  |
+
+First debt proof attempt failed on a duplicate YAML key instead of the
+schema rules — re-run against a well-formed mutation so the intended rules
+fired (red for the right reason counts; red for the wrong reason does not).

@@ -14,8 +14,13 @@ const guards = [
 ];
 
 const results = [];
+// PR CI: pass the base ref so guard-slices can enforce meta-rule 7
+// (same-change manifest updates); local runs skip it with a notice.
+const extra = process.env.GITHUB_BASE_REF
+  ? ['--base', `origin/${process.env.GITHUB_BASE_REF}`]
+  : [];
 for (const guard of guards) {
-  const res = spawnSync(process.execPath, [join(here, guard)], { stdio: 'inherit' });
+  const res = spawnSync(process.execPath, [join(here, guard), ...extra], { stdio: 'inherit' });
   results.push({ guard, ok: res.status === 0 });
 }
 

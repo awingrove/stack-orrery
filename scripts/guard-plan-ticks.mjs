@@ -30,8 +30,13 @@ function stripFences(text) {
 }
 
 const PATH_TOKEN = /`([^`]+)`/g;
+// Path-like: a token with a file extension, a dotfile/dir (`.gitignore`,
+// `.github/…`), or a trailing slash — while allowing `js/sim/**` globs and
+// branch names (`feature/phase1-bootstrap`) to pass as non-paths.
 const looksLikePath = (t) =>
-  !t.includes(' ') && (t.includes('/') || /\.[a-z]{1,5}$/.test(t)) && !t.startsWith('http');
+  !t.includes(' ') &&
+  !t.startsWith('http') &&
+  (t.startsWith('.') || t.endsWith('/') || /\.[A-Za-z0-9]{1,8}$/.test(t));
 
 let failures = 0;
 const files = planFiles(PLANS_DIR);
@@ -47,7 +52,11 @@ for (const file of files) {
     if (!m) continue;
     // Collect this step's text: the tick line plus its continuation lines.
     let stepText = m[1];
-    for (let j = i + 1; j < lines.length && /^\s{2,}\S/.test(lines[j]) && !/^\s*- \[/.test(lines[j]); j++) {
+    for (
+      let j = i + 1;
+      j < lines.length && /^\s{2,}\S/.test(lines[j]) && !/^\s*- \[/.test(lines[j]);
+      j++
+    ) {
       stepText += ` ${lines[j].trim()}`;
     }
     for (const tok of stepText.matchAll(PATH_TOKEN)) {
@@ -56,7 +65,7 @@ for (const file of files) {
       const cleaned = p.replace(/[:（(].*$/, '');
       if (!existsSync(cleaned)) {
         console.error(
-          `guard-plan-ticks: ${file}:${i + 1} — ticked step names \`${p}\` but \`${cleaned}\` does not exist.`
+          `guard-plan-ticks: ${file}:${i + 1} — ticked step names \`${p}\` but \`${cleaned}\` does not exist.`,
         );
         failures++;
       }
