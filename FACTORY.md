@@ -5,15 +5,15 @@ This repo is built by the factory. The process contract lives in
 names this app's instantiation: paths, gate command, stack rules. If the
 two disagree, the kit wins and this file is fixed in the same change.
 
-| Contract | Kit doc | This app's instance |
-|---|---|---|
-| Process, DoD per slice, human gates | [FACTORY.md](https://github.com/awingrove/factory-kit/blob/main/FACTORY.md) | this file |
-| Slice manifest grammar + meta-rules | [SLICES.md](https://github.com/awingrove/factory-kit/blob/main/SLICES.md) | `slices.yaml` (static-JS flavor, from the kit example) |
-| Briefs, checkbox ticks, cold resume | [PLAN-FORMAT.md](https://github.com/awingrove/factory-kit/blob/main/PLAN-FORMAT.md) | `docs/plans/` |
-| Debt register shapes | [DEBT-REGISTER.md](https://github.com/awingrove/factory-kit/blob/main/DEBT-REGISTER.md) | `docs/factory/technical-debt.yaml` |
-| CHECKS / PINS / DOCUMENTS | [CLAIM-LANGUAGE.md](https://github.com/awingrove/factory-kit/blob/main/CLAIM-LANGUAGE.md) | guarantee-comments in `js/**`, `test/**`, `e2e/**` |
-| The testing line | [TEST-RULES.md](https://github.com/awingrove/factory-kit/blob/main/TEST-RULES.md) | `e2e/**` against the real static server |
-| Design contract format | [DESIGN.md](https://github.com/awingrove/factory-kit/blob/main/DESIGN.md) | not yet — lands when the visual system stabilizes |
+| Contract                            | Kit doc                                                                                   | This app's instance                                    |
+| ----------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| Process, DoD per slice, human gates | [FACTORY.md](https://github.com/awingrove/factory-kit/blob/main/FACTORY.md)               | this file                                              |
+| Slice manifest grammar + meta-rules | [SLICES.md](https://github.com/awingrove/factory-kit/blob/main/SLICES.md)                 | `slices.yaml` (static-JS flavor, from the kit example) |
+| Briefs, checkbox ticks, cold resume | [PLAN-FORMAT.md](https://github.com/awingrove/factory-kit/blob/main/PLAN-FORMAT.md)       | `docs/plans/`                                          |
+| Debt register shapes                | [DEBT-REGISTER.md](https://github.com/awingrove/factory-kit/blob/main/DEBT-REGISTER.md)   | `docs/factory/technical-debt.yaml`                     |
+| CHECKS / PINS / DOCUMENTS           | [CLAIM-LANGUAGE.md](https://github.com/awingrove/factory-kit/blob/main/CLAIM-LANGUAGE.md) | guarantee-comments in `js/**`, `test/**`, `e2e/**`     |
+| The testing line                    | [TEST-RULES.md](https://github.com/awingrove/factory-kit/blob/main/TEST-RULES.md)         | `e2e/**` against the real static server                |
+| Design contract format              | [DESIGN.md](https://github.com/awingrove/factory-kit/blob/main/DESIGN.md)                 | not yet — lands when the visual system stabilizes      |
 
 ## App specifics
 

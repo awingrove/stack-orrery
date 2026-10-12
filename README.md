@@ -3,7 +3,7 @@
 A runnable **orrery of a web stack** — a mechanical model you watch, not a
 diagram you read. Simulated users, a simulated web server, and (as the
 stages grow) load balancers, caches, databases, and queues, all driven by a
-deterministic discrete tick loop so that overload is *visible*: queue depth
+deterministic discrete tick loop so that overload is _visible_: queue depth
 climbs, latency rises, and the numbers stay stable enough to assert on.
 
 Content follows the

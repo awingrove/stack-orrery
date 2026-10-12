@@ -27,31 +27,26 @@ import { join } from 'path';
 
 export const AGENT_GIT_NAME = 'awingrove-opencode';
 export const AGENT_GIT_EMAIL = 'awingrove-opencode@users.noreply.github.com';
-export const SENTINEL_TOKEN =
-  '__AGENT_TOKEN_FILE_MISSING_see_docs/factory/agent-identity.md';
-export const AGENT_GH_CONFIG_DIR = join(
-  homedir(),
-  '.config/opencode/gh-agent-config'
-);
+export const SENTINEL_TOKEN = '__AGENT_TOKEN_FILE_MISSING_see_docs/factory/agent-identity.md';
+export const AGENT_GH_CONFIG_DIR = join(homedir(), '.config/opencode/gh-agent-config');
 
 const DEFAULT_TOKEN_FILE = '.config/opencode/gh-agent-token';
 
 export const injectAgentIdentity = (env) => {
-  const tokenFile =
-    process.env.AGENT_GH_TOKEN_FILE || join(homedir(), DEFAULT_TOKEN_FILE);
+  const tokenFile = process.env.AGENT_GH_TOKEN_FILE || join(homedir(), DEFAULT_TOKEN_FILE);
   let token;
   try {
     token = readFileSync(tokenFile, 'utf8').trim();
   } catch {
     token = SENTINEL_TOKEN;
     console.error(
-      `agent-identity: cannot read token file "${tokenFile}"; injecting fail-closed sentinel GH_TOKEN. Fix per docs/factory/agent-identity.md.`
+      `agent-identity: cannot read token file "${tokenFile}"; injecting fail-closed sentinel GH_TOKEN. Fix per docs/factory/agent-identity.md.`,
     );
   }
   if (!token) {
     token = SENTINEL_TOKEN;
     console.error(
-      `agent-identity: token file "${tokenFile}" is empty; injecting fail-closed sentinel GH_TOKEN. Fix per docs/factory/agent-identity.md.`
+      `agent-identity: token file "${tokenFile}" is empty; injecting fail-closed sentinel GH_TOKEN. Fix per docs/factory/agent-identity.md.`,
     );
   }
   env.GH_TOKEN = token;
