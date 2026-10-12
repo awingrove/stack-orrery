@@ -76,4 +76,6 @@ allowlist:
   - package.json
   - playwright.config.js
   - scripts/**
+  - slices.yaml
+  - storymap.yaml
   - vitest.config.js

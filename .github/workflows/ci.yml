@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # guard-slices meta-rule 7 diffs against the PR base
 
       - uses: actions/setup-node@v4
         with:

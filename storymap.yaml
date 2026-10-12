@@ -16,7 +16,7 @@ activities:
         entry_point: index.html (app root)
         stories:
           - title: See a landing page that links to the diagram panel
-            status: planned
+            status: done
             priority: high
             tests:
               - e2e: shell::should reach the diagram panel from the landing page
@@ -26,12 +26,12 @@ activities:
         entry_point: n/a (engine behavior, not navigable)
         stories:
           - title: Replay a fixed seed into the identical tick sequence
-            status: planned
+            status: done
             priority: high
             tests:
               - unit: test/sim/engine.test.js::same seed replays the identical tick sequence
           - title: Watch queue depth climb when arrival rate exceeds service rate
-            status: planned
+            status: done
             priority: high
             tests:
               - unit: test/sim/webserver.test.js::queue depth climbs when arrival rate exceeds service rate
@@ -41,12 +41,12 @@ activities:
         entry_point: index.html -> Diagram Panel link
         stories:
           - title: See N simulated users sending requests at the server
-            status: planned
+            status: done
             priority: high
             tests:
               - e2e: panel::should show queue depth climbing as simulated users increase
           - title: Read queue depth and latency as UI state while it runs
-            status: planned
+            status: done
             priority: medium
             tests:
               - unit: test/panel/model.test.js::snapshot exposes queue depth and latency as UI state
