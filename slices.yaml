@@ -1,0 +1,79 @@
+# slices.yaml — static-JS flavor (grammar + meta-rules: factory-kit SLICES.md,
+# https://github.com/awingrove/factory-kit/blob/main/SLICES.md)
+# Role vocabulary: pages, js, css, unit_tests, e2e_specs.
+# Declare every role on every slice, [] included.
+slices:
+  - id: SHELL
+    name: Application Shell
+    roles:
+      pages:
+        - index.html
+      js: []
+      css:
+        - css/shell/**
+      unit_tests: []
+      e2e_specs:
+        - e2e/shell.spec.js
+    owns: []
+    calls: []
+    tests:
+      - e2e: shell::should reach the diagram panel from the landing page
+    entry_point: index.html (app root)
+
+  - id: SIM
+    name: Simulator Core
+    roles:
+      pages: []
+      js:
+        - js/sim/**
+      css: []
+      unit_tests:
+        - test/sim/**
+      e2e_specs: []
+    owns: []
+    calls: []
+    tests:
+      - unit: test/sim/engine.test.js::same seed replays the identical tick sequence
+      - unit: test/sim/webserver.test.js::queue depth climbs when arrival rate exceeds service rate
+    entry_point: n/a (engine logic; rendered by PANEL-1)
+
+  - id: PANEL
+    name: Diagram Panel — Single Web Server
+    roles:
+      pages:
+        - panel.html
+      js:
+        - js/panel/**
+      css:
+        - css/panel/**
+      unit_tests:
+        - test/panel/**
+      e2e_specs:
+        - e2e/panel.spec.js
+    owns:
+      - panel.html
+    calls:
+      - SHELL
+      - SIM
+    tests:
+      - unit: test/panel/model.test.js::snapshot exposes queue depth and latency as UI state
+      - e2e: panel::should show queue depth climbing as simulated users increase
+    entry_point: index.html -> Diagram Panel link
+
+allowlist:
+  - .github/**
+  - .gitignore
+  - .opencode/**
+  - .prettierignore
+  - .prettierrc
+  - AGENTS.md
+  - FACTORY.md
+  - LICENSE
+  - README.md
+  - docs/**
+  - eslint.config.js
+  - package-lock.json
+  - package.json
+  - playwright.config.js
+  - scripts/**
+  - vitest.config.js

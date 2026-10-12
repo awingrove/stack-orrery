@@ -1,0 +1,72 @@
+# AI Agent Instructions (AGENTS.md)
+
+Factory app repo: the process contract lives in
+[factory-kit](https://github.com/awingrove/factory-kit) — this file holds
+the stack rules and directives specific to this repo. If this file and the
+kit disagree, that is a defect: report it, don't pick a side.
+
+**Response style:** smart caveman — cut filler, keep technical substance.
+Fragments fine. Technical terms stay exact; code blocks unchanged.
+
+## Stack rules (static JS)
+
+- **Zero runtime dependencies.** Browser code is vanilla ESM
+  (`<script type="module">`); devDeps only (eslint, prettier, vitest,
+  @playwright/test, yaml). No framework, no bundler, no build step.
+- **No inline handlers, inline scripts, or inline styles.** The static
+  server sends `script-src 'self'; style-src 'self'` — an inline-script
+  temptation is a defect to report, not a CSP to relax. Wire behavior with
+  `addEventListener` in external JS.
+- **External JS lives under `js/` only**, one directory per slice
+  (`js/sim/**`, `js/panel/**`); CSS under `css/` per slice. Pages reference
+  them with relative paths.
+- **Serving:** `node scripts/static-server.mjs --port <port>` (Playwright's
+  `webServer` runs it for e2e). A manual peek may use any static server;
+  the gate is always the node script — it carries the CSP headers.
+- **File size:** any source file (`js`, `css`, `html`, `e2e`, `test`) over
+  **300 lines** fails `scripts/guard-file-size.mjs`. Split by
+  responsibility — in JS that means new modules, not partials.
+- **Determinism:** `js/sim/**` never calls `Math.random()` or `Date.now()`.
+  Seeded RNG only (`js/sim/rng.js`); time advances by explicit tick. This
+  is what makes overload teachable and e2e assertions stable.
+
+## AI workflow directives
+
+1. **Understand context** before modifying a file: pages → `js/panel` →
+   `js/sim`; a change ripples outward, not downward.
+2. **Resumable plans:** work beyond ~3 tasks gets a committed brief at
+   `docs/plans/<feature>.md` with checkbox steps; a tick means the step's
+   commit exists (kit PLAN-FORMAT). Session context lives in the plan file,
+   not chat history.
+3. **Debug hygiene:** temporary probes are tracked as todos and removed
+   before commit — never ride along in a feature diff.
+4. **Post-mortem capture:** a fix whose root cause reveals a systemic gap
+   updates `docs/factory/technical-debt.yaml` and the rule doc in the same
+   change (kit DEBT-REGISTER).
+5. **Claim vocabulary:** guarantee-comments carry `CHECKS:` / `PINS:` /
+   `DOCUMENTS:` — guarantee-language outside a claim is a review defect
+   (kit CLAIM-LANGUAGE).
+6. **Manifests same-change:** `slices.yaml` + `storymap.yaml` change in the
+   same commit as the feature they describe; a stale map is a defect
+   (kit SLICES).
+7. **Design:** UI that introduces a new pattern raises the DESIGN.md
+   amendment question with the human (kit DESIGN pattern; no DESIGN.md yet —
+   it lands when the visual system has something to contract on).
+
+## Gates
+
+- `npm run verify` = format:check → lint → unit → guard → e2e. It is the
+  **named** gate; never reimplement it ad hoc at the call site.
+- **Red gate = stop**, fix the named cause. Second rejection of the same
+  gate = stop and report to the human. Never weaken a guardrail, test, or
+  manifest entry to pass (kit FACTORY gate-rejection rule).
+
+## GitHub identity
+
+Shells authenticate as `awingrove-opencode` via
+`.opencode/plugins/agent-identity.js` (token file + isolated `GH_CONFIG_DIR`,
+fail-closed sentinel). Runbook:
+[VitaTrack docs/factory/agent-identity.md](https://github.com/awingrove/VitaTrack/blob/main/docs/factory/agent-identity.md).
+Agents push feature branches and open PRs — never approve, merge, delete,
+or force-push (server-side rulesets, human-only bypass). Closing the agent's
+own PRs is permitted.
