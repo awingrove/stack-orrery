@@ -1,0 +1,24 @@
+# technical-debt.yaml — schema (factory-kit DEBT-REGISTER.md,
+# https://github.com/awingrove/factory-kit/blob/main/DEBT-REGISTER.md).
+# Validated by scripts/guard-debt.mjs (run via `npm run guard`).
+#
+#   open     required: id, title, where, what, interest, paydown
+#            forbidden: closed, note
+#            optional: deferred, deferral_note
+#   closed   required: id, title, closed (a real ISO date), note
+#            optional: where (historical path — never existence-checked),
+#                      what, interest
+#   defects  required: id, title, found (a real ISO date), injection_stage,
+#                      detection_stage, systemic_gap
+#            optional: what, closed_in
+#
+#   ids TD-\d+ / DL-\d+, unique across the whole register. Every prose field
+#   is a folded block scalar (>-), never plain: prose contains ": ".
+#   Dates are bare ISO scalars. Bootstrap note (kit): warn-only until three
+#   entries, then the gate is hard.
+
+open: []
+
+closed: []
+
+defects: []

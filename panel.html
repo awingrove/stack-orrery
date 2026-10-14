@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Diagram panel — stack-orrery</title>
+    <link rel="stylesheet" href="css/shell/base.css" />
+    <link rel="stylesheet" href="css/panel/panel.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <nav class="site-nav" aria-label="Main">
+        <a class="brand" href="index.html">stack-orrery</a>
+        <a href="panel.html" aria-current="page">Diagram panel</a>
+      </nav>
+    </header>
+    <main class="container">
+      <h1>Diagram panel — single web server</h1>
+
+      <section class="controls" aria-label="Simulation controls">
+        <label for="users-slider">Simulated users: <span id="users-count">5</span></label>
+        <input
+          id="users-slider"
+          data-testid="users-slider"
+          type="range"
+          min="1"
+          max="50"
+          value="5"
+        />
+        <button id="start-button" data-testid="start-button" type="button">Start</button>
+      </section>
+
+      <section class="diagram" aria-label="Simulated stack">
+        <div class="users" aria-label="Simulated users">
+          <span class="users-label">users</span>
+          <div id="user-dots" data-testid="user-dots"></div>
+        </div>
+        <div class="wire" aria-hidden="true"></div>
+        <div class="server" aria-label="Web server">
+          <span class="server-name">web server</span>
+          <div class="queue-track" aria-hidden="true">
+            <div id="queue-bar" class="queue-fill" data-testid="queue-bar"></div>
+          </div>
+        </div>
+      </section>
+
+      <dl class="stats" aria-label="Live state">
+        <div class="stat">
+          <dt>tick</dt>
+          <dd id="tick" data-testid="tick">0</dd>
+        </div>
+        <div class="stat">
+          <dt>queue depth</dt>
+          <dd id="queue-depth" data-testid="queue-depth">0</dd>
+        </div>
+        <div class="stat">
+          <dt>avg latency</dt>
+          <dd id="latency" data-testid="latency">0 ms</dd>
+        </div>
+        <div class="stat">
+          <dt>served</dt>
+          <dd id="served" data-testid="served">0</dd>
+        </div>
+      </dl>
+    </main>
+    <script type="module" src="js/panel/panel.js"></script>
+  </body>
+</html>

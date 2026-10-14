@@ -1,0 +1,24 @@
+{
+  "name": "stack-orrery",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve": "node scripts/static-server.mjs --port 4173",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "unit": "vitest run",
+    "guard": "node scripts/guard-all.mjs",
+    "test:e2e": "playwright test",
+    "verify": "npm run format:check && npm run lint && npm run unit && npm run guard && npm run test:e2e"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.64.0",
+    "eslint": "^10.12.0",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
+    "vitest": "^5.0.4",
+    "yaml": "^2.9.1"
+  }
+}

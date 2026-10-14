@@ -1,0 +1,121 @@
+/* Diagram panel styles (PANEL slice). */
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1rem 0 1.5rem;
+  padding: 1rem;
+  background: var(--surface);
+  border-radius: 0.5rem;
+}
+
+.controls label {
+  min-width: 12rem;
+}
+
+.controls input[type='range'] {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
+.controls button {
+  padding: 0.5rem 1.25rem;
+  border: none;
+  border-radius: 0.375rem;
+  background: var(--accent);
+  color: #06101f;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.diagram {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem;
+  background: var(--surface);
+  border-radius: 0.5rem;
+}
+
+.users {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.users-label,
+.server-name {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+#user-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  max-width: 12rem;
+  min-height: 1rem;
+}
+
+.user-dot {
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.wire {
+  flex: 1;
+  height: 2px;
+  background: #2a3550;
+}
+
+.server {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 14rem;
+}
+
+.queue-track {
+  height: 1rem;
+  background: #10182a;
+  border: 1px solid #2a3550;
+  border-radius: 0.25rem;
+  overflow: hidden;
+}
+
+.queue-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--good);
+  transition: width 90ms linear;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.stat {
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  border-radius: 0.5rem;
+}
+
+.stat dt {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.stat dd {
+  margin: 0.25rem 0 0;
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+}

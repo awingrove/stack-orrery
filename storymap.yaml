@@ -1,0 +1,52 @@
+# storymap.yaml — stages are activities; stage names mirror the system-design
+# primer's scaling ladder (kit plan Phase 2 adds stages 2+).
+meta:
+  project: stack-orrery
+  description: >-
+    A runnable orrery of a web stack: simulated components driven by a
+    discrete tick queue, making scaling dynamics visible instead of
+    described.
+  last_updated: 2026-10-12
+
+activities:
+  - name: 'Stage 1 — Single server under load'
+    tasks:
+      - id: SHELL-1
+        name: Enter the app
+        entry_point: index.html (app root)
+        stories:
+          - title: See a landing page that links to the diagram panel
+            status: done
+            priority: high
+            tests:
+              - e2e: shell::should reach the diagram panel from the landing page
+
+      - id: SIM-1
+        name: Advance the simulation deterministically
+        entry_point: n/a (engine behavior, not navigable)
+        stories:
+          - title: Replay a fixed seed into the identical tick sequence
+            status: done
+            priority: high
+            tests:
+              - unit: test/sim/engine.test.js::same seed replays the identical tick sequence
+          - title: Watch queue depth climb when arrival rate exceeds service rate
+            status: done
+            priority: high
+            tests:
+              - unit: test/sim/webserver.test.js::queue depth climbs when arrival rate exceeds service rate
+
+      - id: PANEL-1
+        name: Watch a simulated web server under load
+        entry_point: index.html -> Diagram Panel link
+        stories:
+          - title: See N simulated users sending requests at the server
+            status: done
+            priority: high
+            tests:
+              - e2e: panel::should show queue depth climbing as simulated users increase
+          - title: Read queue depth and latency as UI state while it runs
+            status: done
+            priority: medium
+            tests:
+              - unit: test/panel/model.test.js::snapshot exposes queue depth and latency as UI state
