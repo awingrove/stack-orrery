@@ -10,6 +10,7 @@ const $ = (id) => document.getElementById(id);
 const els = {
   slider: $('users-slider'),
   start: $('start-button'),
+  step: $('step-button'),
   tick: $('tick'),
   queueDepth: $('queue-depth'),
   queueBar: $('queue-bar'),
@@ -17,6 +18,8 @@ const els = {
   served: $('served'),
   usersCount: $('users-count'),
   dots: $('user-dots'),
+  serverAddress: $('server-address'),
+  exchange: $('exchange-inspector'),
 };
 
 let engine = null;
@@ -30,6 +33,8 @@ function render(snapshot) {
   els.latency.textContent = labels.latency;
   els.served.textContent = labels.served;
   els.usersCount.textContent = labels.users;
+  els.serverAddress.textContent = labels.serverAddress;
+  els.exchange.textContent = labels.exchangeSummary;
   els.dots.replaceChildren(
     ...Array.from({ length: snapshot.users }, () => {
       const dot = document.createElement('span');
@@ -39,13 +44,17 @@ function render(snapshot) {
   );
 }
 
-function start() {
-  engine = createEngine({
+function createEngineFromControls() {
+  return createEngine({
     seed: 42,
     users: Number(els.slider.value),
     serviceRate: 4,
     arrivalProb: 0.5,
   });
+}
+
+function start() {
+  engine = createEngineFromControls();
   render(engine.snapshot());
   timer = setInterval(() => render(engine.step()), TICK_MS);
   els.start.textContent = 'Pause';
@@ -62,6 +71,15 @@ els.start.addEventListener('click', () => {
   else start();
 });
 
+// The step button advances exactly one tick — creating the engine on
+// first use — and pauses a running interval first: a manual advance
+// starts the timer.
+els.step.addEventListener('click', () => {
+  if (!engine) engine = createEngineFromControls();
+  if (timer) pause();
+  render(engine.step());
+});
+
 els.slider.addEventListener('input', () => {
   const n = Number(els.slider.value);
   if (engine) {
@@ -74,4 +92,10 @@ els.slider.addEventListener('input', () => {
 });
 
 // Initial paint: idle preview at the slider's starting value.
-render({ tick: 0, users: Number(els.slider.value), queueDepth: 0, served: 0, avgLatencyTicks: 0 });
+render({
+  tick: 0,
+  users: Number(els.slider.value),
+  queueDepth: 0,
+  served: 0,
+  avgLatencyTicks: 0,
+});

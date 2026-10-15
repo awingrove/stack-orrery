@@ -35,4 +35,36 @@ describe('describeSnapshot', () => {
     });
     expect(labels.latency).toBe('0 ms');
   });
+
+  it('formats the latest HTTP exchange across mini-IPs for the inspector', () => {
+    const labels = describeSnapshot({
+      tick: 4,
+      users: 5,
+      queueDepth: 0,
+      served: 1,
+      avgLatencyTicks: 1,
+      serverAddress: '10.1',
+      lastExchange: {
+        id: '4:1',
+        from: '10.2',
+        to: '10.1',
+        request: 'GET /about',
+        response: '200 This is the about page',
+        status: 200,
+        body: 'This is the about page',
+        latencyTicks: 1,
+      },
+    });
+    expect(labels.serverAddress).toBe('10.1');
+    expect(labels.exchangeSummary).toBe('10.2 -> 10.1 GET /about => 200 This is the about page');
+
+    const idle = describeSnapshot({
+      tick: 0,
+      users: 5,
+      queueDepth: 0,
+      served: 0,
+      avgLatencyTicks: 0,
+    });
+    expect(idle.exchangeSummary).toBe('No requests served yet');
+  });
 });

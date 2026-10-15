@@ -35,3 +35,25 @@ test('should show queue depth climbing as simulated users increase', async ({ pa
   await page.waitForTimeout(300);
   await expect(page.getByTestId('queue-depth')).toHaveText(depthAtPause);
 });
+
+// The sim runs from a fixed seed, so the first manual tick's exchange is
+// identical on every run; the inspector shows the wire record verbatim.
+test('should step a single tick and display the slim HTTP exchange over mini-IP 10.1', async ({
+  page,
+}) => {
+  await page.goto('/panel.html');
+
+  await expect(page.getByTestId('server-address')).toHaveText('10.1');
+  await expect(page.getByTestId('exchange-inspector')).toHaveText('No requests served yet');
+
+  await page.getByTestId('step-button').click();
+  await expect(page.getByTestId('tick')).toHaveText('1');
+  await expect(page.getByTestId('exchange-inspector')).toHaveText(
+    '10.6 -> 10.1 GET /about => 200 This is the about page',
+  );
+
+  // A manual step advances the clock once; it starts the interval timer.
+  await page.waitForTimeout(300);
+  await expect(page.getByTestId('tick')).toHaveText('1');
+  await expect(page.getByTestId('server-address')).toHaveText('10.1');
+});
