@@ -52,7 +52,7 @@ test('should step a single tick and display the slim HTTP exchange over mini-IP 
     '10.6 -> 10.1 GET /about => 200 This is the about page',
   );
 
-  // A manual step advances the clock once; it starts the interval timer.
+  // A manual step advances the clock once without starting the interval timer.
   await page.waitForTimeout(300);
   await expect(page.getByTestId('tick')).toHaveText('1');
   await expect(page.getByTestId('server-address')).toHaveText('10.1');

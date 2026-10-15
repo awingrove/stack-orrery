@@ -73,7 +73,7 @@ els.start.addEventListener('click', () => {
 
 // The step button advances exactly one tick — creating the engine on
 // first use — and pauses a running interval first: a manual advance
-// starts the timer.
+// does not start the timer.
 els.step.addEventListener('click', () => {
   if (!engine) engine = createEngineFromControls();
   if (timer) pause();
