@@ -124,7 +124,7 @@ Exports `createEngine({ seed = 42, users = 5, serviceRate = 4, arrivalProb = 0.5
 
 ## Steps
 
-- [ ] **Step 1: Commit this brief** at `docs/plans/2026-10-15-stage1-executable-model.md`.
-- [ ] **Step 2: Implement the executable conceptual model, panel inspector, tests, and manifest updates** across `js/sim/browser.js`, `js/sim/network.js`, `js/sim/webserver.js`, `js/sim/users.js`, `js/sim/engine.js`, `js/panel/model.js`, `js/panel/panel.js`, `panel.html`, `css/panel/panel.css`, `test/sim/network.test.js`, `test/sim/webserver.test.js`, `test/panel/model.test.js`, `e2e/panel.spec.js`, `slices.yaml`, and `storymap.yaml`.
+- [x] **Step 1: Commit this brief** at `docs/plans/2026-10-15-stage1-executable-model.md`.
+- [x] **Step 2: Implement the executable conceptual model, panel inspector, tests, and manifest updates** across `js/sim/browser.js`, `js/sim/network.js`, `js/sim/webserver.js`, `js/sim/users.js`, `js/sim/engine.js`, `js/panel/model.js`, `js/panel/panel.js`, `panel.html`, `css/panel/panel.css`, `test/sim/network.test.js`, `test/sim/webserver.test.js`, `test/panel/model.test.js`, `e2e/panel.spec.js`, `slices.yaml`, and `storymap.yaml`.
       Verify: `npm run verify` green.
-- [ ] **Step 3: Tick completed steps in `docs/plans/2026-10-15-stage1-executable-model.md`** and re-run `npm run verify`.
+- [x] **Step 3: Tick completed steps in `docs/plans/2026-10-15-stage1-executable-model.md`** and re-run `npm run verify`.
