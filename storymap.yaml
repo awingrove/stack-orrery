@@ -6,7 +6,7 @@ meta:
     A runnable orrery of a web stack: simulated components driven by a
     discrete tick queue, making scaling dynamics visible instead of
     described.
-  last_updated: 2026-10-12
+  last_updated: 2026-10-15
 
 activities:
   - name: 'Stage 1 — Single server under load'
@@ -35,6 +35,12 @@ activities:
             priority: high
             tests:
               - unit: test/sim/webserver.test.js::queue depth climbs when arrival rate exceeds service rate
+          - title: Send a browser's slim GET across the mini-IP network and read the route back
+            status: done
+            priority: high
+            tests:
+              - unit: test/sim/network.test.js::browser sends slim GET over network mini-IP and parses 200 and 404 responses
+              - unit: test/sim/webserver.test.js::handleRequest routes slim GET paths to 200 or 404 and rejects non-GET with 405
 
       - id: PANEL-1
         name: Watch a simulated web server under load
@@ -50,3 +56,9 @@ activities:
             priority: medium
             tests:
               - unit: test/panel/model.test.js::snapshot exposes queue depth and latency as UI state
+          - title: Step one tick and see the server's mini-IP with the latest exchange on the wire
+            status: done
+            priority: medium
+            tests:
+              - unit: test/panel/model.test.js::formats the latest HTTP exchange across mini-IPs for the inspector
+              - e2e: panel::should step a single tick and display the slim HTTP exchange over mini-IP 10.1

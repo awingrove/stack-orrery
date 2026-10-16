@@ -34,4 +34,37 @@ describe('createWebServer', () => {
     expect(() => createWebServer({ serviceRate: 0 })).toThrow(/serviceRate/);
     expect(() => createWebServer({ serviceRate: 2.5 })).toThrow(/serviceRate/);
   });
+
+  it('handleRequest routes slim GET paths to 200 or 404 and rejects non-GET with 405', () => {
+    const server = createWebServer({ address: '10.1' });
+    expect(server.handleRequest('GET /')).toBe('200 Welcome to the home page');
+    expect(server.handleRequest('GET /about')).toBe('200 This is the about page');
+    expect(server.handleRequest('GET /missing')).toBe('404 Page not found');
+    expect(server.handleRequest('POST /')).toBe('405 Only GET requests are supported');
+    expect(server.handleRequest('DELETE /about')).toBe('405 Only GET requests are supported');
+  });
+
+  it('serves the full wire record: the queued request comes back with its response', () => {
+    const server = createWebServer({ address: '10.1' });
+    server.enqueue({
+      id: '3:1',
+      atTick: 3,
+      from: '10.2',
+      to: '10.1',
+      request: 'GET /about',
+    });
+    const out = server.step(3);
+    expect(out).toEqual([
+      {
+        id: '3:1',
+        from: '10.2',
+        to: '10.1',
+        request: 'GET /about',
+        response: '200 This is the about page',
+        status: 200,
+        body: 'This is the about page',
+        latencyTicks: 1,
+      },
+    ]);
+  });
 });

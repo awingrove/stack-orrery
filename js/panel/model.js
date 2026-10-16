@@ -7,6 +7,7 @@ const QUEUE_BAR_SATURATION = 20; // bar reads full at 20 queued requests
 export function describeSnapshot(snapshot) {
   const latencyMs = Math.round(snapshot.avgLatencyTicks * TICK_MS);
   const queueFill = Math.min(100, Math.round((snapshot.queueDepth / QUEUE_BAR_SATURATION) * 100));
+  const last = snapshot.lastExchange ?? null;
   return {
     tick: String(snapshot.tick),
     users: String(snapshot.users),
@@ -14,5 +15,9 @@ export function describeSnapshot(snapshot) {
     served: String(snapshot.served),
     latency: `${latencyMs} ms`,
     queueFill: `${queueFill}%`,
+    serverAddress: snapshot.serverAddress ?? '10.1',
+    exchangeSummary: last
+      ? `${last.from} -> ${last.to} ${last.request} => ${last.response}`
+      : 'No requests served yet',
   };
 }

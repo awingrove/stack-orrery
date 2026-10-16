@@ -30,6 +30,28 @@ Fragments fine. Technical terms stay exact; code blocks unchanged.
   Seeded RNG only (`js/sim/rng.js`); time advances by explicit tick. This
   is what makes overload teachable and e2e assertions stable.
 
+## Modeling rules (executable conceptual model)
+
+- **Executable conceptual model, not a statistical simulator.** Each stack
+  component (`Browser`, `Network`, `WebServer`, and later `DNS`,
+  `LoadBalancer`, `Cache`, `Database`, `WorkerQueue`, `Router`/`Bridge`)
+  must be a small, directly readable JS implementation of its real
+  responsibility, exchanging recognisable messages through the tick loop.
+  Never fake a component's mechanism with probabilities (e.g. a cache hit
+  must be an actual `Map` lookup on the request path with tick-based TTL,
+  never `rng() < hitRate`).
+- **Slimmed-down protocols.** Every token on the wire must earn its
+  teaching place. HTTP requests are `"GET /path"` (no `HTTP/1.1` or `\r\n`
+  header boilerplate unless a stage specifically teaches headers);
+  responses are `"<status> <body>"` (e.g. `"200 Welcome to the home page"`,
+  `"404 Page not found"`).
+- **Two-number mini-IP addresses (`<net>.<host>`).** Network addresses use
+  two numbers — network and interface (e.g. `10.1`, `10.2`, `20.1`) —
+  instead of 4-octet dotted quads. Stage 1 starts IP-only (`Browser` sends
+  to `10.1` over `Network`); `DNS` (`example.com` → `10.x`) and cross-network
+  routing/bridges (`10.x` ↔ `20.x`) enter only in the stages where they
+  earn their teaching place.
+
 ## AI workflow directives
 
 1. **Understand context** before modifying a file: pages → `js/panel` →

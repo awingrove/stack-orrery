@@ -35,6 +35,8 @@ slices:
     tests:
       - unit: test/sim/engine.test.js::same seed replays the identical tick sequence
       - unit: test/sim/webserver.test.js::queue depth climbs when arrival rate exceeds service rate
+      - unit: test/sim/network.test.js::browser sends slim GET over network mini-IP and parses 200 and 404 responses
+      - unit: test/sim/webserver.test.js::handleRequest routes slim GET paths to 200 or 404 and rejects non-GET with 405
     entry_point: n/a (engine logic; rendered by PANEL-1)
 
   - id: PANEL
@@ -57,7 +59,9 @@ slices:
       - SIM
     tests:
       - unit: test/panel/model.test.js::snapshot exposes queue depth and latency as UI state
+      - unit: test/panel/model.test.js::formats the latest HTTP exchange across mini-IPs for the inspector
       - e2e: panel::should show queue depth climbing as simulated users increase
+      - e2e: panel::should step a single tick and display the slim HTTP exchange over mini-IP 10.1
     entry_point: index.html -> Diagram Panel link
 
 allowlist:

@@ -1,10 +1,17 @@
 # stack-orrery
 
-A runnable **orrery of a web stack** — a mechanical model you watch, not a
-diagram you read. Simulated users, a simulated web server, and (as the
-stages grow) load balancers, caches, databases, and queues, all driven by a
-deterministic discrete tick loop so that overload is _visible_: queue depth
-climbs, latency rises, and the numbers stay stable enough to assert on.
+**Application architecture you can run, inspect, and understand.**
+
+Stack Orrery is an **executable conceptual model** of an application stack —
+a mechanical model you watch and inspect, not a static diagram you read. It
+uses small, readable JavaScript components (`Browser`, `Network`,
+`WebServer`, and as the stages grow: `DNS`, `LoadBalancer`, `Cache`,
+`Database`, `WorkerQueue`, `Router`/`Bridge`) that exchange slimmed-down
+but recognisable requests, responses, and queries (`"GET /about"` →
+`"200 This is the about page"` over `<net>.<host>` mini-IPs like `10.1`).
+Driven by a deterministic discrete tick loop, you can both follow a single
+request's journey hop-by-hop and put the stack under load so that queue
+depth climbing and latency rising are _visible_ in motion.
 
 Content follows the
 [system-design-primer](https://github.com/donnemartin/system-design-primer)'s

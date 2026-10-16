@@ -28,6 +28,7 @@
           value="5"
         />
         <button id="start-button" data-testid="start-button" type="button">Start</button>
+        <button id="step-button" data-testid="step-button" type="button">Step 1 tick</button>
       </section>
 
       <section class="diagram" aria-label="Simulated stack">
@@ -38,6 +39,7 @@
         <div class="wire" aria-hidden="true"></div>
         <div class="server" aria-label="Web server">
           <span class="server-name">web server</span>
+          <span id="server-address" class="ip-badge" data-testid="server-address">10.1</span>
           <div class="queue-track" aria-hidden="true">
             <div id="queue-bar" class="queue-fill" data-testid="queue-bar"></div>
           </div>
@@ -62,6 +64,13 @@
           <dd id="served" data-testid="served">0</dd>
         </div>
       </dl>
+
+      <section class="inspector" aria-label="Live exchange inspector">
+        <h2 class="inspector-title">Latest exchange on the wire</h2>
+        <p id="exchange-inspector" class="exchange-line" data-testid="exchange-inspector">
+          No requests served yet
+        </p>
+      </section>
     </main>
     <script type="module" src="js/panel/panel.js"></script>
   </body>
