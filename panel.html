@@ -6,6 +6,8 @@
     <title>Diagram panel — stack-orrery</title>
     <link rel="stylesheet" href="css/shell/base.css" />
     <link rel="stylesheet" href="css/panel/panel.css" />
+    <link rel="stylesheet" href="css/panel/canvas.css" />
+    <link rel="stylesheet" href="css/panel/inspector.css" />
   </head>
   <body>
     <header class="site-header">
@@ -17,33 +19,163 @@
     <main class="container">
       <h1>Diagram panel — single web server</h1>
 
-      <section class="controls" aria-label="Simulation controls">
-        <label for="users-slider">Simulated users: <span id="users-count">5</span></label>
-        <input
-          id="users-slider"
-          data-testid="users-slider"
-          type="range"
-          min="1"
-          max="50"
-          value="5"
-        />
-        <button id="start-button" data-testid="start-button" type="button">Start</button>
-        <button id="step-button" data-testid="step-button" type="button">Step 1 tick</button>
+      <div class="stage-ladder" aria-label="Scaling ladder">
+        <span class="stage-pill active-stage" aria-current="true">1 · Single Server</span>
+        <span class="stage-pill">2 · LB / Dup Servers</span>
+        <span class="stage-pill">3 · Cache</span>
+        <span class="stage-pill">4 · DB + Replication</span>
+        <span class="stage-pill">5 · Worker Queue</span>
+        <span class="stage-pill">6 · Multi-Net / CDN</span>
+      </div>
+
+      <section class="control-strip" aria-label="Simulation controls">
+        <div class="control-group trace-controls" aria-label="Single request trace">
+          <button id="btn-play-request" data-testid="btn-play-request" type="button">
+            Send &amp; Watch Hops
+          </button>
+          <button id="btn-next-hop" data-testid="btn-next-hop" type="button">
+            Step 1 Hop -&gt;
+          </button>
+          <span id="hop-status" data-testid="hop-status" class="hop-status">Idle</span>
+        </div>
+        <div class="control-group crowd-controls" aria-label="Crowd load">
+          <label for="users-slider">Simulated users: <span id="users-count">5</span></label>
+          <input
+            id="users-slider"
+            data-testid="users-slider"
+            type="range"
+            min="1"
+            max="50"
+            value="5"
+          />
+          <div id="user-dots" data-testid="user-dots" aria-label="Simulated users"></div>
+          <button id="start-button" data-testid="start-button" type="button">Start</button>
+          <button id="step-button" data-testid="step-button" type="button">Step 1 tick</button>
+        </div>
       </section>
 
-      <section class="diagram" aria-label="Simulated stack">
-        <div class="users" aria-label="Simulated users">
-          <span class="users-label">users</span>
-          <div id="user-dots" data-testid="user-dots"></div>
+      <section class="orrery-canvas" aria-label="Simulated stack">
+        <article
+          class="node-card"
+          id="node-browser"
+          data-testid="node-browser"
+          data-component="browser"
+        >
+          <header class="node-head">
+            <div class="node-name">
+              <span class="role-name">Browser (You)</span>
+              <span class="node-subtitle">interactive client</span>
+            </div>
+            <span class="ip-chip">10.2</span>
+            <span class="code-chip">&lt;/&gt; Code</span>
+          </header>
+          <div class="mini-browser" aria-label="Mini browser">
+            <div class="mini-url-row">
+              <select id="req-method" data-testid="req-method" aria-label="HTTP method">
+                <option value="GET">GET</option>
+                <option value="POST">POST</option>
+              </select>
+              <input id="url-input" data-testid="url-input" value="/about" aria-label="Path" />
+              <button id="btn-url-go" data-testid="btn-url-go" type="button">Go</button>
+            </div>
+            <div class="path-chips" aria-label="Quick paths">
+              <button class="path-chip" type="button" data-method="GET" data-path="/">GET /</button>
+              <button class="path-chip" type="button" data-method="GET" data-path="/about">
+                GET /about
+              </button>
+              <button class="path-chip" type="button" data-method="GET" data-path="/missing">
+                GET /missing
+              </button>
+              <button class="path-chip" type="button" data-method="POST" data-path="/">
+                POST /
+              </button>
+            </div>
+            <div class="browser-viewport" aria-label="Rendered response">
+              <span
+                id="browser-status-badge"
+                data-testid="browser-status-badge"
+                class="status-badge"
+              >
+                No response yet
+              </span>
+              <pre id="browser-rendered-body" data-testid="browser-rendered-body">
+Send a request or step a hop to render a response.</pre>
+            </div>
+          </div>
+        </article>
+
+        <div class="wire-column" aria-hidden="true">
+          <div id="packet-req-left" class="wire-lane">request =&gt;</div>
+          <div id="packet-res-left" class="wire-lane reverse">&lt;- response</div>
         </div>
-        <div class="wire" aria-hidden="true"></div>
-        <div class="server" aria-label="Web server">
-          <span class="server-name">web server</span>
-          <span id="server-address" class="ip-badge" data-testid="server-address">10.1</span>
+
+        <article
+          class="node-card"
+          id="node-network"
+          data-testid="node-network"
+          data-component="network"
+        >
+          <header class="node-head">
+            <div class="node-name">
+              <span class="role-name">Network</span>
+              <span class="node-subtitle">routing fabric</span>
+            </div>
+            <span class="ip-chip">10.x</span>
+            <span class="code-chip">&lt;/&gt; Code</span>
+          </header>
+          <table class="mini-table" aria-label="Mini-IP interfaces">
+            <tbody>
+              <tr>
+                <td class="mono">10.1</td>
+                <td>WebServer</td>
+              </tr>
+              <tr>
+                <td class="mono">10.2</td>
+                <td>Browser (You)</td>
+              </tr>
+              <tr>
+                <td class="mono">10.3+</td>
+                <td id="network-crowd-count">crowd</td>
+              </tr>
+            </tbody>
+          </table>
+          <p id="network-last-frame" data-testid="network-last-frame" class="mono last-frame">
+            No frames routed yet
+          </p>
+        </article>
+
+        <div class="wire-column" aria-hidden="true">
+          <div id="packet-req-right" class="wire-lane">request =&gt;</div>
+          <div id="packet-res-right" class="wire-lane reverse">&lt;- response</div>
+        </div>
+
+        <article
+          class="node-card"
+          id="node-webserver"
+          data-testid="node-webserver"
+          data-component="webserver"
+        >
+          <header class="node-head">
+            <div class="node-name">
+              <span class="role-name" id="server-address" data-testid="server-address">10.1</span>
+              <span class="node-subtitle">web server</span>
+            </div>
+            <span class="ip-chip">10.1</span>
+            <span class="code-chip">&lt;/&gt; Code</span>
+          </header>
+          <div class="queue-slots" aria-label="Waiting requests">
+            <div id="server-queue-list" data-testid="server-queue-list"></div>
+          </div>
           <div class="queue-track" aria-hidden="true">
             <div id="queue-bar" class="queue-fill" data-testid="queue-bar"></div>
           </div>
-        </div>
+          <ul class="route-list" aria-label="Route table">
+            <li id="route-home" class="route-item">GET / — 200</li>
+            <li id="route-about" class="route-item">GET /about — 200</li>
+            <li id="route-404" class="route-item">other paths — 404</li>
+            <li id="route-405" class="route-item">non-GET — 405</li>
+          </ul>
+        </article>
       </section>
 
       <dl class="stats" aria-label="Live state">
@@ -65,11 +197,30 @@
         </div>
       </dl>
 
-      <section class="inspector" aria-label="Live exchange inspector">
-        <h2 class="inspector-title">Latest exchange on the wire</h2>
-        <p id="exchange-inspector" class="exchange-line" data-testid="exchange-inspector">
-          No requests served yet
-        </p>
+      <section class="bottom-panels" aria-label="Inspectors">
+        <div class="inspector-card" aria-label="Component code and state inspector">
+          <header class="inspector-head">
+            <h2 id="inspector-title" data-testid="inspector-title" class="inspector-title">
+              Browser
+            </h2>
+            <div class="comp-tabs" role="tablist" aria-label="Components">
+              <button class="comp-tab" type="button" data-select="browser">browser</button>
+              <button class="comp-tab" type="button" data-select="network">network</button>
+              <button class="comp-tab" type="button" data-select="webserver">webserver</button>
+            </div>
+          </header>
+          <div class="inspector-split">
+            <pre id="inspector-code" data-testid="inspector-code" tabindex="0"></pre>
+            <pre id="inspector-state" data-testid="inspector-state" tabindex="0"></pre>
+          </div>
+        </div>
+        <div class="log-card" aria-label="Wire journey log">
+          <h2 class="log-title">Wire journey log</h2>
+          <p id="exchange-inspector" class="exchange-line" data-testid="exchange-inspector">
+            No requests served yet
+          </p>
+          <ol id="journey-log" data-testid="journey-log" class="journey-log"></ol>
+        </div>
       </section>
     </main>
     <script type="module" src="js/panel/panel.js"></script>

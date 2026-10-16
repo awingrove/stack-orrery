@@ -71,9 +71,9 @@ Fragments fine. Technical terms stay exact; code blocks unchanged.
 6. **Manifests same-change:** `slices.yaml` + `storymap.yaml` change in the
    same commit as the feature they describe; a stale map is a defect
    (kit SLICES).
-7. **Design:** UI that introduces a new pattern raises the DESIGN.md
-   amendment question with the human (kit DESIGN pattern; no DESIGN.md yet —
-   it lands when the visual system has something to contract on).
+7. **Design:** UI that introduces or alters a visual pattern raises the
+   `DESIGN.md` amendment question with the human and updates `DESIGN.md` in
+   the same change (kit DESIGN pattern).
 
 ## Gates
 

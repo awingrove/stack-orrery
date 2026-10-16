@@ -44,6 +44,8 @@ describe('createWebServer', () => {
     expect(server.handleRequest('DELETE /about')).toBe('405 Only GET requests are supported');
   });
 
+  // The plan (Stage 1 interactive UI) extends the wire record with
+  // routeId + isYou; this pin pins the full record, not fewer fields.
   it('serves the full wire record: the queued request comes back with its response', () => {
     const server = createWebServer({ address: '10.1' });
     server.enqueue({
@@ -60,9 +62,11 @@ describe('createWebServer', () => {
         from: '10.2',
         to: '10.1',
         request: 'GET /about',
+        isYou: false,
         response: '200 This is the about page',
         status: 200,
         body: 'This is the about page',
+        routeId: 'route-about',
         latencyTicks: 1,
       },
     ]);

@@ -1,0 +1,187 @@
+/* Panel inspector styles (PANEL slice): interactive mini-browser inside the
+   browser node, plus the bottom Component Code & State inspector and the
+   wire journey log entries. All colors come from the shell tokens. */
+.mini-browser {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.mini-url-row {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.mini-url-row select,
+.mini-url-row input {
+  padding: 0.3rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 0.3rem;
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 0.78rem;
+}
+
+.mini-url-row input {
+  flex: 1;
+  min-width: 5.5rem;
+}
+
+.path-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.path-chip {
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.3rem;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 400;
+}
+
+.path-chip:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.browser-viewport {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 0.45rem;
+  background: var(--bg);
+}
+
+.status-badge {
+  align-self: flex-start;
+  padding: 0.12rem 0.5rem;
+  border-radius: 0.3rem;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+}
+
+.status-badge.status-200 {
+  background: var(--good-soft);
+  color: var(--good);
+}
+
+.status-badge.status-err {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+#browser-rendered-body {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--text);
+  white-space: pre-wrap;
+}
+
+/* Bottom Component Code & State Inspector. */
+.inspector-card {
+  padding: 0.85rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.7rem;
+}
+
+.inspector-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+}
+
+.inspector-title {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.comp-tabs {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.comp-tab {
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 0.3rem;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 400;
+}
+
+.comp-tab.active-tab {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--text);
+  font-weight: 700;
+}
+
+.inspector-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+}
+
+@media (max-width: 40rem) {
+  .inspector-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+#inspector-code,
+#inspector-state {
+  margin: 0;
+  max-height: 18rem;
+  overflow: auto;
+  padding: 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 0.45rem;
+  background: var(--bg);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  white-space: pre;
+}
+
+#inspector-code {
+  color: var(--text-muted);
+}
+
+#inspector-state {
+  color: var(--accent);
+}
+
+/* Wire Journey Log entries. */
+.journey-log {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 12rem;
+  overflow: auto;
+}
+
+.journey-entry {
+  padding: 0.25rem 0;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
