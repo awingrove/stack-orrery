@@ -192,7 +192,7 @@ and if any item in `servedBatch`has`isYou: true`, call
 
 ## Steps
 
-- [ ] **Step 1: Commit `DESIGN.md`, `FACTORY.md`, `AGENTS.md`, `slices.yaml`, and this brief** at `docs/plans/2026-10-16-stage1-interactive-orrery-ui.md`.
-- [ ] **Step 2: Implement the interactive Orrery UI, hop-by-hop trace, component code/state inspector, tests, and manifest updates** across `js/sim/browser.js`, `js/sim/webserver.js`, `js/sim/engine.js`, `js/panel/inspector-source.js`, `js/panel/model.js`, `js/panel/panel.js`, `panel.html`, `css/shell/base.css`, `css/panel/panel.css`, `css/panel/inspector.css`, `test/panel/model.test.js`, `e2e/panel.spec.js`, `slices.yaml`, and `storymap.yaml`.
+- [x] **Step 1: Commit `DESIGN.md`, `FACTORY.md`, `AGENTS.md`, `slices.yaml`, and this brief** at `docs/plans/2026-10-16-stage1-interactive-orrery-ui.md`.
+- [x] **Step 2: Implement the interactive Orrery UI, hop-by-hop trace, component code/state inspector, tests, and manifest updates** across `js/sim/browser.js`, `js/sim/webserver.js`, `js/sim/engine.js`, `js/panel/inspector-source.js`, `js/panel/model.js`, `js/panel/panel.js`, `panel.html`, `css/shell/base.css`, `css/panel/panel.css`, `css/panel/inspector.css`, `test/panel/model.test.js`, `e2e/panel.spec.js`, `slices.yaml`, and `storymap.yaml`.
       Verify: `npm run verify` green.
-- [ ] **Step 3: Tick completed steps in `docs/plans/2026-10-16-stage1-interactive-orrery-ui.md`** and re-run `npm run verify`.
+- [x] **Step 3: Tick completed steps in `docs/plans/2026-10-16-stage1-interactive-orrery-ui.md`** and re-run `npm run verify`.
