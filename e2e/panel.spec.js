@@ -57,3 +57,24 @@ test('should step a single tick and display the slim HTTP exchange over mini-IP 
   await expect(page.getByTestId('tick')).toHaveText('1');
   await expect(page.getByTestId('server-address')).toHaveText('10.1');
 });
+
+// The interactive trace runs through the same sim machinery as the crowd:
+// enter a path in the mini-browser, step the 4 hops ("emit, route, serve,
+// render"), and watch the response land in the browser viewport — then the
+// webserver's code and live internal JSON open in the bottom inspector.
+test('should trace a custom URL hop-by-hop into the browser viewport and inspect component code', async ({
+  page,
+}) => {
+  await page.goto('/panel.html');
+
+  await page.getByTestId('url-input').fill('/about');
+  for (let hop = 0; hop < 4; hop++) await page.getByTestId('btn-next-hop').click();
+
+  await expect(page.getByTestId('browser-rendered-body')).toHaveText('This is the about page');
+  await expect(page.getByTestId('browser-status-badge')).toContainText('200');
+  await expect(page.getByTestId('hop-status')).toContainText('Hop 4/4');
+
+  await page.getByTestId('node-webserver').click();
+  await expect(page.getByTestId('inspector-code')).toContainText('handleRequest');
+  await expect(page.getByTestId('inspector-state')).toContainText('"servedTotal": 1');
+});

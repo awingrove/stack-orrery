@@ -40,10 +40,12 @@ export function createNetwork() {
       return { from, to, request, response };
     },
 
-    deliverToQueue({ id, from, to, request, atTick }) {
+    // `isYou` rides through untouched: the engine marks the learner's own
+    // interactive-browser request, the server stores it on the queue row.
+    deliverToQueue({ id, from, to, request, atTick, isYou = false }) {
       validate(from);
       const server = resolve(to);
-      server.enqueue({ id, from, to, request, atTick });
+      server.enqueue({ id, from, to, request, atTick, isYou });
     },
   };
 }

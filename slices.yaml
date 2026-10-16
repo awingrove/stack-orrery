@@ -60,8 +60,11 @@ slices:
     tests:
       - unit: test/panel/model.test.js::snapshot exposes queue depth and latency as UI state
       - unit: test/panel/model.test.js::formats the latest HTTP exchange across mini-IPs for the inspector
+      - unit: test/panel/model.test.js::describes hop-by-hop trace labels and component inspector state
+      - unit: test/panel/model.test.js::maps a live snapshot to the webserver inspector state as JSON
       - e2e: panel::should show queue depth climbing as simulated users increase
       - e2e: panel::should step a single tick and display the slim HTTP exchange over mini-IP 10.1
+      - e2e: panel::should trace a custom URL hop-by-hop into the browser viewport and inspect component code
     entry_point: index.html -> Diagram Panel link
 
 allowlist:

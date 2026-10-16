@@ -1,0 +1,210 @@
+/* Orrery canvas styles (PANEL slice): clickable component nodes, wire
+   columns, the mini-IP interface table, visible queue pills, and the
+   route list. All colors come from the shell tokens. */
+.orrery-canvas {
+  display: flex;
+  align-items: stretch;
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+}
+
+.node-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.9rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.7rem;
+  cursor: pointer;
+}
+
+.node-card.selected-node {
+  border-color: var(--accent);
+}
+
+.node-card.active-hop {
+  border-color: var(--good);
+  box-shadow: 0 0 0.45rem var(--good-soft);
+}
+
+.node-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.node-name {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.role-name {
+  font-size: 0.98rem;
+  font-weight: 700;
+}
+
+.node-subtitle {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.ip-chip {
+  padding: 0.1rem 0.45rem;
+  border-radius: 0.3rem;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 0.78rem;
+}
+
+.code-chip {
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+}
+
+/* Wire columns between nodes: one outbound request lane, one return lane. */
+.wire-column {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  gap: 0.75rem;
+  align-self: stretch;
+  padding: 0.9rem 0.3rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.45rem;
+}
+
+.wire-lane {
+  min-width: 4.5rem;
+  padding: 0.25rem 0.3rem;
+  border-radius: 0.3rem;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  white-space: nowrap;
+}
+
+.wire-lane.lane-active {
+  background: var(--good-soft);
+  color: var(--good);
+  font-weight: 700;
+}
+
+/* Crowd dots. */
+.user-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+#user-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  max-width: 8rem;
+  min-height: 1rem;
+}
+
+/* Mini-IP interface table inside the network node. */
+.mini-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.mini-table td {
+  padding: 0.18rem 0.3rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.mini-table td:first-child {
+  color: var(--accent);
+}
+
+.last-frame {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* WebServer internals: visible FIFO queue pills + route table. */
+.queue-slots {
+  min-height: 3.2rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-content: flex-start;
+}
+
+.queue-pill {
+  padding: 0.12rem 0.45rem;
+  border-radius: 0.3rem;
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.queue-pill.you-pill {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.queue-empty-hint {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.queue-track {
+  height: 0.8rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.3rem;
+  overflow: hidden;
+}
+
+.queue-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--good);
+  transition: width 90ms linear;
+}
+
+.route-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--mono);
+  font-size: 0.74rem;
+}
+
+.route-item {
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.3rem;
+  color: var(--text-muted);
+}
+
+.route-item.matched-route {
+  background: var(--good-soft);
+  color: var(--text);
+}
+
+@media (max-width: 60rem) {
+  .orrery-canvas {
+    flex-wrap: wrap;
+  }
+
+  .wire-column {
+    align-self: auto;
+  }
+}
