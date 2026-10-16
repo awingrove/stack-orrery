@@ -71,6 +71,7 @@ allowlist:
   - .prettierignore
   - .prettierrc
   - AGENTS.md
+  - DESIGN.md
   - FACTORY.md
   - LICENSE
   - README.md

@@ -13,7 +13,7 @@ two disagree, the kit wins and this file is fixed in the same change.
 | Debt register shapes                | [DEBT-REGISTER.md](https://github.com/awingrove/factory-kit/blob/main/DEBT-REGISTER.md)   | `docs/factory/technical-debt.yaml`                     |
 | CHECKS / PINS / DOCUMENTS           | [CLAIM-LANGUAGE.md](https://github.com/awingrove/factory-kit/blob/main/CLAIM-LANGUAGE.md) | guarantee-comments in `js/**`, `test/**`, `e2e/**`     |
 | The testing line                    | [TEST-RULES.md](https://github.com/awingrove/factory-kit/blob/main/TEST-RULES.md)         | `e2e/**` against the real static server                |
-| Design contract format              | [DESIGN.md](https://github.com/awingrove/factory-kit/blob/main/DESIGN.md)                 | not yet — lands when the visual system stabilizes      |
+| Design contract format              | [DESIGN.md](https://github.com/awingrove/factory-kit/blob/main/DESIGN.md)                 | `DESIGN.md` (dark-canvas orrery tokens + rules)        |
 
 ## App specifics
 
