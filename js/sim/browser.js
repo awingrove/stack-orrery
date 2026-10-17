@@ -20,9 +20,10 @@ export function createBrowser({ name = 'Browser-1', address = '10.2', network = 
     },
 
     // Slimmed-down HTTP: the stack rules cut every token that does not
-    // earn a teaching place (AGENTS.md).
-    createRequest(path = '/') {
-      return `GET ${path}`;
+    // earn a teaching place (AGENTS.md). The learner picks the method in
+    // the mini-browser; GET stays the default for every crowd path.
+    createRequest(path = '/', method = 'GET') {
+      return `${method} ${path}`;
     },
 
     parseResponse(raw) {
@@ -30,13 +31,20 @@ export function createBrowser({ name = 'Browser-1', address = '10.2', network = 
       return { status: Number(statusToken), body: bodyParts.join(' ') };
     },
 
-    get(targetAddress, path = '/') {
-      if (!network) throw new Error('browser: no network attached');
-      const request = this.createRequest(path);
-      const { response } = network.send({ from: address, to: targetAddress, request });
+    // Render an exchange that arrived as a wire record (the engine's
+    // hop-by-hop trace delivers it here): parse and store as inspectable
+    // viewport state.
+    receiveResponse({ from, to, request, response }) {
       const { status, body } = this.parseResponse(response);
-      lastDisplay = { from: address, to: targetAddress, request, response, status, body };
+      lastDisplay = { from, to, request, response, status, body };
       return lastDisplay;
+    },
+
+    get(targetAddress, path = '/', method = 'GET') {
+      if (!network) throw new Error('browser: no network attached');
+      const request = this.createRequest(path, method);
+      const { response } = network.send({ from: address, to: targetAddress, request });
+      return this.receiveResponse({ from: address, to: targetAddress, request, response });
     },
 
     last() {

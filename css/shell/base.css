@@ -1,12 +1,21 @@
-/* Shell styles (SHELL slice). Tokens live here until DESIGN.md contracts on them. */
+/* Shell styles (SHELL slice). Custom properties mirror DESIGN.md's front-matter
+   tokens — adding a color outside these means amending DESIGN.md first. */
 :root {
-  --bg: #0f1420;
-  --surface: #1a2233;
-  --text: #e8ecf4;
-  --text-muted: #9aa7bd;
+  --bg: #0b101b;
+  --surface: #131b2e;
+  --surface-2: #19233c;
+  --border: #273556;
+  --text: #e8eef9;
+  --text-muted: #8fa0bf;
   --accent: #4da3ff;
+  --accent-soft: #1a365d;
+  --good: #3ddc84;
+  --good-soft: #13392a;
+  --warn: #f6b93b;
+  --warn-soft: #3d2f14;
   --danger: #ff6b6b;
-  --good: #4fd58a;
+  --danger-soft: #3f1d24;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 * {
@@ -18,19 +27,19 @@ body {
   font-family: system-ui, sans-serif;
   background: var(--bg);
   color: var(--text);
-  line-height: 1.5;
+  line-height: 1.45;
 }
 
 .site-header {
   background: var(--surface);
-  border-bottom: 1px solid #2a3550;
+  border-bottom: 1px solid var(--border);
 }
 
 .site-nav {
   display: flex;
   gap: 1.5rem;
   align-items: center;
-  max-width: 60rem;
+  max-width: 76rem;
   margin: 0 auto;
   padding: 0.75rem 1rem;
 }
@@ -51,7 +60,7 @@ body {
 }
 
 .container {
-  max-width: 60rem;
+  max-width: 76rem;
   margin: 0 auto;
   padding: 1.5rem 1rem 3rem;
 }
@@ -59,6 +68,11 @@ body {
 .lede {
   color: var(--text-muted);
   font-size: 1.05rem;
+}
+
+.mono {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
 }
 
 a {
