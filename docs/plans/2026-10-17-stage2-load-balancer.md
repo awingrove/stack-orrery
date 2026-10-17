@@ -115,6 +115,6 @@ Extend `createEngine({ seed = 42, users = 5, serviceRate = 4, arrivalProb = 0.5,
 ## Steps
 
 - [x] **Step 1: Commit `DESIGN.md` amendment and this brief** at `docs/plans/2026-10-17-stage2-load-balancer.md`.
-- [ ] **Step 2: Implement `js/sim/loadbalancer.js`, Stage 2 support in `js/sim/engine.js`, Stage 2 UI/inspector in `js/panel/model.js`, `js/panel/inspector-source.js`, `js/panel/render.js`, `js/panel/panel.js`, `panel.html`, `css/panel/panel.css`, `css/panel/canvas.css`, tests in `test/sim/loadbalancer.test.js`, `test/panel/model.test.js`, `e2e/panel.spec.js`, and manifest updates in `slices.yaml` and `storymap.yaml`.**
+- [x] **Step 2: Implement `js/sim/loadbalancer.js`, Stage 2 support in `js/sim/engine.js`, Stage 2 UI/inspector in `js/panel/model.js`, `js/panel/inspector-source.js`, `js/panel/render.js`, `js/panel/panel.js`, `panel.html`, `css/panel/panel.css`, `css/panel/canvas.css`, tests in `test/sim/loadbalancer.test.js`, `test/panel/model.test.js`, `e2e/panel.spec.js`, and manifest updates in `slices.yaml` and `storymap.yaml`.**
       Verify: `npm run verify` green.
-- [ ] **Step 3: Tick completed steps in `docs/plans/2026-10-17-stage2-load-balancer.md`** and re-run `npm run verify`.
+- [x] **Step 3: Tick completed steps in `docs/plans/2026-10-17-stage2-load-balancer.md`** and re-run `npm run verify`.
