@@ -6,7 +6,7 @@ meta:
     A runnable orrery of a web stack: simulated components driven by a
     discrete tick queue, making scaling dynamics visible instead of
     described.
-  last_updated: 2026-10-15
+  last_updated: 2026-10-17
 
 activities:
   - name: 'Stage 1 — Single server under load'
@@ -74,3 +74,27 @@ activities:
             priority: medium
             tests:
               - e2e: panel::should trace a custom URL hop-by-hop into the browser viewport and inspect component code
+
+  - name: 'Stage 2 — Load balancer and duplicated servers'
+    tasks:
+      - id: SIM-2
+        name: Balance traffic round-robin across duplicated servers
+        entry_point: n/a (engine behavior, not navigable)
+        stories:
+          - title: Distribute requests round-robin across backend mini-IPs 10.11 and 10.12
+            status: done
+            priority: high
+            tests:
+              - unit: test/sim/loadbalancer.test.js::distributes requests strictly round-robin across backend mini-IPs
+              - unit: test/sim/loadbalancer.test.js::stage 2 engine splits load across 10.11 and 10.12 and doubles service capacity
+
+      - id: PANEL-2
+        name: Switch to Stage 2 and trace through the load balancer
+        entry_point: index.html -> Diagram Panel link -> 2 · LB / Dup Servers pill
+        stories:
+          - title: Switch to Stage 2, trace requests across 10.11 and 10.12, and inspect LoadBalancer code and state
+            status: done
+            priority: high
+            tests:
+              - unit: test/panel/model.test.js::describes Stage 2 5-hop load-balancer trace labels and loadbalancer inspector state
+              - e2e: panel::should switch to Stage 2, alternate requests across 10.11 and 10.12 via the load balancer, and inspect its code
