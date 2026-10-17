@@ -121,14 +121,20 @@ Every stage diagram panel (`panel.html`) is organized into four vertical zones:
 
 1. **Topbar & Stage Ladder (`.topbar` / `.stage-ladder`):** Shows the app brand
    and the scaling-ladder stage pills (`1 · Single Server` through `6 · Multi-Net / CDN`).
+   Unlocked stages (`1 · Single Server`, `2 · LB / Dup Servers`) are clickable
+   `<button class="stage-pill">` elements that toggle the active stage topology on
+   the canvas (`aria-current="true"` and `.active-stage` on the selected stage).
 2. **Control Strip (`.control-strip`):** Split into two groups:
    - **Single Request Trace:** `Send & Watch Hops`, `Step 1 Hop ->`, and the
-     monospace `#hop-status` pill showing the current hop (`Hop 1/4` .. `Hop 4/4`).
+     monospace `#hop-status` pill showing the current hop (`Hop 1/4` .. `Hop 4/4`
+     in Stage 1; `Hop 1/5` .. `Hop 5/5` in Stage 2).
    - **Crowd Load:** Slider (`#users-slider`) for simulated browsers, `Start` /
      `Pause` (`#start-button`), and `Step 1 tick` (`#step-button`).
 3. **Orrery Canvas (`.orrery-canvas`):** Left-to-right flow of clickable
    **Component Nodes** (`.node-card`) separated by **Wire Columns** (`.wire-column`)
-   with outbound (`request ->`) and return (`<- response`) wire lanes.
+   with outbound (`request ->`) and return (`<- response`) wire lanes. In Stage 2,
+   duplicated backend servers (`10.11`, `10.12`) stack vertically inside a
+   `.backend-stack` column to the right of the `LoadBalancer` (`10.1`).
 4. **Bottom Split (`.bottom-panels`):**
    - **Component Code & State Inspector (`.inspector-card`):** Side-by-side view
      of the selected component's executable JS source code (`#inspector-code`)
