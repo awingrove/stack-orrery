@@ -144,6 +144,8 @@ Exports `initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers })`:
 ## Steps
 
 - [x] **Step 1: Update `scripts/guard-file-size.mjs`, `AGENTS.md`, `DESIGN.md`, and commit this brief** at `docs/plans/2026-10-18-orrery-plane-camera.md`.
-- [ ] **Step 2: Implement `js/panel/camera.js`, `js/panel/layout.js`, `js/panel/viewport.js`, update `panel.html`, `css/panel/canvas.css`, `js/panel/render.js`, `js/panel/panel.js`, add unit tests in `test/panel/camera.test.js`, e2e test in `e2e/panel.spec.js`, and update `slices.yaml` and `storymap.yaml`.**
-      Verify: `npm run verify` green.
-- [ ] **Step 3: Tick completed steps in `docs/plans/2026-10-18-orrery-plane-camera.md`** and re-run `npm run verify`.
+- [x] **Step 2: Implement `js/panel/camera.js`, `js/panel/layout.js`, `js/panel/viewport.js`, update `panel.html`, `css/panel/canvas.css`, `js/panel/render.js`, `js/panel/panel.js`, add unit tests in `test/panel/camera.test.js`, e2e test in `e2e/panel.spec.js`, and update `slices.yaml` and `storymap.yaml`.**
+      Verify: `npm run verify` green. (Done in commit d86e53c; note: the plan's
+      polar formula gives x=141 at -48° but the node table pins x=140 — the
+      pinned card coordinates are honored and documented in layout.js.)
+- [x] **Step 3: Tick completed steps in `docs/plans/2026-10-18-orrery-plane-camera.md`** and re-run `npm run verify`.
