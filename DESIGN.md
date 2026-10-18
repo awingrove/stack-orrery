@@ -130,11 +130,20 @@ Every stage diagram panel (`panel.html`) is organized into four vertical zones:
      in Stage 1; `Hop 1/5` .. `Hop 5/5` in Stage 2).
    - **Crowd Load:** Slider (`#users-slider`) for simulated browsers, `Start` /
      `Pause` (`#start-button`), and `Step 1 tick` (`#step-button`).
-3. **Orrery Canvas (`.orrery-canvas`):** Left-to-right flow of clickable
-   **Component Nodes** (`.node-card`) separated by **Wire Columns** (`.wire-column`)
-   with outbound (`request ->`) and return (`<- response`) wire lanes. In Stage 2,
-   duplicated backend servers (`10.11`, `10.12`) stack vertically inside a
-   `.backend-stack` column to the right of the `LoadBalancer` (`10.1`).
+3. **Orrery Plane & Camera Viewport (`.orrery-viewport` / `.orrery-canvas`):**
+   A pannable and zoomable 2D world plane (`.orrery-world`) inside a clipped
+   viewport (`.orrery-viewport`) with concentric orbital rings etched in SVG
+   (`#orrery-svg`, `r₀ = 0` Core, `r₁ = 210` Compute & Ingress ring, `r₂ = 520`
+   Network ring, `r₃ = 840` Client orbit). Many client browsers orbit the outer
+   perimeter (`Browser 10.2` + `10.3+` crowd satellites on `r₃`) sending traffic
+   inward through `Network (10.x)` (`r₂`) toward the core server resources
+   (`WebServer 10.1` at the `r₀` Core in Stage 1; `LoadBalancer 10.1` and
+   duplicated `WebServer` nodes `10.11`, `10.12` on `r₁` in Stage 2).
+   - **Camera HUD (`.camera-hud`):** Fixed screen-space overlay in the top-right
+     of `.orrery-viewport` with `#btn-zoom-in` (`+`), `#btn-zoom-out` (`-`),
+     `#btn-zoom-fit` (`Fit`), and `#zoom-status` percentage badge. Supports
+     pointer drag to pan, wheel/pinch zoom toward the cursor, and keyboard
+     shortcuts (`Arrow` keys to pan, `+`/`-` to zoom, `0` to fit).
 4. **Bottom Split (`.bottom-panels`):**
    - **Component Code & State Inspector (`.inspector-card`):** Side-by-side view
      of the selected component's executable JS source code (`#inspector-code`)
@@ -185,7 +194,8 @@ Every stage diagram panel (`panel.html`) is organized into four vertical zones:
   with `tabular-nums` on counters so live updates do not jitter.
 - Make every new stack component introduced in Stages 2–6 a clickable
   `.node-card` registered in the Component Code & State Inspector.
-- Keep each CSS and JS file ≤ 300 lines (`guard-file-size.mjs`).
+- Keep production `js/**` and `css/**` files ≤ 300 lines, `test/**` and `e2e/**`
+  ≤ 450 lines, and static `*.html` ≤ 550 lines (`guard-file-size.mjs`).
 
 **Don't**
 
