@@ -198,6 +198,7 @@ export function createEngine({
         address: s.address,
         ...s.metrics(),
         queue: s.queueSnapshot(),
+        files: s.filesSnapshot(),
       }));
       const queueDepth = serverSnapshots.reduce((sum, s) => sum + s.queueDepth, 0);
       const served = serverSnapshots.reduce((sum, s) => sum + s.served, 0);
@@ -216,6 +217,7 @@ export function createEngine({
         avgLatencyTicks,
         lastExchange,
         queue: serverSnapshots[0].queue,
+        files: serverSnapshots[0].files,
         servers: serverSnapshots,
         loadBalancer: lb ? lb.snapshot() : null,
         lastMatchedRoute,

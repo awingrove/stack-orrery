@@ -71,4 +71,20 @@ describe('createWebServer', () => {
       },
     ]);
   });
+
+  it('serves files from its local filesystem Map and leaves 404/405 routeId null', () => {
+    const server = createWebServer({
+      address: '10.1',
+      files: { '/': 'Custom root', '/status': 'All green' },
+    });
+    expect(server.filesSnapshot()).toEqual({ '/': 'Custom root', '/status': 'All green' });
+    expect(server.matchRoute('GET /status')).toEqual({
+      response: '200 All green',
+      status: 200,
+      body: 'All green',
+      routeId: 'route-status',
+    });
+    expect(server.matchRoute('GET /missing').routeId).toBe(null);
+    expect(server.matchRoute('POST /status').routeId).toBe(null);
+  });
 });

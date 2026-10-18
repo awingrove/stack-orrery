@@ -208,11 +208,13 @@ Send a request or step a hop to render a response.</pre>
             <div class="queue-track" aria-hidden="true">
               <div id="queue-bar" class="queue-fill" data-testid="queue-bar"></div>
             </div>
-            <ul class="route-list" aria-label="Route table">
-              <li id="route-home" class="route-item">GET / — 200</li>
-              <li id="route-about" class="route-item">GET /about — 200</li>
-              <li id="route-404" class="route-item">other paths — 404</li>
-              <li id="route-405" class="route-item">non-GET — 405</li>
+            <ul class="route-list" aria-label="Filesystem">
+              <li id="route-home" data-file="route-home" class="route-item">
+                / — "Welcome to the home page"
+              </li>
+              <li id="route-about" data-file="route-about" class="route-item">
+                /about — "This is the about page"
+              </li>
             </ul>
           </article>
           <article
@@ -236,6 +238,12 @@ Send a request or step a hop to render a response.</pre>
             <div class="queue-track" aria-hidden="true">
               <div id="queue-bar-2" class="queue-fill" data-testid="queue-bar-2"></div>
             </div>
+            <ul class="route-list" aria-label="Filesystem">
+              <li data-file-2="route-home" class="route-item">/ — "Welcome to the home page"</li>
+              <li data-file-2="route-about" class="route-item">
+                /about — "This is the about page"
+              </li>
+            </ul>
           </article>
         </div>
       </section>

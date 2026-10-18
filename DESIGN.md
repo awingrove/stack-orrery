@@ -171,8 +171,11 @@ Every stage diagram panel (`panel.html`) is organized into four vertical zones:
   worker queue render as individual `.queue-pill` tokens (`10.4: GET /about`),
   never only an opaque progress bar. Requests originated by the learner's own
   interactive browser (`10.2`) carry `.you-pill` (`var(--warn)` amber highlight).
-- **Route / Interface Tables (`.route-list`, `.mini-table`):** The route
-  matched by the most recent request carries `.matched-route` (`var(--good-soft)`).
+- **Filesystem & Interface Tables (`.route-list`, `.mini-table`):** Each
+  `WebServer` displays the files on its local filesystem (`/` and `/about`),
+  and the file served by the most recent `200` response carries
+  `.matched-route` (`var(--good-soft)`). Intrinsic HTTP responses (`404`, `405`)
+  live in the server's executable code rather than as configured rows.
 
 ## Do's and Don'ts
 

@@ -85,19 +85,20 @@ export const COMPONENT_SOURCE = {
   webserver: {
     file: 'js/sim/webserver.js',
     title: 'WebServer — mini-IP 10.1',
-    code: `createWebServer({ address = '10.1', serviceRate = 4 }) {
+    code: `createWebServer({ address = '10.1', serviceRate = 4, files = DEFAULT_FILES }) {
+  const fs = new Map(Object.entries(files)); // '/' and '/about' on disk
   let queue = [];      // FIFO; served up to serviceRate per step()
   let served = 0;
-  // the whole HTTP contract at this stage: method gate, then paths
   function matchRoute(request = 'GET /') {
     const [method, ...rest] = String(request).trim().split(' ');
     const path = rest[0] ?? '';
     let response;
-    let routeId;
-    if (method !== 'GET') { response = '405 Only GET requests are supported'; routeId = 'route-405'; }
-    else if (path === '/') { response = '200 Welcome to the home page'; routeId = 'route-home'; }
-    else if (path === '/about') { response = '200 This is the about page'; routeId = 'route-about'; }
-    else { response = '404 Page not found'; routeId = 'route-404'; }
+    let routeId = null;
+    if (method !== 'GET') response = '405 Only GET requests are supported';
+    else if (fs.has(path)) {
+      response = \`200 \${fs.get(path)}\`;
+      routeId = path === '/' ? 'route-home' : \`route-\${path.slice(1)}\`;
+    } else response = '404 Page not found';
     const [statusToken, ...body] = response.split(' ');
     return { response, status: Number(statusToken), body: body.join(' '), routeId };
   }
@@ -158,11 +159,13 @@ const STATE_BUILDERS = {
       servedTotal: snapshot.served,
       lastMatchedRoute: snapshot.lastMatchedRoute ?? null,
     };
+    if (snapshot.files) base.files = snapshot.files;
     if (snapshot.stage === 2 && Array.isArray(snapshot.servers)) {
       base.instances = snapshot.servers.map((s) => ({
         address: s.address,
         queueDepth: s.queueDepth,
         served: s.served,
+        files: s.files,
       }));
     }
     return base;

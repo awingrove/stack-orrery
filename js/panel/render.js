@@ -38,13 +38,6 @@ export const els = {
   exchange: $('exchange-inspector'),
 };
 
-const ROUTES = {
-  'route-home': $('route-home'),
-  'route-about': $('route-about'),
-  'route-404': $('route-404'),
-  'route-405': $('route-405'),
-};
-
 const LANES = {
   'packet-req-left': $('packet-req-left'),
   'packet-res-left': $('packet-res-left'),
@@ -103,9 +96,13 @@ function renderQueueInto(container, queue) {
   );
 }
 
-function renderRoutes(matchedRouteId) {
-  for (const [routeId, node] of Object.entries(ROUTES)) {
-    node.classList.toggle('matched-route', routeId === matchedRouteId);
+function renderRoutes(matchedRouteId, snapshot) {
+  const servedBy2 = snapshot.stage === 2 && snapshot.lastExchange?.to === '10.12';
+  for (const node of document.querySelectorAll('[data-file]')) {
+    node.classList.toggle('matched-route', !servedBy2 && node.dataset.file === matchedRouteId);
+  }
+  for (const node of document.querySelectorAll('[data-file-2]')) {
+    node.classList.toggle('matched-route', servedBy2 && node.dataset.file2 === matchedRouteId);
   }
 }
 
@@ -199,7 +196,7 @@ export function render(snapshot, selectedComponent) {
     els.lbBackend1.classList.toggle('matched-route', lastTarget === '10.11');
     els.lbBackend2.classList.toggle('matched-route', lastTarget === '10.12');
   }
-  renderRoutes(labels.matchedRouteId);
+  renderRoutes(labels.matchedRouteId, snapshot);
   renderHopsForTrace(snapshot, selectedComponent);
   renderDots(snapshot.users);
   els.inspectorState.textContent = formatComponentState(snapshot, selectedComponent);
