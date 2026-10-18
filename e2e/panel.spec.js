@@ -109,3 +109,44 @@ test('should switch to Stage 2, alternate requests across 10.11 and 10.12 via th
   await expect(page.getByTestId('inspector-code')).toContainText('selectBackend');
   await expect(page.getByTestId('inspector-state')).toContainText('"forwardedTotal": 2');
 });
+
+// The orrery plane is camera-driven: three concentric SVG rings, zoom via HUD
+// buttons and wheel (toward the cursor), pan via pointer drag, and a Fit-to-view
+// reset that restores the initial framing computed from the stage bounds.
+test('should pan and zoom the concentric orrery plane and reset with Fit to view', async ({
+  page,
+}) => {
+  await page.goto('/panel.html');
+
+  const viewport = page.getByTestId('orrery-viewport');
+  await expect(page.locator('.orrery-ring')).toHaveCount(3); // compute, network, clients
+  await expect(page.locator('.orrery-satellite').first()).toBeVisible();
+
+  const zoomStatus = page.getByTestId('zoom-status');
+  const initialZoom = await zoomStatus.textContent();
+  const world = page.getByTestId('orrery-world');
+  const transformBefore = await world.evaluate((el) => el.style.transform);
+
+  // HUD zoom-in changes the zoom% badge...
+  await page.getByTestId('btn-zoom-in').click();
+  await expect(zoomStatus).not.toHaveText(initialZoom);
+
+  // ...and the wheel zooms toward the cursor (crowd satellite dots stay).
+  await page.mouse.move(80, 600);
+  await page.mouse.wheel(0, -120);
+  await expect(page.locator('.orrery-satellite')).toHaveCount(5);
+
+  // Pointer drag pans the plane: the world transform changes, and the
+  // transient .is-panning class is gone once the drag ends.
+  await page.mouse.move(100, 600);
+  await page.mouse.down();
+  await page.mouse.move(350, 580, { steps: 6 });
+  await page.mouse.up();
+  const transformAfterPan = await world.evaluate((el) => el.style.transform);
+  expect(transformAfterPan).not.toBe(transformBefore);
+  await expect(viewport).not.toHaveClass(/is-panning/);
+
+  // Fit to view restores the initial framing exactly.
+  await page.getByTestId('btn-zoom-fit').click();
+  await expect(zoomStatus).toHaveText(initialZoom);
+});

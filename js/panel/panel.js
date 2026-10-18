@@ -6,7 +6,16 @@
 import { createEngine } from '../sim/engine.js';
 import { TICK_MS } from './model.js';
 import { COMPONENT_SOURCE } from './inspector-source.js';
-import { $, els, addToJourney, render, renderInspector, renderStageTopology } from './render.js';
+import {
+  $,
+  els,
+  addToJourney,
+  render,
+  renderInspector,
+  renderStageTopology,
+  onStageRendered,
+} from './render.js';
+import { initViewport } from './viewport.js';
 
 let currentStage = 1;
 let engine = null;
@@ -81,6 +90,7 @@ $('step-button').addEventListener('click', () => {
 $('users-slider').addEventListener('input', () => {
   engine.setUsers(Number($('users-slider').value));
   updateView(engine.snapshot());
+  viewport.syncLayout(); // crowd satellites re-space on the client ring
 });
 
 // Single hop of the trace; the engine moves the request one stage per call.
@@ -138,7 +148,17 @@ document.querySelectorAll('.comp-tab').forEach((tab) => {
 });
 
 // Boot: Stage 1 is active by default so existing Stage 1 tests run unchanged.
+// The viewport fits the active stage bounds at init and on every stage switch
+// (via the onStageRendered hook), so every node card is on-screen from load.
 engine = createEngineFromControls();
 renderStageTopology(currentStage);
+const viewport = initViewport({
+  viewportEl: $('orrery-viewport'),
+  worldEl: $('orrery-world'),
+  svgEl: $('orrery-svg'),
+  getStage: () => currentStage,
+  getUsers: () => Number($('users-slider').value),
+});
+onStageRendered(() => viewport.syncLayout());
 selectComponent('browser');
 updateView(engine.snapshot());

@@ -65,10 +65,14 @@ slices:
       - unit: test/panel/model.test.js::describes hop-by-hop trace labels and component inspector state
       - unit: test/panel/model.test.js::maps a live snapshot to the webserver inspector state as JSON
       - unit: test/panel/model.test.js::describes Stage 2 5-hop load-balancer trace labels and loadbalancer inspector state
+      - unit: test/panel/camera.test.js::pans world coordinates inversely to zoom and clamps to world bounds
+      - unit: test/panel/camera.test.js::zooms toward the cursor while keeping the cursor world point fixed
+      - unit: test/panel/camera.test.js::computes concentric ring coordinates and stage bounding boxes for the orrery
       - e2e: panel::should show queue depth climbing as simulated users increase
       - e2e: panel::should step a single tick and display the slim HTTP exchange over mini-IP 10.1
       - e2e: panel::should trace a custom URL hop-by-hop into the browser viewport and inspect component code
       - e2e: panel::should switch to Stage 2, alternate requests across 10.11 and 10.12 via the load balancer, and inspect its code
+      - e2e: panel::should pan and zoom the concentric orrery plane and reset with Fit to view
     entry_point: index.html -> Diagram Panel link
 
 allowlist:

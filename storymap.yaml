@@ -74,6 +74,14 @@ activities:
             priority: medium
             tests:
               - e2e: panel::should trace a custom URL hop-by-hop into the browser viewport and inspect component code
+          - title: Pan and zoom the concentric orrery plane and reset the camera with Fit to view
+            status: done
+            priority: high
+            tests:
+              - unit: test/panel/camera.test.js::pans world coordinates inversely to zoom and clamps to world bounds
+              - unit: test/panel/camera.test.js::zooms toward the cursor while keeping the cursor world point fixed
+              - unit: test/panel/camera.test.js::computes concentric ring coordinates and stage bounding boxes for the orrery
+              - e2e: panel::should pan and zoom the concentric orrery plane and reset with Fit to view
 
   - name: 'Stage 2 — Load balancer and duplicated servers'
     tasks:

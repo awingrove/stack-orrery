@@ -59,6 +59,14 @@ export function addToJourney(label, text) {
   while (els.journeyLog.children.length > 20) els.journeyLog.lastElementChild.remove();
 }
 
+// Stage-switch hook: viewport.js registers a callback so camera + world layout
+// resync the moment the topology toggles (keeps render.js DOM-only).
+let stageRenderedHook = null;
+
+export function onStageRendered(fn) {
+  stageRenderedHook = fn;
+}
+
 export function renderStageTopology(stage) {
   const isStage2 = stage === 2;
   els.nodeLb.hidden = !isStage2;
@@ -71,6 +79,7 @@ export function renderStageTopology(stage) {
     if (active) pill.setAttribute('aria-current', 'true');
     else pill.removeAttribute('aria-current');
   }
+  if (stageRenderedHook) stageRenderedHook(stage);
 }
 
 function badgeClass(display) {

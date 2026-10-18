@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="css/shell/base.css" />
     <link rel="stylesheet" href="css/panel/panel.css" />
     <link rel="stylesheet" href="css/panel/canvas.css" />
+    <link rel="stylesheet" href="css/panel/nodes.css" />
     <link rel="stylesheet" href="css/panel/inspector.css" />
   </head>
   <body>
@@ -61,192 +62,223 @@
           <button id="step-button" data-testid="step-button" type="button">Step 1 tick</button>
         </div>
       </section>
-      <section class="orrery-canvas" aria-label="Simulated stack">
-        <article
-          class="node-card"
-          id="node-browser"
-          data-testid="node-browser"
-          data-component="browser"
-        >
-          <header class="node-head">
-            <div class="node-name">
-              <span class="role-name">Browser (You)</span>
-              <span class="node-subtitle">interactive client</span>
-            </div>
-            <span class="ip-chip">10.2</span>
-            <span class="code-chip">&lt;/&gt; Code</span>
-          </header>
-          <div class="mini-browser" aria-label="Mini browser">
-            <div class="mini-url-row">
-              <select id="req-method" data-testid="req-method" aria-label="HTTP method">
-                <option value="GET">GET</option>
-                <option value="POST">POST</option>
-              </select>
-              <input id="url-input" data-testid="url-input" value="/about" aria-label="Path" />
-              <button id="btn-url-go" data-testid="btn-url-go" type="button">Go</button>
-            </div>
-            <div class="path-chips" aria-label="Quick paths">
-              <button class="path-chip" type="button" data-method="GET" data-path="/">GET /</button>
-              <button class="path-chip" type="button" data-method="GET" data-path="/about">
-                GET /about
-              </button>
-              <button class="path-chip" type="button" data-method="GET" data-path="/missing">
-                GET /missing
-              </button>
-              <button class="path-chip" type="button" data-method="POST" data-path="/">
-                POST /
-              </button>
-            </div>
-            <div class="browser-viewport" aria-label="Rendered response">
-              <span
-                id="browser-status-badge"
-                data-testid="browser-status-badge"
-                class="status-badge"
-              >
-                No response yet
-              </span>
-              <pre id="browser-rendered-body" data-testid="browser-rendered-body">
-Send a request or step a hop to render a response.</pre>
-            </div>
-          </div>
-        </article>
-
-        <div class="wire-column" aria-hidden="true">
-          <div id="packet-req-left" class="wire-lane">request =&gt;</div>
-          <div id="packet-res-left" class="wire-lane reverse">&lt;- response</div>
+      <div
+        id="orrery-viewport"
+        data-testid="orrery-viewport"
+        class="orrery-viewport"
+        tabindex="0"
+        aria-label="Orrery plane viewport"
+      >
+        <div class="camera-hud" aria-label="Camera controls">
+          <button id="btn-zoom-in" data-testid="btn-zoom-in" type="button">+</button>
+          <button id="btn-zoom-out" data-testid="btn-zoom-out" type="button">&minus;</button>
+          <button id="btn-zoom-fit" data-testid="btn-zoom-fit" type="button">Fit</button>
+          <span id="zoom-status" data-testid="zoom-status" class="zoom-status">78%</span>
         </div>
-
-        <article
-          class="node-card"
-          id="node-network"
-          data-testid="node-network"
-          data-component="network"
+        <section
+          id="orrery-world"
+          data-testid="orrery-world"
+          class="orrery-canvas orrery-world"
+          aria-label="Simulated stack"
         >
-          <header class="node-head">
-            <div class="node-name">
-              <span class="role-name">Network</span>
-              <span class="node-subtitle">routing fabric</span>
-            </div>
-            <span class="ip-chip">10.x</span>
-            <span class="code-chip">&lt;/&gt; Code</span>
-          </header>
-          <table class="mini-table" aria-label="Mini-IP interfaces">
-            <tbody>
-              <tr>
-                <td class="mono">10.1</td>
-                <td id="network-role-10-1">WebServer</td>
-              </tr>
-              <tr>
-                <td class="mono">10.2</td>
-                <td>Browser (You)</td>
-              </tr>
-              <tr>
-                <td class="mono">10.3+</td>
-                <td id="network-crowd-count">crowd</td>
-              </tr>
-            </tbody>
-          </table>
-          <p id="network-last-frame" data-testid="network-last-frame" class="mono last-frame">
-            No frames routed yet
-          </p>
-        </article>
+          <svg
+            id="orrery-svg"
+            data-testid="orrery-svg"
+            class="orrery-svg"
+            viewBox="-1100 -550 1600 1100"
+            aria-hidden="true"
+          ></svg>
 
-        <div class="wire-column" aria-hidden="true">
-          <div id="packet-req-right" class="wire-lane">request =&gt;</div>
-          <div id="packet-res-right" class="wire-lane reverse">&lt;- response</div>
-        </div>
-
-        <article
-          class="node-card"
-          id="node-lb"
-          data-testid="node-lb"
-          data-component="loadbalancer"
-          hidden
-        >
-          <header class="node-head">
-            <div class="node-name">
-              <span class="role-name">LoadBalancer</span>
-              <span class="node-subtitle">round-robin VIP</span>
-            </div>
-            <span class="ip-chip">10.1</span>
-            <span class="code-chip">&lt;/&gt; Code</span>
-          </header>
-          <p id="lb-next-backend" data-testid="lb-next-backend" class="mono last-frame">
-            Next -&gt; 10.11
-          </p>
-          <ul class="route-list" aria-label="Backend pool">
-            <li id="lb-backend-1" data-testid="lb-backend-1" class="route-item">
-              10.11 WebServer-1 (0)
-            </li>
-            <li id="lb-backend-2" data-testid="lb-backend-2" class="route-item">
-              10.12 WebServer-2 (0)
-            </li>
-          </ul>
-        </article>
-
-        <div id="wire-lb-backends" class="wire-column" aria-hidden="true" hidden>
-          <div id="packet-req-lb" class="wire-lane">forward =&gt;</div>
-          <div id="packet-res-lb" class="wire-lane reverse">&lt;- response</div>
-        </div>
-
-        <div class="backend-stack">
           <article
             class="node-card"
-            id="node-webserver"
-            data-testid="node-webserver"
-            data-component="webserver"
+            id="node-browser"
+            data-testid="node-browser"
+            data-component="browser"
           >
             <header class="node-head">
               <div class="node-name">
-                <span class="role-name" id="server-address" data-testid="server-address">10.1</span>
-                <span class="node-subtitle">web server</span>
+                <span class="role-name">Browser (You)</span>
+                <span class="node-subtitle">interactive client</span>
               </div>
-              <span id="server-ip-chip" class="ip-chip">10.1</span>
+              <span class="ip-chip">10.2</span>
               <span class="code-chip">&lt;/&gt; Code</span>
             </header>
-            <div id="server-queue-list" class="queue-slots" data-testid="server-queue-list"></div>
-            <div class="queue-track" aria-hidden="true">
-              <div id="queue-bar" class="queue-fill" data-testid="queue-bar"></div>
+            <div class="mini-browser" aria-label="Mini browser">
+              <div class="mini-url-row">
+                <select id="req-method" data-testid="req-method" aria-label="HTTP method">
+                  <option value="GET">GET</option>
+                  <option value="POST">POST</option>
+                </select>
+                <input id="url-input" data-testid="url-input" value="/about" aria-label="Path" />
+                <button id="btn-url-go" data-testid="btn-url-go" type="button">Go</button>
+              </div>
+              <div class="path-chips" aria-label="Quick paths">
+                <button class="path-chip" type="button" data-method="GET" data-path="/">
+                  GET /
+                </button>
+                <button class="path-chip" type="button" data-method="GET" data-path="/about">
+                  GET /about
+                </button>
+                <button class="path-chip" type="button" data-method="GET" data-path="/missing">
+                  GET /missing
+                </button>
+                <button class="path-chip" type="button" data-method="POST" data-path="/">
+                  POST /
+                </button>
+              </div>
+              <div class="browser-viewport" aria-label="Rendered response">
+                <span
+                  id="browser-status-badge"
+                  data-testid="browser-status-badge"
+                  class="status-badge"
+                >
+                  No response yet
+                </span>
+                <pre id="browser-rendered-body" data-testid="browser-rendered-body">
+Send a request or step a hop to render a response.</pre>
+              </div>
             </div>
-            <ul class="route-list" aria-label="Filesystem">
-              <li id="route-home" data-file="route-home" class="route-item">
-                / — "Welcome to the home page"
-              </li>
-              <li id="route-about" data-file="route-about" class="route-item">
-                /about — "This is the about page"
-              </li>
-            </ul>
           </article>
+
+          <div id="wire-col-left" class="wire-column" aria-hidden="true">
+            <div id="packet-req-left" class="wire-lane">request =&gt;</div>
+            <div id="packet-res-left" class="wire-lane reverse">&lt;- response</div>
+          </div>
+
           <article
             class="node-card"
-            id="node-webserver-2"
-            data-testid="node-webserver-2"
-            data-component="webserver"
+            id="node-network"
+            data-testid="node-network"
+            data-component="network"
+          >
+            <header class="node-head">
+              <div class="node-name">
+                <span class="role-name">Network</span>
+                <span class="node-subtitle">routing fabric</span>
+              </div>
+              <span class="ip-chip">10.x</span>
+              <span class="code-chip">&lt;/&gt; Code</span>
+            </header>
+            <table class="mini-table" aria-label="Mini-IP interfaces">
+              <tbody>
+                <tr>
+                  <td class="mono">10.1</td>
+                  <td id="network-role-10-1">WebServer</td>
+                </tr>
+                <tr>
+                  <td class="mono">10.2</td>
+                  <td>Browser (You)</td>
+                </tr>
+                <tr>
+                  <td class="mono">10.3+</td>
+                  <td id="network-crowd-count">crowd</td>
+                </tr>
+              </tbody>
+            </table>
+            <p id="network-last-frame" data-testid="network-last-frame" class="mono last-frame">
+              No frames routed yet
+            </p>
+          </article>
+
+          <div id="wire-col-right" class="wire-column" aria-hidden="true">
+            <div id="packet-req-right" class="wire-lane">request =&gt;</div>
+            <div id="packet-res-right" class="wire-lane reverse">&lt;- response</div>
+          </div>
+
+          <article
+            class="node-card"
+            id="node-lb"
+            data-testid="node-lb"
+            data-component="loadbalancer"
             hidden
           >
             <header class="node-head">
               <div class="node-name">
-                <span class="role-name" id="server-2-address" data-testid="server-2-address">
-                  10.12
-                </span>
-                <span class="node-subtitle">web server 2</span>
+                <span class="role-name">LoadBalancer</span>
+                <span class="node-subtitle">round-robin VIP</span>
               </div>
-              <span class="ip-chip">10.12</span>
+              <span class="ip-chip">10.1</span>
               <span class="code-chip">&lt;/&gt; Code</span>
             </header>
-            <div id="server-2-queue-list" class="queue-slots"></div>
-            <div class="queue-track" aria-hidden="true">
-              <div id="queue-bar-2" class="queue-fill" data-testid="queue-bar-2"></div>
-            </div>
-            <ul class="route-list" aria-label="Filesystem">
-              <li data-file-2="route-home" class="route-item">/ — "Welcome to the home page"</li>
-              <li data-file-2="route-about" class="route-item">
-                /about — "This is the about page"
+            <p id="lb-next-backend" data-testid="lb-next-backend" class="mono last-frame">
+              Next -&gt; 10.11
+            </p>
+            <ul class="route-list" aria-label="Backend pool">
+              <li id="lb-backend-1" data-testid="lb-backend-1" class="route-item">
+                10.11 WebServer-1 (0)
+              </li>
+              <li id="lb-backend-2" data-testid="lb-backend-2" class="route-item">
+                10.12 WebServer-2 (0)
               </li>
             </ul>
           </article>
-        </div>
-      </section>
+
+          <div id="wire-lb-backends" class="wire-column" aria-hidden="true" hidden>
+            <div id="packet-req-lb" class="wire-lane">forward =&gt;</div>
+            <div id="packet-res-lb" class="wire-lane reverse">&lt;- response</div>
+          </div>
+
+          <div class="backend-stack">
+            <article
+              class="node-card"
+              id="node-webserver"
+              data-testid="node-webserver"
+              data-component="webserver"
+            >
+              <header class="node-head">
+                <div class="node-name">
+                  <span class="role-name" id="server-address" data-testid="server-address"
+                    >10.1</span
+                  >
+                  <span class="node-subtitle">web server</span>
+                </div>
+                <span id="server-ip-chip" class="ip-chip">10.1</span>
+                <span class="code-chip">&lt;/&gt; Code</span>
+              </header>
+              <div id="server-queue-list" class="queue-slots" data-testid="server-queue-list"></div>
+              <div class="queue-track" aria-hidden="true">
+                <div id="queue-bar" class="queue-fill" data-testid="queue-bar"></div>
+              </div>
+              <ul class="route-list" aria-label="Filesystem">
+                <li id="route-home" data-file="route-home" class="route-item">
+                  / — "Welcome to the home page"
+                </li>
+                <li id="route-about" data-file="route-about" class="route-item">
+                  /about — "This is the about page"
+                </li>
+              </ul>
+            </article>
+            <article
+              class="node-card"
+              id="node-webserver-2"
+              data-testid="node-webserver-2"
+              data-component="webserver"
+              hidden
+            >
+              <header class="node-head">
+                <div class="node-name">
+                  <span class="role-name" id="server-2-address" data-testid="server-2-address">
+                    10.12
+                  </span>
+                  <span class="node-subtitle">web server 2</span>
+                </div>
+                <span class="ip-chip">10.12</span>
+                <span class="code-chip">&lt;/&gt; Code</span>
+              </header>
+              <div id="server-2-queue-list" class="queue-slots"></div>
+              <div class="queue-track" aria-hidden="true">
+                <div id="queue-bar-2" class="queue-fill" data-testid="queue-bar-2"></div>
+              </div>
+              <ul class="route-list" aria-label="Filesystem">
+                <li data-file-2="route-home" class="route-item">/ — "Welcome to the home page"</li>
+                <li data-file-2="route-about" class="route-item">
+                  /about — "This is the about page"
+                </li>
+              </ul>
+            </article>
+          </div>
+        </section>
+      </div>
       <dl class="stats" aria-label="Live state">
         <div class="stat">
           <dt>tick</dt>
