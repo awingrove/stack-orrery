@@ -145,4 +145,58 @@ describe('describeSnapshot', () => {
       lastMatchedRoute: 'route-about',
     });
   });
+
+  it('describes Stage 2 5-hop load-balancer trace labels and loadbalancer inspector state', () => {
+    const snap = {
+      stage: 2,
+      tick: 3,
+      users: 5,
+      serverAddress: '10.1',
+      queueDepth: 1,
+      served: 1,
+      avgLatencyTicks: 1,
+      loadBalancer: {
+        address: '10.1',
+        algorithm: 'round-robin',
+        backends: ['10.11', '10.12'],
+        nextBackend: '10.12',
+        forwarded: 1,
+        lastTarget: '10.11',
+        perBackend: { 10.11: 1, 10.12: 0 },
+      },
+      servers: [
+        { address: '10.11', queueDepth: 1, served: 1, queue: [] },
+        { address: '10.12', queueDepth: 0, served: 0, queue: [] },
+      ],
+      trace: {
+        hop: 3,
+        method: 'GET',
+        path: '/about',
+        request: 'GET /about',
+        targetServer: '10.11',
+        response: null,
+        status: null,
+        body: null,
+        routeId: null,
+      },
+    };
+    const labels = describeSnapshot(snap);
+    expect(labels.stage).toBe(2);
+    expect(labels.totalHops).toBe(5);
+    expect(labels.hopStatus).toBe('Hop 3/5: LoadBalancer (10.1) -> 10.11 queue');
+    expect(labels.lbNextBackend).toBe('Next -> 10.12');
+    expect(labels.lbBackend1Label).toBe('10.11 WebServer-1 (1)');
+    expect(labels.lbBackend2Label).toBe('10.12 WebServer-2 (0)');
+
+    const lbState = JSON.parse(formatComponentState(snap, 'loadbalancer'));
+    expect(lbState).toEqual({
+      address: '10.1',
+      algorithm: 'round-robin',
+      backends: ['10.11', '10.12'],
+      nextBackend: '10.12',
+      forwardedTotal: 1,
+      lastTarget: '10.11',
+      perBackend: { 10.11: 1, 10.12: 0 },
+    });
+  });
 });

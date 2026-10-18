@@ -78,3 +78,34 @@ test('should trace a custom URL hop-by-hop into the browser viewport and inspect
   await expect(page.getByTestId('inspector-code')).toContainText('handleRequest');
   await expect(page.getByTestId('inspector-state')).toContainText('"servedTotal": 1');
 });
+
+// Stage 2 adds a round-robin LoadBalancer at 10.1 in front of two duplicated
+// WebServers (10.11 and 10.12). Switching to Stage 2 reveals the LB and second
+// server, traces 5 hops per request across alternating backends, and exposes
+// the LoadBalancer's code and round-robin counters in the bottom inspector.
+test('should switch to Stage 2, alternate requests across 10.11 and 10.12 via the load balancer, and inspect its code', async ({
+  page,
+}) => {
+  await page.goto('/panel.html');
+
+  await page.getByTestId('stage-pill-2').click();
+  await expect(page.getByTestId('node-lb')).toBeVisible();
+  await expect(page.getByTestId('node-webserver-2')).toBeVisible();
+  await expect(page.getByTestId('server-address')).toHaveText('10.11');
+  await expect(page.getByTestId('server-2-address')).toHaveText('10.12');
+  await expect(page.getByTestId('lb-next-backend')).toHaveText('Next -> 10.11');
+
+  for (let hop = 0; hop < 5; hop++) await page.getByTestId('btn-next-hop').click();
+  await expect(page.getByTestId('hop-status')).toContainText('Hop 5/5');
+  await expect(page.getByTestId('lb-next-backend')).toHaveText('Next -> 10.12');
+  await expect(page.getByTestId('lb-backend-1')).toHaveText('10.11 WebServer-1 (1)');
+  await expect(page.getByTestId('browser-rendered-body')).toHaveText('This is the about page');
+
+  await page.getByTestId('btn-url-go').click();
+  await expect(page.getByTestId('lb-next-backend')).toHaveText('Next -> 10.11');
+  await expect(page.getByTestId('lb-backend-2')).toHaveText('10.12 WebServer-2 (1)');
+
+  await page.getByTestId('node-lb').click();
+  await expect(page.getByTestId('inspector-code')).toContainText('selectBackend');
+  await expect(page.getByTestId('inspector-state')).toContainText('"forwardedTotal": 2');
+});

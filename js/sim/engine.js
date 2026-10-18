@@ -1,22 +1,24 @@
 // DOCUMENTS: the tick loop — each step() advances exactly one discrete
-// tick: users emit request events over the network into the server's
-// queue, the server consumes up to its service rate and emits response
-// events, then a snapshot is exposed as UI state. The newest served
-// exchange is kept in `lastExchange` so the panel can show what actually
-// moved on the wire. `traceHop()` runs the interactive single-request
-// trace for the learner's own browser, one hop per call, across the same
-// network/queue machinery the crowd uses — It does not fake a shortcut.
+// tick: users emit request events over the network into the server's (or
+// load balancer's) queue, the server pool consumes up to its service rate
+// and emits response events, then a snapshot is exposed as UI state. The
+// newest served exchange is kept in `lastExchange` so the panel can show
+// what actually moved on the wire. `traceHop()` runs the interactive
+// single-request trace for the learner's own browser, one hop per call,
+// across the same network/LB/queue machinery the crowd uses — it does not
+// fake a shortcut.
 //
 // PINS: a fixed seed with a fixed action sequence replays the identical
 // tick sequence — pinned by "same seed replays the identical tick sequence"
 // in test/sim/engine.test.js.
 //
 // CHECKS: constructor validates config ranges via its components (seed is
-// coerced uint32; arrivalProb must be within [0, 1]).
+// coerced uint32; arrivalProb must be within [0, 1]; stage must be 1 or 2).
 import { createRng } from './rng.js';
 import { createNetwork } from './network.js';
 import { createBrowser } from './browser.js';
 import { createWebServer } from './webserver.js';
+import { createLoadBalancer } from './loadbalancer.js';
 import { createUsers } from './users.js';
 
 export function createEngine({
@@ -25,16 +27,31 @@ export function createEngine({
   serviceRate = 4,
   arrivalProb = 0.5,
   serverAddress = '10.1',
+  stage = 1,
+  backendAddresses = ['10.11', '10.12'],
 } = {}) {
   if (typeof arrivalProb !== 'number' || arrivalProb < 0 || arrivalProb > 1) {
     throw new Error(`engine: arrivalProb must be within [0, 1], got ${arrivalProb}`);
   }
+  if (stage !== 1 && stage !== 2) {
+    throw new Error(`engine: stage must be 1 or 2, got ${stage}`);
+  }
   const rng = createRng(seed);
   const network = createNetwork();
-  const server = createWebServer({ address: serverAddress, serviceRate });
-  network.registerServer(serverAddress, server);
+  let servers;
+  let lb = null;
+  if (stage === 1) {
+    const server = createWebServer({ address: serverAddress, serviceRate });
+    network.registerServer(serverAddress, server);
+    servers = [server];
+  } else {
+    servers = backendAddresses.map((addr) => createWebServer({ address: addr, serviceRate }));
+    for (const s of servers) network.registerServer(s.address, s);
+    lb = createLoadBalancer({ address: serverAddress, backends: backendAddresses, network });
+    network.registerServer(serverAddress, lb);
+  }
   // The learner's own interactive client shares the crowd's network and
-  // server but keeps its own browser and address; users.js keeps its
+  // server pool but keeps its own browser and address; users.js keeps its
   // addresses so seeded tick sequences stay identical (PINS above).
   const clientBrowser = createBrowser({ name: 'Browser (You)', address: '10.2', network });
   const userPool = createUsers({ count: users, serverAddress });
@@ -47,11 +64,31 @@ export function createEngine({
     method: 'GET',
     path: '/about',
     request: 'GET /about',
+    targetServer: null,
     response: null,
     status: null,
     body: null,
     routeId: null,
   };
+
+  function drainUntilYou(targetServer) {
+    for (;;) {
+      const batch = targetServer.step(tick);
+      const you = batch.find((item) => item.isYou);
+      if (you || batch.length === 0) return you;
+    }
+  }
+
+  function recordTraceServe(you, fromAddr) {
+    if (!you) return;
+    trace.response = you.response;
+    trace.status = you.status;
+    trace.body = you.body;
+    trace.routeId = you.routeId;
+    lastExchange = you;
+    lastMatchedRoute = you.routeId;
+    lastFrame = `${fromAddr} -> 10.2 | ${you.response}`;
+  }
 
   return {
     step() {
@@ -66,37 +103,38 @@ export function createEngine({
           atTick: tick,
         });
       }
-      const servedBatch = server.step(tick);
+      const servedBatch = servers.flatMap((s) => s.step(tick));
       if (servedBatch.length > 0) {
         lastExchange = servedBatch[servedBatch.length - 1];
         lastMatchedRoute = lastExchange.routeId;
         lastFrame = `${lastExchange.from} -> ${lastExchange.to} | ${lastExchange.request} => ${lastExchange.response}`;
-        if (servedBatch.some((item) => item.isYou)) {
-          for (const item of servedBatch) {
-            if (item.isYou) clientBrowser.receiveResponse(item);
-          }
+        for (const item of servedBatch) {
+          if (item.isYou) clientBrowser.receiveResponse(item);
         }
       }
       return this.snapshot();
     },
 
-    // One hop per call, 4 hops per request: 1 emit, 2 route, 3 serve,
-    // 4 render. Hops 0 and 4 both start a fresh request on the next call.
+    // One hop per call: 4 hops in Stage 1 (emit, route, serve, render);
+    // 5 hops in Stage 2 (emit, route to LB, LB round-robin to backend,
+    // backend serve, render).
     traceHop({ method = 'GET', path = '/about' } = {}) {
-      if (trace.hop === 0 || trace.hop === 4) {
+      const finalHop = stage === 2 ? 5 : 4;
+      if (trace.hop === 0 || trace.hop >= finalHop) {
         const request = clientBrowser.createRequest(path, method);
         trace = {
           hop: 1,
           method,
           path,
           request,
+          targetServer: stage === 1 ? serverAddress : null,
           response: null,
           status: null,
           body: null,
           routeId: null,
         };
         lastFrame = `10.2 -> ${serverAddress} | ${request}`;
-      } else if (trace.hop === 1) {
+      } else if (stage === 1 && trace.hop === 1) {
         trace.hop = 2;
         tick += 1;
         network.deliverToQueue({
@@ -108,30 +146,42 @@ export function createEngine({
           isYou: true,
         });
         lastFrame = `routed 10.2 -> ${serverAddress} (${trace.request}) into queue`;
-      } else if (trace.hop === 2) {
+      } else if (stage === 1 && trace.hop === 2) {
         trace.hop = 3;
-        // The learner's request waits FIFO behind crowd items: drain up to
-        // serviceRate per move until the `you` request comes back.
-        let you;
-        for (;;) {
-          const batch = server.step(tick);
-          you = batch.find((item) => item.isYou);
-          if (you || batch.length === 0) break;
-        }
-        if (you) {
-          trace.response = you.response;
-          trace.status = you.status;
-          trace.body = you.body;
-          trace.routeId = you.routeId;
-          lastExchange = you;
-          lastMatchedRoute = you.routeId;
-          lastFrame = `${serverAddress} -> 10.2 | ${you.response}`;
-        }
-      } else if (trace.hop === 3) {
+        recordTraceServe(drainUntilYou(servers[0]), serverAddress);
+      } else if (stage === 1 && trace.hop === 3) {
         trace.hop = 4;
         clientBrowser.receiveResponse({
           from: '10.2',
           to: serverAddress,
+          request: trace.request,
+          response: trace.response,
+        });
+      } else if (stage === 2 && trace.hop === 1) {
+        trace.hop = 2;
+        lastFrame = `routed 10.2 -> ${serverAddress} (${trace.request}) to LoadBalancer`;
+      } else if (stage === 2 && trace.hop === 2) {
+        trace.hop = 3;
+        tick += 1;
+        const target = lb.enqueue({
+          id: `you:${tick}`,
+          from: '10.2',
+          to: serverAddress,
+          request: trace.request,
+          atTick: tick,
+          isYou: true,
+        });
+        trace.targetServer = target;
+        lastFrame = `LB ${serverAddress} -> ${target} (${trace.request}) queued`;
+      } else if (stage === 2 && trace.hop === 3) {
+        trace.hop = 4;
+        const backend = servers.find((s) => s.address === trace.targetServer) ?? servers[0];
+        recordTraceServe(drainUntilYou(backend), backend.address);
+      } else if (stage === 2 && trace.hop === 4) {
+        trace.hop = 5;
+        clientBrowser.receiveResponse({
+          from: '10.2',
+          to: trace.targetServer ?? serverAddress,
           request: trace.request,
           response: trace.response,
         });
@@ -144,8 +194,21 @@ export function createEngine({
     },
 
     snapshot() {
-      const { queueDepth, served, avgLatencyTicks } = server.metrics();
+      const serverSnapshots = servers.map((s) => ({
+        address: s.address,
+        ...s.metrics(),
+        queue: s.queueSnapshot(),
+        files: s.filesSnapshot(),
+      }));
+      const queueDepth = serverSnapshots.reduce((sum, s) => sum + s.queueDepth, 0);
+      const served = serverSnapshots.reduce((sum, s) => sum + s.served, 0);
+      const active = serverSnapshots.filter((s) => s.served > 0);
+      const avgLatencyTicks =
+        active.length === 0
+          ? 0
+          : active.reduce((sum, s) => sum + s.avgLatencyTicks, 0) / active.length;
       return {
+        stage,
         tick,
         users: userPool.getCount(),
         serverAddress,
@@ -153,7 +216,10 @@ export function createEngine({
         served,
         avgLatencyTicks,
         lastExchange,
-        queue: server.queueSnapshot(),
+        queue: serverSnapshots[0].queue,
+        files: serverSnapshots[0].files,
+        servers: serverSnapshots,
+        loadBalancer: lb ? lb.snapshot() : null,
         lastMatchedRoute,
         lastFrame,
         browserDisplay: clientBrowser.last(),

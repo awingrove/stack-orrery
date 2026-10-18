@@ -8,6 +8,18 @@
   margin-bottom: 1rem;
 }
 
+.backend-stack {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.node-card[hidden],
+.wire-column[hidden] {
+  display: none;
+}
+
 .node-card {
   flex: 1;
   display: flex;

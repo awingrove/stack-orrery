@@ -52,22 +52,53 @@ export const COMPONENT_SOURCE = {
   };
 }`,
   },
+  loadbalancer: {
+    file: 'js/sim/loadbalancer.js',
+    title: 'LoadBalancer — mini-IP 10.1',
+    code: `createLoadBalancer({ address = '10.1', backends = ['10.11', '10.12'], network }) {
+  const pool = [...backends];
+  const perBackend = Object.fromEntries(pool.map((b) => [b, 0]));
+  let nextIndex = 0;
+  let forwarded = 0;
+  let lastTarget = null;
+  function selectBackend() {
+    const target = pool[nextIndex];
+    nextIndex = (nextIndex + 1) % pool.length;
+    forwarded += 1;
+    perBackend[target] += 1;
+    lastTarget = target;
+    return target;
+  }
+  return {
+    nextBackend() { return pool[nextIndex]; },
+    handleRequest(request = 'GET /') {
+      return network.send({ from: address, to: selectBackend(), request }).response;
+    },
+    enqueue({ id, atTick, from = '10.2', request = 'GET /', isYou = false }) {
+      const target = selectBackend();
+      network.deliverToQueue({ id, from, to: target, request, atTick, isYou });
+      return target;
+    },
+  };
+}`,
+  },
   webserver: {
     file: 'js/sim/webserver.js',
     title: 'WebServer — mini-IP 10.1',
-    code: `createWebServer({ address = '10.1', serviceRate = 4 }) {
+    code: `createWebServer({ address = '10.1', serviceRate = 4, files = DEFAULT_FILES }) {
+  const fs = new Map(Object.entries(files)); // '/' and '/about' on disk
   let queue = [];      // FIFO; served up to serviceRate per step()
   let served = 0;
-  // the whole HTTP contract at this stage: method gate, then paths
   function matchRoute(request = 'GET /') {
     const [method, ...rest] = String(request).trim().split(' ');
     const path = rest[0] ?? '';
     let response;
-    let routeId;
-    if (method !== 'GET') { response = '405 Only GET requests are supported'; routeId = 'route-405'; }
-    else if (path === '/') { response = '200 Welcome to the home page'; routeId = 'route-home'; }
-    else if (path === '/about') { response = '200 This is the about page'; routeId = 'route-about'; }
-    else { response = '404 Page not found'; routeId = 'route-404'; }
+    let routeId = null;
+    if (method !== 'GET') response = '405 Only GET requests are supported';
+    else if (fs.has(path)) {
+      response = \`200 \${fs.get(path)}\`;
+      routeId = path === '/' ? 'route-home' : \`route-\${path.slice(1)}\`;
+    } else response = '404 Page not found';
     const [statusToken, ...body] = response.split(' ');
     return { response, status: Number(statusToken), body: body.join(' '), routeId };
   }
@@ -94,21 +125,51 @@ const STATE_BUILDERS = {
   }),
   network: (snapshot) => ({
     subnet: '10.x',
-    interfaces: {
-      10.1: 'WebServer',
-      10.2: 'Browser (You)',
-      Crowd: `${snapshot.users} simulated browsers`,
-    },
+    interfaces:
+      snapshot.stage === 2
+        ? {
+            10.1: 'LoadBalancer',
+            10.11: 'WebServer-1',
+            10.12: 'WebServer-2',
+            10.2: 'Browser (You)',
+            Crowd: `${snapshot.users} simulated browsers`,
+          }
+        : {
+            10.1: 'WebServer',
+            10.2: 'Browser (You)',
+            Crowd: `${snapshot.users} simulated browsers`,
+          },
     lastFrame: snapshot.lastFrame ?? null,
   }),
-  webserver: (snapshot) => ({
-    address: snapshot.serverAddress ?? '10.1',
-    serviceRatePerTick: 4,
-    queueDepth: snapshot.queueDepth,
-    queuedRequests: (snapshot.queue ?? []).slice(0, 8).map((q) => `${q.from} -> ${q.request}`),
-    servedTotal: snapshot.served,
-    lastMatchedRoute: snapshot.lastMatchedRoute ?? null,
+  loadbalancer: (snapshot) => ({
+    address: snapshot.loadBalancer?.address ?? '10.1',
+    algorithm: 'round-robin',
+    backends: snapshot.loadBalancer?.backends ?? ['10.11', '10.12'],
+    nextBackend: snapshot.loadBalancer?.nextBackend ?? '10.11',
+    forwardedTotal: snapshot.loadBalancer?.forwarded ?? 0,
+    lastTarget: snapshot.loadBalancer?.lastTarget ?? null,
+    perBackend: snapshot.loadBalancer?.perBackend ?? { 10.11: 0, 10.12: 0 },
   }),
+  webserver: (snapshot) => {
+    const base = {
+      address: snapshot.serverAddress ?? '10.1',
+      serviceRatePerTick: 4,
+      queueDepth: snapshot.queueDepth,
+      queuedRequests: (snapshot.queue ?? []).slice(0, 8).map((q) => `${q.from} -> ${q.request}`),
+      servedTotal: snapshot.served,
+      lastMatchedRoute: snapshot.lastMatchedRoute ?? null,
+    };
+    if (snapshot.files) base.files = snapshot.files;
+    if (snapshot.stage === 2 && Array.isArray(snapshot.servers)) {
+      base.instances = snapshot.servers.map((s) => ({
+        address: s.address,
+        queueDepth: s.queueDepth,
+        served: s.served,
+        files: s.files,
+      }));
+    }
+    return base;
+  },
 };
 
 export function formatComponentState(snapshot, component) {
