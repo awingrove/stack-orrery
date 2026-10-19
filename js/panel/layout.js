@@ -4,26 +4,34 @@
 // and SVG shapes.
 export const DEFAULT_RING_GAP = 400;
 
-export const ORRERY_RINGS = [
-  { id: 'ring-compute', radius: 267, label: 'RING 1 · COMPUTE' },
-  { id: 'ring-network', radius: 667, label: 'RING 2 · NETWORK' },
-  { id: 'ring-clients', radius: 1067, label: 'RING 3 · CLIENTS' },
-];
+export const ORRERY_RINGS = buildOrreryRings(DEFAULT_RING_GAP, 1);
 
 // CHECKS: buildOrreryRings validates the ring gap rather than producing NaN
 // radii (which would degenerate the whole orrery into a single point).
-export function buildOrreryRings(ringGap = DEFAULT_RING_GAP) {
+// DOCUMENTS: every architectural layer of a stage gets its own concentric ring
+// at r_k = k * ringGap — Stage 1 has 3 layers (3 rings), Stage 2 has 4 (4 rings).
+export function buildOrreryRings(ringGap = DEFAULT_RING_GAP, stage = 1) {
   if (!Number.isFinite(ringGap) || ringGap <= 0) {
     throw new Error('layout: ringGap must be a finite number > 0');
   }
-  if (ringGap === DEFAULT_RING_GAP) return ORRERY_RINGS;
-  const r1 = Math.round((ORRERY_RINGS[0].radius * ringGap) / DEFAULT_RING_GAP);
-  const r2 = r1 + Math.round(ringGap);
-  const r3 = r1 + 2 * Math.round(ringGap);
-  return [ORRERY_RINGS[0], ORRERY_RINGS[1], ORRERY_RINGS[2]].map((ring, i) => ({
-    ...ring,
-    radius: [r1, r2, r3][i],
-  }));
+  if (stage !== 1 && stage !== 2) {
+    throw new Error(`layout: unknown stage ${stage} (expected 1 or 2)`);
+  }
+  const gap = Math.round(ringGap);
+  const ringSpecs =
+    stage === 2
+      ? [
+          ['ring-compute', 'RING 1 · WEBSERVERS'],
+          ['ring-lb', 'RING 2 · LOADBALANCER'],
+          ['ring-network', 'RING 3 · NETWORK'],
+          ['ring-clients', 'RING 4 · BROWSERS'],
+        ]
+      : [
+          ['ring-compute', 'RING 1 · WEBSERVER'],
+          ['ring-network', 'RING 2 · NETWORK'],
+          ['ring-clients', 'RING 3 · BROWSERS'],
+        ];
+  return ringSpecs.map(([id, label], k) => ({ id, radius: (k + 1) * gap, label }));
 }
 
 export function polarToWorld(radius, angleDeg) {
@@ -74,10 +82,8 @@ export function computeStageLayout(
   if (stage !== 1 && stage !== 2) {
     throw new Error(`layout: unknown stage ${stage} (expected 1 or 2)`);
   }
-  const rings = buildOrreryRings(ringGap);
-  const r1 = rings[0].radius;
-  const r2 = rings[1].radius;
-  const r3 = rings[2].radius;
+  const rings = buildOrreryRings(ringGap, stage);
+  const gap = Math.round(ringGap);
   const pos = (id, ring, radius, angleDeg) => ({
     id,
     ring,
@@ -86,40 +92,47 @@ export function computeStageLayout(
     ...polarToWorld(radius, angleDeg),
   });
 
-  // Addressable browsers on Ring 3: slot 0 (mini-IP 10.2) sits at 180° —
-  // the expanded #node-browser spot — and slots 1 .. users - 1 (10.3 ..
-  // 10.(users + 1)) take the satellite arc positions. Compact nodes render
-  // at every slot not currently expanded.
+  // Addressable browsers on the outer client ring (Ring 3 in Stage 1, Ring 4
+  // in Stage 2): slot 0 (mini-IP 10.2) sits at 180° — the expanded
+  // #node-browser spot — and slots 1 .. users - 1 (10.3 .. 10.(users + 1))
+  // take the satellite arc positions. Compact nodes render at every slot not
+  // currently expanded.
   const browserCount = Math.max(0, Math.round(users));
-  const walkArcs = computeSatellites(Math.max(0, browserCount - 1), r3);
+  const outerRadius = rings[rings.length - 1].radius;
+  const walkArcs = computeSatellites(Math.max(0, browserCount - 1), outerRadius);
   const browserSlots = Array.from({ length: browserCount }, (_, i) => {
-    if (i === 0) return { index: 0, address: '10.2', angleDeg: 180, ...polarToWorld(r3, 180) };
+    if (i === 0)
+      return { index: 0, address: '10.2', angleDeg: 180, ...polarToWorld(outerRadius, 180) };
     return { index: i, address: `10.${i + 2}`, ...walkArcs[i - 1] };
   });
   const activeSlot = browserSlots.find((slot) => slot.address === String(activeBrowser)) ?? {
     index: 0,
     address: '10.2',
     angleDeg: 180,
-    ...polarToWorld(r3, 180),
+    ...polarToWorld(outerRadius, 180),
   };
 
   const nodes = {
     'node-browser': {
       id: 'node-browser',
-      ring: 'ring-clients',
-      radius: r3,
+      ring: rings[rings.length - 1].id,
+      radius: outerRadius,
       angleDeg: activeSlot.angleDeg,
       x: activeSlot.x,
       y: activeSlot.y,
       address: activeSlot.address,
     },
-    'node-network': pos('node-network', 'ring-network', r2, 180),
   };
+  const networkRing = rings.find((ring) => ring.id === 'ring-network');
+  nodes['node-network'] = pos('node-network', 'ring-network', networkRing.radius, 180);
   let wires;
+  const computeRing = rings.find((ring) => ring.id === 'ring-compute');
   if (stage === 2) {
-    nodes['node-lb'] = pos('node-lb', 'ring-compute', r1, 180);
-    nodes['node-webserver'] = pos('node-webserver', 'ring-compute', r1, -48);
-    nodes['node-webserver-2'] = pos('node-webserver-2', 'ring-compute', r1, 48);
+    nodes['node-lb'] = pos('node-lb', 'ring-lb', rings[1].radius, 180);
+    // Both backends sit squarely on Ring 1 (Compute): 210° puts 10.11 in the
+    // top-left arc of the ring, 150° puts 10.12 in the bottom-left arc.
+    nodes['node-webserver'] = pos('node-webserver', 'ring-compute', computeRing.radius, 210);
+    nodes['node-webserver-2'] = pos('node-webserver-2', 'ring-compute', computeRing.radius, 150);
     wires = [
       makeWire(
         'wire-browser-network',
@@ -151,7 +164,7 @@ export function computeStageLayout(
       ),
     ];
   } else {
-    nodes['node-webserver'] = pos('node-webserver', null, 0, 0);
+    nodes['node-webserver'] = pos('node-webserver', 'ring-compute', computeRing.radius, 180);
     wires = [
       makeWire(
         'wire-browser-network',
@@ -175,13 +188,18 @@ export function computeStageLayout(
     nodes,
     wires,
     // DOCUMENTS: the SVG anchor dots reuse the browserSlots coordinates 1:1 so
-    // each Ring-3 dot sits exactly under its browser node (not at users + 1
-    // different angles from the old crowd arcs).
+    // each client-ring dot sits exactly under its browser node (not at
+    // users + 1 different angles from the old crowd arcs).
     satellites: browserSlots.map(({ index, x, y, angleDeg }) => ({ index, x, y, angleDeg })),
     browserSlots,
-    // DOCUMENTS: at the default ring gap this equals the plan's pinned
-    // { minX: -1247, maxX: 397, minY: -397, maxY: 397 }; tuned gaps scale the
-    // bounds with r1/r3 so Fit to view keeps the whole plane in frame.
-    bounds: { minX: -(r3 + 180), maxX: r1 + 130, minY: -(r1 + 130), maxY: r1 + 130 },
+    // DOCUMENTS: bounds frame all active nodes and the (0, 0) origin — the
+    // left edge clears the outermost ring's 180° seat, the verticals clear the
+    // outer ring's satellite arcs (±37° at the outer radius).
+    bounds: {
+      minX: -(outerRadius + 180),
+      maxX: 120,
+      minY: -(gap + 140),
+      maxY: gap + 140,
+    },
   };
 }

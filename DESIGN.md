@@ -134,13 +134,18 @@ Every stage diagram panel (`panel.html`) is organized into four vertical zones:
 3. **Orrery Plane & Camera Viewport (`.orrery-viewport` / `.orrery-canvas`):**
    A pannable and zoomable 2D world plane (`.orrery-world`) inside a clipped
    viewport (`.orrery-viewport`) with concentric orbital rings etched in SVG
-   (`#orrery-svg`, `r₀ = 0` Core, `r₁ = 267` Compute & Ingress ring, `r₂ = 667`
-   Network ring, `r₃ = 1067` Client orbit at the default `400px` ring gap). All `N`
-   client browsers (`10.2` ..
-   `10.(N+1)`) sit on the outer `r₃` orbit: the currently selected browser
-   renders as the full expanded `#node-browser` card, while the other `N - 1`
-   browsers render as clickable compact `.browser-compact` nodes on `r₃` (clicking
-   any compact browser expands it into the full browser card).
+   (`#orrery-svg`). Each stage renders one concentric ring (`r_k = k * ringGap`,
+   default `ringGap = 400px`) per architectural layer, and every component sits
+   on its layer's ring:
+   - **Stage 1 (3 rings):** Ring 1 (`WebServer 10.1`), Ring 2 (`Network 10.x`),
+     Ring 3 (`Browsers 10.2+`).
+   - **Stage 2 (4 rings):** Ring 1 (`WebServer-1 10.11` & `WebServer-2 10.12`),
+     Ring 2 (`LoadBalancer 10.1`), Ring 3 (`Network 10.x`), Ring 4 (`Browsers 10.2+`).
+     All `N` client browsers (`10.2` .. `10.(N+1)`) sit on the outermost ring: the
+     currently selected browser renders as the full expanded `#node-browser` card,
+     while the other `N - 1` browsers render as clickable compact `.browser-compact`
+     nodes on the outer ring (clicking any compact browser expands it into the
+     full browser card).
    - **Camera HUD (`.camera-hud`):** Fixed screen-space overlay in the top-right
      of `.orrery-viewport` with `#btn-zoom-in` (`+`), `#btn-zoom-out` (`-`),
      `#btn-zoom-fit` (`Fit`), `#zoom-status` percentage badge, and live tuning

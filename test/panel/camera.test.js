@@ -75,67 +75,132 @@ describe('camera math', () => {
 
 describe('orrery layout', () => {
   it('computes concentric ring coordinates and stage bounding boxes for the orrery', () => {
-    expect(ORRERY_RINGS.map((r) => r.radius)).toEqual([267, 667, 1067]);
-    // CHECKS: the default ring gap returns the plan-pinned ORRERY_RINGS, and a
-    // non-finite or non-positive gap is rejected instead of yielding NaN radii.
-    expect(buildOrreryRings(400)).toBe(ORRERY_RINGS);
+    // CHECKS: default ORRERY_RINGS stays the 3-ring Stage 1 layout at gap 400.
+    expect(ORRERY_RINGS.map((r) => r.radius)).toEqual([400, 800, 1200]);
+    expect(ORRERY_RINGS.map((r) => r.id)).toEqual(['ring-compute', 'ring-network', 'ring-clients']);
+    // CHECKS: the default ring gap returns the plan-pinned Stage 1 rings, and a
+    // non-finite or non-positive gap (or unknown stage) is rejected.
+    expect(buildOrreryRings(400).map((r) => r.radius)).toEqual([400, 800, 1200]);
     expect(() => buildOrreryRings(0)).toThrow(/ringGap/);
     expect(() => buildOrreryRings(Number.NaN)).toThrow(/ringGap/);
-    expect(polarToWorld(1067, 180)).toEqual({ x: -1067, y: 0 });
-    expect(polarToWorld(267, -48)).toEqual({ x: 179, y: -198 });
+    expect(() => buildOrreryRings(400, 3)).toThrow(/stage/);
+    expect(polarToWorld(1200, 180)).toEqual({ x: -1200, y: 0 });
+    expect(polarToWorld(400, 210)).toEqual({ x: -346, y: -200 });
+    expect(polarToWorld(400, 150)).toEqual({ x: -346, y: 200 });
 
+    // Stage 1: 3 layers -> 3 rings, one component seated per layer ring.
     const stage1 = computeStageLayout(1, 5);
-    expect(stage1.nodes['node-webserver']).toMatchObject({ x: 0, y: 0, radius: 0 });
-    expect(stage1.nodes['node-browser']).toMatchObject({ x: -1067, y: 0, ring: 'ring-clients' });
-    expect(stage1.nodes['node-network']).toMatchObject({ x: -667, y: 0, ring: 'ring-network' });
+    expect(stage1.rings.map((r) => r.radius)).toEqual([400, 800, 1200]);
+    expect(stage1.nodes['node-webserver']).toMatchObject({
+      x: -400,
+      y: 0,
+      radius: 400,
+      ring: 'ring-compute',
+    });
+    expect(stage1.nodes['node-network']).toMatchObject({
+      x: -800,
+      y: 0,
+      radius: 800,
+      ring: 'ring-network',
+    });
+    expect(stage1.nodes['node-browser']).toMatchObject({
+      x: -1200,
+      y: 0,
+      radius: 1200,
+      ring: 'ring-clients',
+    });
     expect(stage1.wires.map((w) => w.id)).toEqual([
       'wire-browser-network',
       'wire-network-webserver',
     ]);
-    expect(stage1.bounds).toEqual({ minX: -1247, maxX: 397, minY: -397, maxY: 397 });
+    expect(stage1.bounds).toEqual({ minX: -1380, maxX: 120, minY: -540, maxY: 540 });
     // The SVG satellite anchors map 1:1 onto the browser slots, so each dot
-    // sits exactly under its Ring-3 browser node (slot 0 at 180°).
+    // sits exactly under its client-ring browser node (slot 0 at 180°).
     expect(stage1.satellites).toEqual(
       stage1.browserSlots.map(({ index, x, y, angleDeg }) => ({ index, x, y, angleDeg })),
     );
     for (const sat of stage1.satellites.slice(1)) {
       expect(Math.abs(sat.angleDeg - 180)).toBeGreaterThan(8);
-      expect(Math.abs(Math.hypot(sat.x, sat.y) - 1067)).toBeLessThanOrEqual(1);
+      expect(Math.abs(Math.hypot(sat.x, sat.y) - 1200)).toBeLessThanOrEqual(1);
+    }
+    for (const node of Object.values(stage1.nodes)) {
+      expect(node.radius).toBeGreaterThan(0);
+      expect(node.x !== 0 || node.y !== 0).toBe(true);
     }
     expect(() => computeStageLayout(3)).toThrow(/stage/);
 
+    // Stage 2: 4 layers -> 4 rings, both backends on Ring 1's left arc.
     const stage2 = computeStageLayout(2, 5);
-    expect(stage2.nodes['node-lb']).toMatchObject({ x: -267, y: 0 });
-    expect(stage2.nodes['node-webserver']).toMatchObject({ x: 179, y: -198 });
-    expect(stage2.nodes['node-webserver-2']).toMatchObject({ x: 179, y: 198 });
+    expect(stage2.rings.map((r) => r.radius)).toEqual([400, 800, 1200, 1600]);
+    expect(stage2.rings.map((r) => r.id)).toEqual([
+      'ring-compute',
+      'ring-lb',
+      'ring-network',
+      'ring-clients',
+    ]);
+    expect(stage2.nodes['node-webserver']).toMatchObject({
+      x: -346,
+      y: -200,
+      radius: 400,
+      ring: 'ring-compute',
+    });
+    expect(stage2.nodes['node-webserver-2']).toMatchObject({
+      x: -346,
+      y: 200,
+      radius: 400,
+      ring: 'ring-compute',
+    });
+    expect(stage2.nodes['node-lb']).toMatchObject({
+      x: -800,
+      y: 0,
+      radius: 800,
+      ring: 'ring-lb',
+    });
+    expect(stage2.nodes['node-network']).toMatchObject({
+      x: -1200,
+      y: 0,
+      radius: 1200,
+      ring: 'ring-network',
+    });
+    expect(stage2.nodes['node-browser']).toMatchObject({
+      x: -1600,
+      y: 0,
+      radius: 1600,
+      ring: 'ring-clients',
+    });
+    for (const node of Object.values(stage2.nodes)) {
+      expect(node.radius).toBeGreaterThan(0);
+      expect(node.x !== 0 || node.y !== 0).toBe(true);
+    }
     expect(stage2.wires.map((w) => w.id)).toEqual([
       'wire-browser-network',
       'wire-network-lb',
       'wire-lb-webserver',
       'wire-lb-webserver-2',
     ]);
-    expect(stage2.bounds).toEqual(stage1.bounds);
+    expect(stage2.bounds).toEqual({ minX: -1780, maxX: 120, minY: -540, maxY: 540 });
 
     // Fit: bounds land inside the padded viewport with the camera centered.
     const fit = fitCameraToBounds(stage1.bounds, 1150, 448, 48);
-    expect(fit.x).toBe(-425);
+    expect(fit.x).toBe(-630);
     expect(fit.y).toBe(0);
-    expect(fit.zoom).toBeCloseTo(Math.min((1150 - 96) / 1644, (448 - 96) / 794), 6);
+    expect(fit.zoom).toBeCloseTo(Math.min((1150 - 96) / 1500, (448 - 96) / 1080), 6);
     expect(fit.zoom).toBeGreaterThanOrEqual(MIN_ZOOM);
     expect(fit.zoom).toBeLessThanOrEqual(MAX_ZOOM);
 
-    // A tuned ring gap scales rings, node positions, satellites, and bounds:
-    // r1 = round(267·300/400) = 200, r2 = 200+300 = 500, r3 = 200+600 = 800.
+    // A tuned ring gap rescales every ring as r_k = k * ringGap (k = stage's
+    // layer count), moving nodes, satellites, and bounds with it.
     expect(DEFAULT_RING_GAP).toBe(400);
     const tuned = computeStageLayout(1, 5, { ringGap: 300 });
-    expect(tuned.rings.map((r) => r.radius)).toEqual([200, 500, 800]);
-    expect(tuned.nodes['node-browser']).toMatchObject({ x: -800, y: 0, radius: 800 });
-    expect(tuned.nodes['node-network']).toMatchObject({ x: -500, y: 0, radius: 500 });
+    expect(tuned.rings.map((r) => r.radius)).toEqual([300, 600, 900]);
+    expect(tuned.nodes['node-webserver']).toMatchObject({ x: -300, y: 0, radius: 300 });
+    expect(tuned.nodes['node-browser']).toMatchObject({ x: -900, y: 0, radius: 900 });
+    expect(tuned.nodes['node-network']).toMatchObject({ x: -600, y: 0, radius: 600 });
     expect(tuned.satellites).toHaveLength(5);
     for (const sat of tuned.satellites) {
-      expect(Math.abs(Math.hypot(sat.x, sat.y) - 800)).toBeLessThanOrEqual(1);
+      expect(Math.abs(Math.hypot(sat.x, sat.y) - 900)).toBeLessThanOrEqual(1);
     }
-    expect(tuned.bounds).toEqual({ minX: -980, maxX: 330, minY: -330, maxY: 330 });
+    expect(tuned.bounds).toEqual({ minX: -1080, maxX: 120, minY: -440, maxY: 440 });
   });
 
   it('maps every simulated browser to an addressable Ring 3 slot around the expanded one', () => {
@@ -149,9 +214,9 @@ describe('orrery layout', () => {
     ]);
     // CHECKS: the default expanded browser 10.2 owns the 180° slot, so the
     // default card position and wire midpoints match the pinned layout.
-    expect(layout.browserSlots[0]).toMatchObject({ index: 0, x: -1067, y: 0, angleDeg: 180 });
+    expect(layout.browserSlots[0]).toMatchObject({ index: 0, x: -1200, y: 0, angleDeg: 180 });
     for (const slot of layout.browserSlots.slice(1)) {
-      expect(Math.abs(Math.hypot(slot.x, slot.y) - 1067)).toBeLessThanOrEqual(1);
+      expect(Math.abs(Math.hypot(slot.x, slot.y) - 1200)).toBeLessThanOrEqual(1);
       expect(Math.abs(slot.angleDeg - 180)).toBeGreaterThan(8);
     }
     // Expanding another browser re-anchors #node-browser (and its wires) on

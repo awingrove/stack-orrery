@@ -162,3 +162,9 @@ Exports `initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers })`:
       Verify: `npm run verify` green.
 - [x] **Step 6: Retune the default ring spacing to 400px — DEFAULT_RING_GAP and #ring-gap-slider (min 180 / max 560 / step 5, readout #ring-gap-value start 400px), with camera HUD interactions (#users-slider, stage pills, browser expansion) preserving the current gap — #zoom-speed-slider dials down to 1.01x (min 1.01 / step 0.01), the SVG satellite dots reuse the exact browserSlots coordinates, and positionParts() moves the compact Ring-3 browser nodes live while the slider is dragged. Step 2's (140, ±156) pin at r1 = 210 retires with the old default; the ±48° polar values at r1 = 267 — (179, ±198) — are authoritative.**
       Verify: `npm run verify` green.
+- [x] **Step 7: Place every component on its own layer ring (`r_k = k * ringGap`), with as many rings as the stage has layers (Stage 1 = 3 rings: WebServer on Ring 1, Network on Ring 2, Browsers on Ring 3; Stage 2 = 4 rings: WebServers on Ring 1, LoadBalancer on Ring 2, Network on Ring 3, Browsers on Ring 4), update unit and e2e tests, and tick this step.**
+      Verify: `npm run verify` green. (Done: `buildOrreryRings(ringGap, stage)`
+      emits one ring per layer and `computeStageLayout` seats every node on its
+      layer's ring — Stage 1 at 180°, Stage 2 backends at 210°/150°; `bounds`
+      frames the outer ring and origin; `WORLD_BOUNDS` widened with
+      `MIN_ZOOM = 0.25`; the SVG box covers full circles up to r = 2500.)

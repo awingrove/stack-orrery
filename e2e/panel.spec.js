@@ -110,9 +110,10 @@ test('should switch to Stage 2, alternate requests across 10.11 and 10.12 via th
   await expect(page.getByTestId('inspector-state')).toContainText('"forwardedTotal": 2');
 });
 
-// The orrery plane is camera-driven: three concentric SVG rings, zoom via HUD
-// buttons and wheel (toward the cursor), pan via pointer drag, and a Fit-to-view
-// reset that restores the initial framing computed from the stage bounds.
+// The orrery plane is camera-driven: one concentric SVG ring per architectural
+// layer (3 in Stage 1, 4 in Stage 2, r_k = k * ringGap), zoom via HUD buttons
+// and wheel (toward the cursor), pan via pointer drag, and a Fit-to-view reset
+// that restores the initial framing computed from the stage bounds.
 test('should pan and zoom the concentric orrery plane and reset with Fit to view', async ({
   page,
 }) => {
@@ -120,6 +121,15 @@ test('should pan and zoom the concentric orrery plane and reset with Fit to view
 
   const viewport = page.getByTestId('orrery-viewport');
   await expect(page.locator('.orrery-ring')).toHaveCount(3); // compute, network, clients
+  await expect(page.locator('.orrery-ring').first()).toHaveAttribute('r', '400');
+  await expect(page.locator('.orrery-ring').last()).toHaveAttribute('r', '1200');
+  // Stage 2 adds its 4th layer ring (LoadBalancer gets its own ring, Network
+  // and Browsers move outward).
+  await page.getByTestId('stage-pill-2').click();
+  await expect(page.locator('.orrery-ring')).toHaveCount(4);
+  await expect(page.locator('.orrery-ring').last()).toHaveAttribute('r', '1600');
+  await page.getByTestId('stage-pill-1').click();
+  await expect(page.locator('.orrery-ring')).toHaveCount(3);
   await expect(page.locator('.orrery-satellite').first()).toBeVisible();
 
   const zoomStatus = page.getByTestId('zoom-status');
@@ -150,18 +160,18 @@ test('should pan and zoom the concentric orrery plane and reset with Fit to view
   await page.getByTestId('btn-zoom-fit').click();
   await expect(zoomStatus).toHaveText(initialZoom);
 
-  // Live tuning: the ring-gap slider rescales all three SVG rings in place
-  // (r1 = round(267·460/400) = 307 → outer ring 1227) with the camera left
+  // Live tuning: the ring-gap slider rescales the stage's rings as
+  // r_k = k * ringGap (460 / 920 / 1380 in Stage 1) with the camera left
   // where Fit put it, and the readouts mirror their sliders immediately.
   await expect(page.getByTestId('ring-gap-value')).toHaveText('400px');
-  await expect(page.locator('.orrery-ring').first()).toHaveAttribute('r', '267');
-  await expect(page.locator('.orrery-ring').last()).toHaveAttribute('r', '1067');
+  await expect(page.locator('.orrery-ring').first()).toHaveAttribute('r', '400');
+  await expect(page.locator('.orrery-ring').last()).toHaveAttribute('r', '1200');
   const compact10_3 = page.getByTestId('browser-node-10.3');
   const compactLeftBefore = await compact10_3.evaluate((el) => el.style.left);
   await page.getByTestId('ring-gap-slider').fill('460');
   await expect(page.getByTestId('ring-gap-value')).toHaveText('460px');
-  await expect(page.locator('.orrery-ring').first()).toHaveAttribute('r', '307');
-  await expect(page.locator('.orrery-ring').last()).toHaveAttribute('r', '1227');
+  await expect(page.locator('.orrery-ring').first()).toHaveAttribute('r', '460');
+  await expect(page.locator('.orrery-ring').last()).toHaveAttribute('r', '1380');
   // The compact Ring-3 browsers move live with the ring gap too, not just the
   // SVG rings.
   const compactLeftAfter = await compact10_3.evaluate((el) => el.style.left);

@@ -2,9 +2,9 @@
 // fit-to-bounds, and the CSS transform mapping world (0,0) into the viewport.
 // Zero DOM here: this is the module the unit suite pins; viewport.js owns all
 // DOM writes.
-export const MIN_ZOOM = 0.35;
+export const MIN_ZOOM = 0.25;
 export const MAX_ZOOM = 2.0;
-export const WORLD_BOUNDS = { minX: -1200, maxX: 600, minY: -650, maxY: 650 };
+export const WORLD_BOUNDS = { minX: -2800, maxX: 1200, minY: -1600, maxY: 1600 };
 
 const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
 

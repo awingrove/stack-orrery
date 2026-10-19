@@ -31,14 +31,15 @@
 }
 
 /* World-space backdrop: concentric rings, spokes, satellites. The SVG's box
-   is shifted so its viewBox origin lines up with world (0,0). Wide enough
-   that a tuned ring gap (up to 480) keeps the outer ring inside the box. */
+   is shifted so its viewBox origin lines up with world (0,0). Covers full
+   circles up to r = 2500, so Stage 2's four rings at the max ring gap
+   (r4 = 4 * 560 = 2240) never clip. */
 .orrery-svg {
   position: absolute;
-  left: -1600px;
-  top: -1000px;
-  width: 3200px;
-  height: 2000px;
+  left: -2600px;
+  top: -2600px;
+  width: 5200px;
+  height: 5200px;
   pointer-events: none;
 }
 
