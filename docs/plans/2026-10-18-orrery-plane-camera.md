@@ -60,14 +60,14 @@ Exports:
 Models the **Concentric Orrery Rings** with server/data resources at the center
 and clients on the outer orbit:
 
-- `DEFAULT_RING_GAP = 315`.
+- `DEFAULT_RING_GAP = 400`.
 - `ORRERY_RINGS`:
-  - `{ id: 'ring-compute', radius: 210, label: 'RING 1 · COMPUTE' }`
-  - `{ id: 'ring-network', radius: 520, label: 'RING 2 · NETWORK' }`
-  - `{ id: 'ring-clients', radius: 840, label: 'RING 3 · CLIENTS' }`
+  - `{ id: 'ring-compute', radius: 267, label: 'RING 1 · COMPUTE' }`
+  - `{ id: 'ring-network', radius: 667, label: 'RING 2 · NETWORK' }`
+  - `{ id: 'ring-clients', radius: 1067, label: 'RING 3 · CLIENTS' }`
 - `buildOrreryRings(ringGap = DEFAULT_RING_GAP)`:
-  - When `ringGap === DEFAULT_RING_GAP`, returns `ORRERY_RINGS` (`[210, 520, 840]`).
-  - Otherwise scales `r1 = Math.round((210 * ringGap) / DEFAULT_RING_GAP)`,
+  - When `ringGap === DEFAULT_RING_GAP`, returns `ORRERY_RINGS` (`[267, 667, 1067]`).
+  - Otherwise scales `r1 = Math.round((267 * ringGap) / DEFAULT_RING_GAP)`,
     `r2 = r1 + ringGap`, `r3 = r1 + 2 * ringGap` and returns the 3 ring descriptors.
 - `polarToWorld(radius, angleDeg)`:
   - Converts polar `(radius, angleDeg)` to `{ x: Math.round(radius * Math.cos(rad)), y: Math.round(radius * Math.sin(rad)) }`.
@@ -75,22 +75,24 @@ and clients on the outer orbit:
   - Validates `stage === 1 || stage === 2` (`CHECKS:`).
   - Returns `{ stage, rings: ORRERY_RINGS, nodes, wires, satellites, bounds }`:
     - **Nodes** (map of card DOM id -> `{ id, ring, radius, angleDeg, x, y }`):
-      - `node-browser`: `radius = 840, angleDeg = 180` -> `(-840, 0)` (Ring 3 · Clients).
-      - `node-network`: `radius = 520, angleDeg = 180` -> `(-520, 0)` (Ring 2 · Network).
+      - `node-browser`: `radius = 1067, angleDeg = 180` -> `(-1067, 0)` (Ring 3 · Clients).
+      - `node-network`: `radius = 667, angleDeg = 180` -> `(-667, 0)` (Ring 2 · Network).
       - In **Stage 1**:
         - `node-webserver`: `radius = 0, angleDeg = 0` -> `(0, 0)` (Orrery Core).
       - In **Stage 2**:
-        - `node-lb`: `radius = 210, angleDeg = 180` -> `(-210, 0)` (Ring 1 · Compute/Ingress).
-        - `node-webserver`: `radius = 210, angleDeg = -48` -> `(140, -156)` (Ring 1 · Compute).
-        - `node-webserver-2`: `radius = 210, angleDeg = 48` -> `(140, 156)` (Ring 1 · Compute).
+        - `node-lb`: `radius = 267, angleDeg = 180` -> `(-267, 0)` (Ring 1 · Compute/Ingress).
+        - `node-webserver`: `radius = 267, angleDeg = -48` -> `(179, -198)` (Ring 1 · Compute).
+        - `node-webserver-2`: `radius = 267, angleDeg = 48` -> `(179, 198)` (Ring 1 · Compute).
     - **Wires** (array of `{ id, fromId, toId, x1, y1, x2, y2, midX, midY }`):
       - Connects `node-browser <-> node-network`, `node-network <-> node-webserver` (Stage 1)
         or `node-network <-> node-lb` and `node-lb <-> node-webserver` / `node-webserver-2` (Stage 2),
         plus midpoints for positioning `#wire-col-left`, `#wire-col-right`, and `#wire-lb-backends`.
     - **Satellites** (array of `{ index, x, y, angleDeg }`):
-      - `users` crowd browser dots spaced along the `radius = 840` outer Client
-        ring (across angles `135° .. 225°`, avoiding `180°` where `node-browser` sits).
-    - **Bounds**: `{ minX: -1020, maxX: 340, minY: -340, maxY: 340 }`.
+      - Reuses the `browserSlots` coordinates 1:1, so each
+        `<circle class="orrery-satellite">` anchor dot sits exactly under its
+        Ring-3 browser node on the outer orbit.
+    - **Bounds**: `{ minX: -(r3 + 180), maxX: r1 + 130, minY: -(r1 + 130), maxY: r1 + 130 }`
+      -> `{ minX: -1247, maxX: 397, minY: -397, maxY: 397 }` at the default gap.
 
 ### 3. `js/panel/viewport.js` (new viewport controller)
 
@@ -104,7 +106,7 @@ Exports `initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers })`:
   - Populates `#orrery-svg` (using `createElementNS('http://www.w3.org/2000/svg', ...)`):
     - Concentric `<circle class="orrery-ring">` tracks for `ORRERY_RINGS` + core marker.
     - `<line class="orrery-spoke">` spokes between active stage nodes.
-    - `<circle class="orrery-satellite">` dots along `r = 840` for `users`.
+    - `<circle class="orrery-satellite">` anchor dots at 1:1 `browserSlots`
   - Updates `#zoom-status` text (`${Math.round(camera.zoom * 100)}%`).
 - Wires interactions (all via `addEventListener`, never inline):
   - `#btn-zoom-in`: `zoomCameraAt(camera, 1.2, 0, 0)`
@@ -157,4 +159,6 @@ Exports `initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers })`:
 - [x] **Step 4: Add live on-screen tuning controls in the camera HUD (`#ring-gap-slider` + `#ring-gap-value` for ring spacing and `#zoom-speed-slider` + `#zoom-speed-value` for zoom speed) wired through `js/panel/layout.js` and `js/panel/viewport.js`, with unit and e2e assertions in `test/panel/camera.test.js` and `e2e/panel.spec.js`, and tick this step.**
       Verify: `npm run verify` green.
 - [x] **Step 5: Replace the anonymous Crowd concept and path-chip shortcuts with addressable Browser nodes on Ring 3 (mini-IPs 10.2 through 10.(N+1)) — compact clickable browser nodes for all non-selected browsers, expanding the clicked browser into the full browser card (node-browser) with GET/POST chooser, URL input, Go button, and response display — and tick this step.**
+      Verify: `npm run verify` green.
+- [x] **Step 6: Retune the default ring spacing to 400px — DEFAULT_RING_GAP and #ring-gap-slider (min 180 / max 560 / step 5, readout #ring-gap-value start 400px), with camera HUD interactions (#users-slider, stage pills, browser expansion) preserving the current gap — #zoom-speed-slider dials down to 1.01x (min 1.01 / step 0.01), the SVG satellite dots reuse the exact browserSlots coordinates, and positionParts() moves the compact Ring-3 browser nodes live while the slider is dragged. Step 2's (140, ±156) pin at r1 = 210 retires with the old default; the ±48° polar values at r1 = 267 — (179, ±198) — are authoritative.**
       Verify: `npm run verify` green.

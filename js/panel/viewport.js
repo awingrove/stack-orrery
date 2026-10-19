@@ -8,7 +8,7 @@ import { panCamera, zoomCameraAt, fitCameraToBounds, formatWorldTransform } from
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const DEFAULT_ZOOM_STEP = 1.2;
-const DEFAULT_RING_GAP = 315;
+const DEFAULT_RING_GAP = 400;
 const PAN_PX = 48;
 
 // Drag-start targets that own their pointer events (camera never hijacks
@@ -119,6 +119,12 @@ export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers, g
         setWorldPos(lane, Math.round((w1.midX + w2.midX) / 2), Math.round((w1.midY + w2.midY) / 2));
       }
     }
+    for (const slot of layout.browserSlots ?? []) {
+      // CHECKS: compact Ring-3 nodes track layout.browserSlots so they move in
+      // real time as the ring-gap slider is dragged, like every other card.
+      const btn = document.querySelector(`.browser-compact[data-address="${slot.address}"]`);
+      if (btn) setWorldPos(btn, slot.x, slot.y);
+    }
     drawOrrery(svgEl, layout);
   }
 
@@ -126,7 +132,13 @@ export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers, g
   // only when the stage changed (init + stage switch); pans/zooms survive.
   function syncLayout() {
     const { w, h } = viewSize();
-    layout = computeStageLayout(getStage(), getUsers(), { activeBrowser: activeAddress() });
+    // CHECKS: the current slider gap feeds stage sync too, so stage switches,
+    // browser expansion, and users changes keep the tuned spacing.
+    const ringGap = Number(ringGapSlider?.value) || DEFAULT_RING_GAP;
+    layout = computeStageLayout(getStage(), getUsers(), {
+      ringGap,
+      activeBrowser: activeAddress(),
+    });
     if (lastStage !== layout.stage) {
       camera = fitCameraToBounds(layout.bounds, w, h);
       lastStage = layout.stage;

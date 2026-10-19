@@ -151,16 +151,27 @@ test('should pan and zoom the concentric orrery plane and reset with Fit to view
   await expect(zoomStatus).toHaveText(initialZoom);
 
   // Live tuning: the ring-gap slider rescales all three SVG rings in place
-  // (r1 = round(210·400/315) = 267 → outer ring 1067) with the camera left
+  // (r1 = round(267·460/400) = 307 → outer ring 1227) with the camera left
   // where Fit put it, and the readouts mirror their sliders immediately.
-  await page.getByTestId('ring-gap-slider').fill('400');
   await expect(page.getByTestId('ring-gap-value')).toHaveText('400px');
+  await expect(page.locator('.orrery-ring').first()).toHaveAttribute('r', '267');
   await expect(page.locator('.orrery-ring').last()).toHaveAttribute('r', '1067');
+  const compact10_3 = page.getByTestId('browser-node-10.3');
+  const compactLeftBefore = await compact10_3.evaluate((el) => el.style.left);
+  await page.getByTestId('ring-gap-slider').fill('460');
+  await expect(page.getByTestId('ring-gap-value')).toHaveText('460px');
+  await expect(page.locator('.orrery-ring').first()).toHaveAttribute('r', '307');
+  await expect(page.locator('.orrery-ring').last()).toHaveAttribute('r', '1227');
+  // The compact Ring-3 browsers move live with the ring gap too, not just the
+  // SVG rings.
+  const compactLeftAfter = await compact10_3.evaluate((el) => el.style.left);
+  expect(compactLeftAfter).not.toBe(compactLeftBefore);
   await expect(zoomStatus).toHaveText(initialZoom); // camera untouched by tuning
 
-  // Zoom speed retunes every zoom gesture (buttons, wheel, keyboard).
-  await page.getByTestId('zoom-speed-slider').fill('1.5');
-  await expect(page.getByTestId('zoom-speed-value')).toHaveText('1.50x');
+  // Zoom speed retunes every zoom gesture (buttons, wheel, keyboard) and can
+  // dial the per-step factor all the way down to 1.01x.
+  await page.getByTestId('zoom-speed-slider').fill('1.01');
+  await expect(page.getByTestId('zoom-speed-value')).toHaveText('1.01x');
 });
 
 // Ring 3 browsers are addressable: clicking a compact browser node expands

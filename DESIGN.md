@@ -134,8 +134,9 @@ Every stage diagram panel (`panel.html`) is organized into four vertical zones:
 3. **Orrery Plane & Camera Viewport (`.orrery-viewport` / `.orrery-canvas`):**
    A pannable and zoomable 2D world plane (`.orrery-world`) inside a clipped
    viewport (`.orrery-viewport`) with concentric orbital rings etched in SVG
-   (`#orrery-svg`, `r₀ = 0` Core, `r₁ = 210` Compute & Ingress ring, `r₂ = 520`
-   Network ring, `r₃ = 840` Client orbit). All `N` client browsers (`10.2` ..
+   (`#orrery-svg`, `r₀ = 0` Core, `r₁ = 267` Compute & Ingress ring, `r₂ = 667`
+   Network ring, `r₃ = 1067` Client orbit at the default `400px` ring gap). All `N`
+   client browsers (`10.2` ..
    `10.(N+1)`) sit on the outer `r₃` orbit: the currently selected browser
    renders as the full expanded `#node-browser` card, while the other `N - 1`
    browsers render as clickable compact `.browser-compact` nodes on `r₃` (clicking
@@ -143,8 +144,9 @@ Every stage diagram panel (`panel.html`) is organized into four vertical zones:
    - **Camera HUD (`.camera-hud`):** Fixed screen-space overlay in the top-right
      of `.orrery-viewport` with `#btn-zoom-in` (`+`), `#btn-zoom-out` (`-`),
      `#btn-zoom-fit` (`Fit`), `#zoom-status` percentage badge, and live tuning
-     sliders for **Ring spacing** (`#ring-gap-slider` + `#ring-gap-value`) and
-     **Zoom speed** (`#zoom-speed-slider` + `#zoom-speed-value`). Supports
+     sliders for **Ring spacing** (`#ring-gap-slider`, default `400px`,
+     `180–560px` step `5`, + `#ring-gap-value`) and **Zoom speed**
+     (`#zoom-speed-slider`, `1.01x–1.50x` step `0.01`, + `#zoom-speed-value`). Supports
      pointer drag to pan, wheel/pinch zoom toward the cursor, and keyboard
      shortcuts (`Arrow` keys to pan, `+`/`-` to zoom, `0` to fit).
 4. **Bottom Split (`.bottom-panels`):**

@@ -2,12 +2,12 @@
 // wire segments with midpoints, client-orbit satellite positions, and stage
 // bounding boxes. Zero DOM: viewport.js consumes this to place cards, lanes,
 // and SVG shapes.
-export const DEFAULT_RING_GAP = 315;
+export const DEFAULT_RING_GAP = 400;
 
 export const ORRERY_RINGS = [
-  { id: 'ring-compute', radius: 210, label: 'RING 1 · COMPUTE' },
-  { id: 'ring-network', radius: 520, label: 'RING 2 · NETWORK' },
-  { id: 'ring-clients', radius: 840, label: 'RING 3 · CLIENTS' },
+  { id: 'ring-compute', radius: 267, label: 'RING 1 · COMPUTE' },
+  { id: 'ring-network', radius: 667, label: 'RING 2 · NETWORK' },
+  { id: 'ring-clients', radius: 1067, label: 'RING 3 · CLIENTS' },
 ];
 
 // CHECKS: buildOrreryRings validates the ring gap rather than producing NaN
@@ -64,8 +64,6 @@ function makeWire(id, fromId, toId, from, to) {
   };
 }
 
-const ORRERY_BOUNDS = { minX: -1020, maxX: 340, minY: -340, maxY: 340 };
-
 // CHECKS: computeStageLayout validates the stage range rather than silently
 // rendering an unknown topology as empty space.
 export function computeStageLayout(
@@ -120,31 +118,8 @@ export function computeStageLayout(
   let wires;
   if (stage === 2) {
     nodes['node-lb'] = pos('node-lb', 'ring-compute', r1, 180);
-    // DOCUMENTS: plan pins node-webserver(-2) at (140, ±156) here; the raw
-    // -48°/+48° polar formula rounds to (141, ±156), so the pinned card
-    // coordinates are authoritative over the formula's 1px drift. A tuned
-    // ring gap re-derives them from polarToWorld at the scaled r1 instead.
-    if (r1 === 210) {
-      nodes['node-webserver'] = {
-        id: 'node-webserver',
-        ring: 'ring-compute',
-        radius: r1,
-        angleDeg: -48,
-        x: 140,
-        y: -156,
-      };
-      nodes['node-webserver-2'] = {
-        id: 'node-webserver-2',
-        ring: 'ring-compute',
-        radius: r1,
-        angleDeg: 48,
-        x: 140,
-        y: 156,
-      };
-    } else {
-      nodes['node-webserver'] = pos('node-webserver', 'ring-compute', r1, -48);
-      nodes['node-webserver-2'] = pos('node-webserver-2', 'ring-compute', r1, 48);
-    }
+    nodes['node-webserver'] = pos('node-webserver', 'ring-compute', r1, -48);
+    nodes['node-webserver-2'] = pos('node-webserver-2', 'ring-compute', r1, 48);
     wires = [
       makeWire(
         'wire-browser-network',
@@ -199,14 +174,14 @@ export function computeStageLayout(
     rings,
     nodes,
     wires,
-    satellites: computeSatellites(users, r3),
+    // DOCUMENTS: the SVG anchor dots reuse the browserSlots coordinates 1:1 so
+    // each Ring-3 dot sits exactly under its browser node (not at users + 1
+    // different angles from the old crowd arcs).
+    satellites: browserSlots.map(({ index, x, y, angleDeg }) => ({ index, x, y, angleDeg })),
     browserSlots,
     // DOCUMENTS: at the default ring gap this equals the plan's pinned
-    // { minX: -1020, maxX: 340, minY: -340, maxY: 340 }; tuned gaps scale the
+    // { minX: -1247, maxX: 397, minY: -397, maxY: 397 }; tuned gaps scale the
     // bounds with r1/r3 so Fit to view keeps the whole plane in frame.
-    bounds:
-      ringGap === DEFAULT_RING_GAP
-        ? ORRERY_BOUNDS
-        : { minX: -(r3 + 180), maxX: r1 + 130, minY: -(r1 + 130), maxY: r1 + 130 },
+    bounds: { minX: -(r3 + 180), maxX: r1 + 130, minY: -(r1 + 130), maxY: r1 + 130 },
   };
 }
