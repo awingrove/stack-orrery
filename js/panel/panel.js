@@ -22,6 +22,9 @@ let engine = null;
 let timer = null;
 let selectedComponent = 'browser';
 let currentSnapshot = null;
+// The browser currently expanded into #node-browser (mini-IP on Ring 3);
+// every other browser renders as a compact clickable node in its slot.
+let activeBrowserAddress = '10.2';
 
 function createEngineFromControls() {
   return createEngine({
@@ -35,13 +38,16 @@ function createEngineFromControls() {
 
 function updateView(snapshot) {
   currentSnapshot = snapshot;
-  render(snapshot, selectedComponent);
+  render(snapshot, selectedComponent, {
+    layout: viewport.getLayout(),
+    activeAddress: activeBrowserAddress,
+  });
 }
 
 function selectComponent(component) {
   if (!COMPONENT_SOURCE[component]) return;
   selectedComponent = component;
-  renderInspector(selectedComponent, currentSnapshot);
+  renderInspector(selectedComponent, currentSnapshot, activeBrowserAddress);
   for (const tab of document.querySelectorAll('.comp-tab')) {
     tab.classList.toggle('active-tab', tab.dataset.select === component);
   }
@@ -88,16 +94,23 @@ $('step-button').addEventListener('click', () => {
 });
 
 $('users-slider').addEventListener('input', () => {
-  engine.setUsers(Number($('users-slider').value));
+  const users = Number($('users-slider').value);
+  engine.setUsers(users);
+  // A shrunken crowd drops its highest mini-IP slots; if the expanded browser
+  // no longer exists, fall back to the learner's own browser.
+  const host = Number(String(activeBrowserAddress).split('.')[1]);
+  if (host > users + 1) activeBrowserAddress = '10.2';
+  viewport.syncLayout(); // browser slots + crowd satellites re-space on Ring 3
   updateView(engine.snapshot());
-  viewport.syncLayout(); // crowd satellites re-space on the client ring
 });
 
-// Single hop of the trace; the engine moves the request one stage per call.
+// Single hop of the trace; the engine moves the request one stage per call,
+// originating from whichever browser is currently expanded on Ring 3.
 function stepOneHop() {
   const snapshot = engine.traceHop({
     method: els.method.value,
     path: els.urlInput.value,
+    from: activeBrowserAddress,
   });
   const totalHops = snapshot.stage === 2 ? 5 : 4;
   addToJourney(`hop ${snapshot.trace.hop}/${totalHops}`, snapshot.lastFrame);
@@ -127,11 +140,16 @@ document.querySelectorAll('.stage-pill[data-stage]').forEach((pill) => {
   pill.addEventListener('click', () => switchStage(Number(pill.dataset.stage)));
 });
 
-document.querySelectorAll('.path-chip').forEach((chip) => {
-  chip.addEventListener('click', () => {
-    els.method.value = chip.dataset.method;
-    els.urlInput.value = chip.dataset.path;
-  });
+// Clicking a compact browser on Ring 3 expands it into #node-browser at its
+// orbital position and collapses the previously expanded browser (10.2
+// included) into a compact node in its own slot.
+document.getElementById('browser-ring-nodes').addEventListener('click', (e) => {
+  const chip = e.target.closest('.browser-compact');
+  if (!chip) return;
+  activeBrowserAddress = chip.dataset.address;
+  viewport.syncLayout(); // moves #node-browser + wire lane to the new slot
+  selectComponent('browser');
+  updateView(engine.snapshot());
 });
 
 // Clicking a node card selects it in the bottom inspector (clicks on the
@@ -158,6 +176,7 @@ const viewport = initViewport({
   svgEl: $('orrery-svg'),
   getStage: () => currentStage,
   getUsers: () => Number($('users-slider').value),
+  getActiveBrowser: () => activeBrowserAddress,
 });
 onStageRendered(() => viewport.syncLayout());
 selectComponent('browser');

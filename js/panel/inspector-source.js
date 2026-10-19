@@ -118,11 +118,20 @@ export const COMPONENT_SOURCE = {
 // The live-state side of the inspector: one builder per selectable
 // component, all derived from the engine snapshot (nothing faked).
 const STATE_BUILDERS = {
-  browser: (snapshot) => ({
-    name: 'Browser (You)',
-    address: '10.2',
-    lastDisplay: snapshot.browserDisplay ?? null,
-  }),
+  browser: (snapshot, browserAddress = '10.2') => {
+    const browsers = Array.isArray(snapshot.browsers) ? snapshot.browsers : [];
+    const slot = browsers.find((b) => b.address === browserAddress) ?? null;
+    return {
+      name:
+        browserAddress === '10.2'
+          ? 'Browser (You)'
+          : `Browser-${Number(browserAddress.split('.')[1]) - 1}`,
+      address: browserAddress,
+      lastDisplay:
+        (slot ? slot.lastDisplay : null) ??
+        (browserAddress === '10.2' ? (snapshot.browserDisplay ?? null) : null),
+    };
+  },
   network: (snapshot) => ({
     subnet: '10.x',
     interfaces:
@@ -172,8 +181,8 @@ const STATE_BUILDERS = {
   },
 };
 
-export function formatComponentState(snapshot, component) {
+export function formatComponentState(snapshot, component, browserAddress = '10.2') {
   const build = STATE_BUILDERS[component];
   if (!build) throw new Error(`inspector-source: unknown component ${component}`);
-  return JSON.stringify(build(snapshot), null, 2);
+  return JSON.stringify(build(snapshot, browserAddress), null, 2);
 }

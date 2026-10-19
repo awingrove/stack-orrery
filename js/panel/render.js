@@ -16,6 +16,9 @@ export const els = {
   urlGo: $('btn-url-go'),
   statusBadge: $('browser-status-badge'),
   renderedBody: $('browser-rendered-body'),
+  browserRoleName: $('browser-role-name'),
+  browserIpChip: $('browser-ip-chip'),
+  browserRing: $('browser-ring-nodes'),
   netRole101: $('network-role-10-1'),
   crowdCount: $('network-crowd-count'),
   lastFrame: $('network-last-frame'),
@@ -167,16 +170,65 @@ function renderDots(n) {
   );
 }
 
-export function renderInspector(selectedComponent, currentSnapshot) {
+// CHECKS: compact Ring-3 nodes rebuild from the layout's browser slots so a
+// re-spaced or re-populated ring leaves no stale or ghost buttons behind.
+function renderRingBrowsers(slots, activeAddress) {
+  if (!els.browserRing) return;
+  els.browserRing.replaceChildren(
+    ...slots
+      .filter((slot) => slot.address !== activeAddress)
+      .map((slot) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'browser-compact';
+        button.dataset.testid = `browser-node-${slot.address}`;
+        button.dataset.address = slot.address;
+        button.style.left = `${slot.x}px`;
+        button.style.top = `${slot.y}px`;
+        const chip = document.createElement('span');
+        chip.className = 'ip-chip';
+        chip.textContent = slot.address;
+        const status = document.createElement('span');
+        status.className = 'browser-compact-status';
+        status.textContent = slot.lastDisplay ? String(slot.lastDisplay.status) : 'idle';
+        button.replaceChildren(chip, status);
+        return button;
+      }),
+  );
+}
+
+function browserName(address) {
+  return address === '10.2'
+    ? 'Browser (You)'
+    : `Browser-${Number(String(address).split('.')[1]) - 1}`;
+}
+
+export function renderInspector(selectedComponent, currentSnapshot, browserAddress = '10.2') {
   const source = COMPONENT_SOURCE[selectedComponent];
-  els.inspectorTitle.textContent = source.title;
+  els.inspectorTitle.textContent =
+    selectedComponent === 'browser' && browserAddress !== '10.2'
+      ? `${browserName(browserAddress)} — mini-IP ${browserAddress}`
+      : source.title;
   els.inspectorCode.textContent = source.code;
   if (currentSnapshot) {
-    els.inspectorState.textContent = formatComponentState(currentSnapshot, selectedComponent);
+    els.inspectorState.textContent = formatComponentState(
+      currentSnapshot,
+      selectedComponent,
+      browserAddress,
+    );
   }
 }
 
-export function render(snapshot, selectedComponent) {
+function activeBrowserDisplay(snapshot, activeAddress) {
+  const browsers = Array.isArray(snapshot.browsers) ? snapshot.browsers : [];
+  const slot = browsers.find((b) => b.address === activeAddress) ?? browsers[0] ?? null;
+  // The learner's own interactive browser keeps its dedicated clientBrowser
+  // state on the snapshot; pool browsers carry theirs per-slot.
+  if (slot && slot.address === '10.2') return snapshot.browserDisplay ?? null;
+  return slot?.lastDisplay ?? null;
+}
+
+export function render(snapshot, selectedComponent, { layout, activeAddress = '10.2' } = {}) {
   const labels = describeSnapshot(snapshot);
   $('tick').textContent = labels.tick;
   $('queue-depth').textContent = labels.queueDepth;
@@ -188,11 +240,18 @@ export function render(snapshot, selectedComponent) {
   els.serverIpChip.textContent = labels.server1Address;
   els.exchange.textContent = labels.exchangeSummary;
   els.hopStatus.textContent = labels.hopStatus;
-  els.crowdCount.textContent = `${labels.users} crowd browsers`;
+  els.crowdCount.textContent = `${labels.users} browsers`;
   els.lastFrame.textContent = labels.networkLastFrame;
-  els.renderedBody.textContent = labels.browserBody;
-  els.statusBadge.textContent = labels.browserStatus;
-  els.statusBadge.className = `status-badge${badgeClass(snapshot.browserDisplay)}`;
+  const display = activeBrowserDisplay(snapshot, activeAddress);
+  els.browserRoleName.textContent = browserName(activeAddress);
+  els.browserIpChip.textContent = activeAddress;
+  els.renderedBody.textContent = display
+    ? display.body
+    : 'Send a request or step a hop to render a response.';
+  els.statusBadge.textContent = display
+    ? `${display.status} (${display.request})`
+    : 'No response yet';
+  els.statusBadge.className = `status-badge${badgeClass(display)}`;
   renderQueueInto(els.queueList, snapshot.queue ?? []);
   if (snapshot.stage === 2) {
     els.server2Address.textContent = labels.server2Address;
@@ -208,5 +267,6 @@ export function render(snapshot, selectedComponent) {
   renderRoutes(labels.matchedRouteId, snapshot);
   renderHopsForTrace(snapshot, selectedComponent);
   renderDots(snapshot.users);
-  els.inspectorState.textContent = formatComponentState(snapshot, selectedComponent);
+  renderRingBrowsers(layout?.browserSlots ?? [], activeAddress);
+  els.inspectorState.textContent = formatComponentState(snapshot, selectedComponent, activeAddress);
 }

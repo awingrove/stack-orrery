@@ -126,6 +126,43 @@
   display: none;
 }
 
+/* Compact browser nodes on Ring 3: every non-expanded browser renders as a
+   clickable chip at its orbital slot (world coordinates set by render.js);
+   clicking one expands it into #node-browser. Positioned via .orrery-world
+   (the #browser-ring-nodes container itself is layout-transparent). */
+.browser-ring-nodes {
+  display: contents;
+}
+
+.browser-compact {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.35rem 0.55rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.45rem;
+  cursor: pointer;
+}
+
+.browser-compact:hover {
+  border-color: var(--accent);
+}
+
+.browser-compact .ip-chip {
+  font-size: 0.72rem;
+}
+
+.browser-compact-status {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 /* World-space cards: positioned by viewport.js at their layout (x, y),
    box centered on the coordinate. */
 .node-card {

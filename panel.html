@@ -47,8 +47,8 @@
           </button>
           <span id="hop-status" data-testid="hop-status" class="hop-status">Idle</span>
         </div>
-        <div class="control-group crowd-controls" aria-label="Crowd load">
-          <label for="users-slider">Simulated users: <span id="users-count">5</span></label>
+        <div class="control-group crowd-controls" aria-label="Client browsers">
+          <label for="users-slider">Browsers: <span id="users-count">5</span></label>
           <input
             id="users-slider"
             data-testid="users-slider"
@@ -57,7 +57,7 @@
             max="50"
             value="5"
           />
-          <div id="user-dots" data-testid="user-dots" aria-label="Simulated users"></div>
+          <div id="user-dots" data-testid="user-dots" aria-label="Browsers"></div>
           <button id="start-button" data-testid="start-button" type="button">Start</button>
           <button id="step-button" data-testid="step-button" type="button">Step 1 tick</button>
         </div>
@@ -114,6 +114,12 @@
             aria-hidden="true"
           ></svg>
 
+          <div
+            id="browser-ring-nodes"
+            data-testid="browser-ring-nodes"
+            class="browser-ring-nodes"
+          ></div>
+
           <article
             class="node-card"
             id="node-browser"
@@ -122,10 +128,12 @@
           >
             <header class="node-head">
               <div class="node-name">
-                <span class="role-name">Browser (You)</span>
+                <span class="role-name" id="browser-role-name" data-testid="browser-role-name"
+                  >Browser (You)</span
+                >
                 <span class="node-subtitle">interactive client</span>
               </div>
-              <span class="ip-chip">10.2</span>
+              <span class="ip-chip" id="browser-ip-chip" data-testid="browser-ip-chip">10.2</span>
               <span class="code-chip">&lt;/&gt; Code</span>
             </header>
             <div class="mini-browser" aria-label="Mini browser">
@@ -136,20 +144,6 @@
                 </select>
                 <input id="url-input" data-testid="url-input" value="/about" aria-label="Path" />
                 <button id="btn-url-go" data-testid="btn-url-go" type="button">Go</button>
-              </div>
-              <div class="path-chips" aria-label="Quick paths">
-                <button class="path-chip" type="button" data-method="GET" data-path="/">
-                  GET /
-                </button>
-                <button class="path-chip" type="button" data-method="GET" data-path="/about">
-                  GET /about
-                </button>
-                <button class="path-chip" type="button" data-method="GET" data-path="/missing">
-                  GET /missing
-                </button>
-                <button class="path-chip" type="button" data-method="POST" data-path="/">
-                  POST /
-                </button>
               </div>
               <div class="browser-viewport" aria-label="Rendered response">
                 <span
@@ -195,8 +189,8 @@ Send a request or step a hop to render a response.</pre>
                   <td>Browser (You)</td>
                 </tr>
                 <tr>
-                  <td class="mono">10.3+</td>
-                  <td id="network-crowd-count">crowd</td>
+                  <td class="mono">10.2+</td>
+                  <td id="network-crowd-count">browsers</td>
                 </tr>
               </tbody>
             </table>

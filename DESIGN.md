@@ -128,17 +128,18 @@ Every stage diagram panel (`panel.html`) is organized into four vertical zones:
    - **Single Request Trace:** `Send & Watch Hops`, `Step 1 Hop ->`, and the
      monospace `#hop-status` pill showing the current hop (`Hop 1/4` .. `Hop 4/4`
      in Stage 1; `Hop 1/5` .. `Hop 5/5` in Stage 2).
-   - **Crowd Load:** Slider (`#users-slider`) for simulated browsers, `Start` /
-     `Pause` (`#start-button`), and `Step 1 tick` (`#step-button`).
+   - **Client Browsers Load:** Slider (`#users-slider`) for the number of
+     simulated browsers on the outer ring, `Start` / `Pause` (`#start-button`),
+     and `Step 1 tick` (`#step-button`).
 3. **Orrery Plane & Camera Viewport (`.orrery-viewport` / `.orrery-canvas`):**
    A pannable and zoomable 2D world plane (`.orrery-world`) inside a clipped
    viewport (`.orrery-viewport`) with concentric orbital rings etched in SVG
    (`#orrery-svg`, `r₀ = 0` Core, `r₁ = 210` Compute & Ingress ring, `r₂ = 520`
-   Network ring, `r₃ = 840` Client orbit). Many client browsers orbit the outer
-   perimeter (`Browser 10.2` + `10.3+` crowd satellites on `r₃`) sending traffic
-   inward through `Network (10.x)` (`r₂`) toward the core server resources
-   (`WebServer 10.1` at the `r₀` Core in Stage 1; `LoadBalancer 10.1` and
-   duplicated `WebServer` nodes `10.11`, `10.12` on `r₁` in Stage 2).
+   Network ring, `r₃ = 840` Client orbit). All `N` client browsers (`10.2` ..
+   `10.(N+1)`) sit on the outer `r₃` orbit: the currently selected browser
+   renders as the full expanded `#node-browser` card, while the other `N - 1`
+   browsers render as clickable compact `.browser-compact` nodes on `r₃` (clicking
+   any compact browser expands it into the full browser card).
    - **Camera HUD (`.camera-hud`):** Fixed screen-space overlay in the top-right
      of `.orrery-viewport` with `#btn-zoom-in` (`+`), `#btn-zoom-out` (`-`),
      `#btn-zoom-fit` (`Fit`), `#zoom-status` percentage badge, and live tuning
@@ -165,16 +166,20 @@ Every stage diagram panel (`panel.html`) is organized into four vertical zones:
 - During a hop-by-hop trace, the component executing the current hop carries
   `.active-hop` (`var(--good)` border glow).
 
-### Interactive Mini-Browser (`.mini-browser`)
+### Interactive Mini-Browser (`.mini-browser` & `.browser-compact`)
 
-- Lives inside the Browser node (`10.2`).
-- Provides an HTTP method selector (`#req-method`: `GET` / `POST`), target
-  mini-IP prefix (`10.1`), editable path input (`#url-input`), `Go` button
-  (`#btn-url-go`), and quick-path chips (`.path-chip` for `GET /`,
-  `GET /about`, `GET /missing`, `POST /`).
-- Renders the latest response in `.browser-viewport` with a status badge
-  (`.status-200` green for `200`, `.status-err` red for `4xx`/`5xx`) and the
-  response body text (`#browser-rendered-body`).
+- Every simulated browser (`10.2` .. `10.(N+1)`) on Ring 3 is an addressable
+  `Browser` instance. One browser at a time (default `10.2`) is expanded into
+  the full `#node-browser` card; the remaining `N - 1` browsers render on Ring 3
+  as compact clickable `.browser-compact` nodes showing their mini-IP (`10.3`,
+  `10.4`, …) and latest status. Clicking any `.browser-compact` node expands
+  that browser into the full `#node-browser` card at its orbital position.
+- The expanded `.mini-browser` provides an HTTP method selector (`#req-method`:
+  `GET` / `POST`), editable path input (`#url-input`), `Go` button
+  (`#btn-url-go`), and renders that browser's latest response in
+  `.browser-viewport` with a status badge (`.status-200` green for `200`,
+  `.status-err` red for `4xx`/`5xx`) and the response body text
+  (`#browser-rendered-body`).
 
 ### Service Internals (Queues, Tables, Routes)
 

@@ -76,11 +76,12 @@ function drawOrrery(svg, layout) {
   svg.replaceChildren(...parts);
 }
 
-export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers }) {
+export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers, getActiveBrowser }) {
   let camera = null;
   let layout = null;
   let lastStage = null;
   let zoomStep = DEFAULT_ZOOM_STEP;
+  const activeAddress = () => getActiveBrowser?.() ?? '10.2';
 
   const zoomStatus = byId('zoom-status');
   const ringGapSlider = byId('ring-gap-slider');
@@ -125,7 +126,7 @@ export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers })
   // only when the stage changed (init + stage switch); pans/zooms survive.
   function syncLayout() {
     const { w, h } = viewSize();
-    layout = computeStageLayout(getStage(), getUsers());
+    layout = computeStageLayout(getStage(), getUsers(), { activeBrowser: activeAddress() });
     if (lastStage !== layout.stage) {
       camera = fitCameraToBounds(layout.bounds, w, h);
       lastStage = layout.stage;
@@ -214,7 +215,10 @@ export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers })
   ringGapSlider.addEventListener('input', () => {
     const ringGap = Number(ringGapSlider.value) || DEFAULT_RING_GAP;
     ringGapValue.textContent = `${ringGap}px`;
-    layout = computeStageLayout(getStage(), getUsers(), { ringGap });
+    layout = computeStageLayout(getStage(), getUsers(), {
+      ringGap,
+      activeBrowser: activeAddress(),
+    });
     positionParts();
     apply();
   });
@@ -231,6 +235,7 @@ export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers })
   return {
     syncLayout,
     getCamera: () => camera,
+    getLayout: () => layout,
     panBy: (dx, dy) => {
       camera = panCamera(camera, dx, dy);
       apply();

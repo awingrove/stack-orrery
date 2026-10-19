@@ -28,28 +28,6 @@
   min-width: 5.5rem;
 }
 
-.path-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-}
-
-.path-chip {
-  padding: 0.2rem 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: 0.3rem;
-  background: var(--surface-2);
-  color: var(--text-muted);
-  font-family: var(--mono);
-  font-size: 0.7rem;
-  font-weight: 400;
-}
-
-.path-chip:hover {
-  color: var(--text);
-  border-color: var(--accent);
-}
-
 .browser-viewport {
   display: flex;
   flex-direction: column;

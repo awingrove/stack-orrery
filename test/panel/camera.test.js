@@ -136,4 +136,30 @@ describe('orrery layout', () => {
     }
     expect(tuned.bounds).toEqual({ minX: -1247, maxX: 397, minY: -397, maxY: 397 });
   });
+
+  it('maps every simulated browser to an addressable Ring 3 slot around the expanded one', () => {
+    const layout = computeStageLayout(1, 5);
+    expect(layout.browserSlots.map((slot) => slot.address)).toEqual([
+      '10.2',
+      '10.3',
+      '10.4',
+      '10.5',
+      '10.6',
+    ]);
+    // CHECKS: the default expanded browser 10.2 owns the 180° slot, so the
+    // default card position and wire midpoints match the pinned layout.
+    expect(layout.browserSlots[0]).toMatchObject({ index: 0, x: -840, y: 0, angleDeg: 180 });
+    for (const slot of layout.browserSlots.slice(1)) {
+      expect(Math.abs(Math.hypot(slot.x, slot.y) - 840)).toBeLessThanOrEqual(1);
+      expect(Math.abs(slot.angleDeg - 180)).toBeGreaterThan(8);
+    }
+    // Expanding another browser re-anchors #node-browser (and its wires) on
+    // that slot's orbital coordinate instead of the default 180° spot.
+    const flipped = computeStageLayout(1, 5, { activeBrowser: '10.3' });
+    expect(flipped.nodes['node-browser']).toMatchObject({
+      x: layout.browserSlots[1].x,
+      y: layout.browserSlots[1].y,
+      address: '10.3',
+    });
+  });
 });

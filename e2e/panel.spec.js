@@ -162,3 +162,22 @@ test('should pan and zoom the concentric orrery plane and reset with Fit to view
   await page.getByTestId('zoom-speed-slider').fill('1.5');
   await expect(page.getByTestId('zoom-speed-value')).toHaveText('1.50x');
 });
+
+// Ring 3 browsers are addressable: clicking a compact browser node expands
+// it into #node-browser (header updated to that browser's name and mini-IP)
+// and collapses the previously expanded browser into a compact node.
+test('should expand Ring 3 browsers by clicking their compact nodes and return to 10.2', async ({
+  page,
+}) => {
+  await page.goto('/panel.html');
+
+  await expect(page.getByTestId('browser-ring-nodes').locator('> *')).toHaveCount(4); // 10.3..10.6 compact
+  await page.getByTestId('browser-node-10.3').click();
+  await expect(page.getByTestId('browser-ip-chip')).toHaveText('10.3');
+  await expect(page.getByTestId('browser-role-name')).toHaveText('Browser-2');
+  await expect(page.getByTestId('browser-node-10.2')).toBeVisible();
+
+  await page.getByTestId('browser-node-10.2').click();
+  await expect(page.getByTestId('browser-ip-chip')).toHaveText('10.2');
+  await expect(page.getByTestId('browser-role-name')).toHaveText('Browser (You)');
+});

@@ -68,7 +68,11 @@ const ORRERY_BOUNDS = { minX: -1020, maxX: 340, minY: -340, maxY: 340 };
 
 // CHECKS: computeStageLayout validates the stage range rather than silently
 // rendering an unknown topology as empty space.
-export function computeStageLayout(stage = 1, users = 5, { ringGap = DEFAULT_RING_GAP } = {}) {
+export function computeStageLayout(
+  stage = 1,
+  users = 5,
+  { ringGap = DEFAULT_RING_GAP, activeBrowser = '10.2' } = {},
+) {
   if (stage !== 1 && stage !== 2) {
     throw new Error(`layout: unknown stage ${stage} (expected 1 or 2)`);
   }
@@ -84,8 +88,33 @@ export function computeStageLayout(stage = 1, users = 5, { ringGap = DEFAULT_RIN
     ...polarToWorld(radius, angleDeg),
   });
 
+  // Addressable browsers on Ring 3: slot 0 (mini-IP 10.2) sits at 180° —
+  // the expanded #node-browser spot — and slots 1 .. users - 1 (10.3 ..
+  // 10.(users + 1)) take the satellite arc positions. Compact nodes render
+  // at every slot not currently expanded.
+  const browserCount = Math.max(0, Math.round(users));
+  const walkArcs = computeSatellites(Math.max(0, browserCount - 1), r3);
+  const browserSlots = Array.from({ length: browserCount }, (_, i) => {
+    if (i === 0) return { index: 0, address: '10.2', angleDeg: 180, ...polarToWorld(r3, 180) };
+    return { index: i, address: `10.${i + 2}`, ...walkArcs[i - 1] };
+  });
+  const activeSlot = browserSlots.find((slot) => slot.address === String(activeBrowser)) ?? {
+    index: 0,
+    address: '10.2',
+    angleDeg: 180,
+    ...polarToWorld(r3, 180),
+  };
+
   const nodes = {
-    'node-browser': pos('node-browser', 'ring-clients', r3, 180),
+    'node-browser': {
+      id: 'node-browser',
+      ring: 'ring-clients',
+      radius: r3,
+      angleDeg: activeSlot.angleDeg,
+      x: activeSlot.x,
+      y: activeSlot.y,
+      address: activeSlot.address,
+    },
     'node-network': pos('node-network', 'ring-network', r2, 180),
   };
   let wires;
@@ -171,6 +200,7 @@ export function computeStageLayout(stage = 1, users = 5, { ringGap = DEFAULT_RIN
     nodes,
     wires,
     satellites: computeSatellites(users, r3),
+    browserSlots,
     // DOCUMENTS: at the default ring gap this equals the plan's pinned
     // { minX: -1020, maxX: 340, minY: -340, maxY: 340 }; tuned gaps scale the
     // bounds with r1/r3 so Fit to view keeps the whole plane in frame.

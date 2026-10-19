@@ -6,7 +6,7 @@ meta:
     A runnable orrery of a web stack: simulated components driven by a
     discrete tick queue, making scaling dynamics visible instead of
     described.
-  last_updated: 2026-10-17
+  last_updated: 2026-10-19
 
 activities:
   - name: 'Stage 1 — Single server under load'
@@ -81,7 +81,13 @@ activities:
               - unit: test/panel/camera.test.js::pans world coordinates inversely to zoom and clamps to world bounds
               - unit: test/panel/camera.test.js::zooms toward the cursor while keeping the cursor world point fixed
               - unit: test/panel/camera.test.js::computes concentric ring coordinates and stage bounding boxes for the orrery
+              - unit: test/panel/camera.test.js::maps every simulated browser to an addressable Ring 3 slot around the expanded one
               - e2e: panel::should pan and zoom the concentric orrery plane and reset with Fit to view
+          - title: Click any browser on Ring 3 to expand it into the full browser card
+            status: done
+            priority: high
+            tests:
+              - e2e: panel::should expand Ring 3 browsers by clicking their compact nodes and return to 10.2
 
   - name: 'Stage 2 — Load balancer and duplicated servers'
     tasks:

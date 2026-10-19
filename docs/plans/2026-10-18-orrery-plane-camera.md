@@ -156,3 +156,5 @@ Exports `initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers })`:
 - [x] **Step 3: Tick completed steps in `docs/plans/2026-10-18-orrery-plane-camera.md`** and re-run `npm run verify`.
 - [x] **Step 4: Add live on-screen tuning controls in the camera HUD (`#ring-gap-slider` + `#ring-gap-value` for ring spacing and `#zoom-speed-slider` + `#zoom-speed-value` for zoom speed) wired through `js/panel/layout.js` and `js/panel/viewport.js`, with unit and e2e assertions in `test/panel/camera.test.js` and `e2e/panel.spec.js`, and tick this step.**
       Verify: `npm run verify` green.
+- [x] **Step 5: Replace the anonymous Crowd concept and path-chip shortcuts with addressable Browser nodes on Ring 3 (mini-IPs 10.2 through 10.(N+1)) — compact clickable browser nodes for all non-selected browsers, expanding the clicked browser into the full browser card (node-browser) with GET/POST chooser, URL input, Go button, and response display — and tick this step.**
+      Verify: `npm run verify` green.
