@@ -205,6 +205,9 @@ Every stage diagram panel (`panel.html`) is organized into four vertical zones:
   `.node-card` registered in the Component Code & State Inspector.
 - Keep production `js/**` and `css/**` files ≤ 300 lines, `test/**` and `e2e/**`
   ≤ 450 lines, and static `*.html` ≤ 550 lines (`guard-file-size.mjs`).
+- Keep world-space `(left, top)` coordinate writes under `js/panel/viewport.js`
+  (`positionParts`) so every element on an orbital ring moves in lockstep when
+  layout geometry changes (`DL-1`).
 
 **Don't**
 
