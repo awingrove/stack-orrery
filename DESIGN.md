@@ -141,7 +141,9 @@ Every stage diagram panel (`panel.html`) is organized into four vertical zones:
    duplicated `WebServer` nodes `10.11`, `10.12` on `r₁` in Stage 2).
    - **Camera HUD (`.camera-hud`):** Fixed screen-space overlay in the top-right
      of `.orrery-viewport` with `#btn-zoom-in` (`+`), `#btn-zoom-out` (`-`),
-     `#btn-zoom-fit` (`Fit`), and `#zoom-status` percentage badge. Supports
+     `#btn-zoom-fit` (`Fit`), `#zoom-status` percentage badge, and live tuning
+     sliders for **Ring spacing** (`#ring-gap-slider` + `#ring-gap-value`) and
+     **Zoom speed** (`#zoom-speed-slider` + `#zoom-speed-value`). Supports
      pointer drag to pan, wheel/pinch zoom toward the cursor, and keyboard
      shortcuts (`Arrow` keys to pan, `+`/`-` to zoom, `0` to fit).
 4. **Bottom Split (`.bottom-panels`):**

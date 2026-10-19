@@ -9,7 +9,13 @@ import {
   fitCameraToBounds,
   formatWorldTransform,
 } from '../../js/panel/camera.js';
-import { ORRERY_RINGS, computeStageLayout, polarToWorld } from '../../js/panel/layout.js';
+import {
+  ORRERY_RINGS,
+  DEFAULT_RING_GAP,
+  buildOrreryRings,
+  computeStageLayout,
+  polarToWorld,
+} from '../../js/panel/layout.js';
 
 describe('camera math', () => {
   it('pans world coordinates inversely to zoom and clamps to world bounds', () => {
@@ -70,6 +76,11 @@ describe('camera math', () => {
 describe('orrery layout', () => {
   it('computes concentric ring coordinates and stage bounding boxes for the orrery', () => {
     expect(ORRERY_RINGS.map((r) => r.radius)).toEqual([210, 520, 840]);
+    // CHECKS: the default ring gap returns the plan-pinned ORRERY_RINGS, and a
+    // non-finite or non-positive gap is rejected instead of yielding NaN radii.
+    expect(buildOrreryRings(315)).toBe(ORRERY_RINGS);
+    expect(() => buildOrreryRings(0)).toThrow(/ringGap/);
+    expect(() => buildOrreryRings(Number.NaN)).toThrow(/ringGap/);
     expect(polarToWorld(840, 180)).toEqual({ x: -840, y: 0 });
     // DOCUMENTS: the raw polar formula at -48° rounds to (141, -156); the
     // stage-2 nodes are pinned to the plan's (140, ±156) instead.
@@ -111,5 +122,18 @@ describe('orrery layout', () => {
     expect(fit.zoom).toBeCloseTo(Math.min((1150 - 96) / 1360, (448 - 96) / 680), 6);
     expect(fit.zoom).toBeGreaterThanOrEqual(MIN_ZOOM);
     expect(fit.zoom).toBeLessThanOrEqual(MAX_ZOOM);
+
+    // A tuned ring gap scales rings, node positions, satellites, and bounds:
+    // r1 = round(210·400/315) = 267, r2 = 267+400 = 667, r3 = 267+800 = 1067.
+    expect(DEFAULT_RING_GAP).toBe(315);
+    const tuned = computeStageLayout(1, 5, { ringGap: 400 });
+    expect(tuned.rings.map((r) => r.radius)).toEqual([267, 667, 1067]);
+    expect(tuned.nodes['node-browser']).toMatchObject({ x: -1067, y: 0, radius: 1067 });
+    expect(tuned.nodes['node-network']).toMatchObject({ x: -667, y: 0, radius: 667 });
+    expect(tuned.satellites).toHaveLength(5);
+    for (const sat of tuned.satellites) {
+      expect(Math.abs(Math.hypot(sat.x, sat.y) - 1067)).toBeLessThanOrEqual(1);
+    }
+    expect(tuned.bounds).toEqual({ minX: -1247, maxX: 397, minY: -397, maxY: 397 });
   });
 });

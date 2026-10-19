@@ -74,6 +74,31 @@
           <button id="btn-zoom-out" data-testid="btn-zoom-out" type="button">&minus;</button>
           <button id="btn-zoom-fit" data-testid="btn-zoom-fit" type="button">Fit</button>
           <span id="zoom-status" data-testid="zoom-status" class="zoom-status">78%</span>
+          <label class="hud-tuning" for="ring-gap-slider"
+            >Ring gap <span id="ring-gap-value" data-testid="ring-gap-value">315px</span></label
+          >
+          <input
+            id="ring-gap-slider"
+            data-testid="ring-gap-slider"
+            type="range"
+            min="180"
+            max="480"
+            step="5"
+            value="315"
+          />
+          <label class="hud-tuning" for="zoom-speed-slider"
+            >Zoom speed
+            <span id="zoom-speed-value" data-testid="zoom-speed-value">1.20x</span></label
+          >
+          <input
+            id="zoom-speed-slider"
+            data-testid="zoom-speed-slider"
+            type="range"
+            min="1.05"
+            max="1.5"
+            step="0.05"
+            value="1.2"
+          />
         </div>
         <section
           id="orrery-world"
@@ -85,7 +110,7 @@
             id="orrery-svg"
             data-testid="orrery-svg"
             class="orrery-svg"
-            viewBox="-1100 -550 1600 1100"
+            viewBox="-1600 -1000 3200 2000"
             aria-hidden="true"
           ></svg>
 

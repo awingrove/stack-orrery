@@ -2,11 +2,29 @@
 // wire segments with midpoints, client-orbit satellite positions, and stage
 // bounding boxes. Zero DOM: viewport.js consumes this to place cards, lanes,
 // and SVG shapes.
+export const DEFAULT_RING_GAP = 315;
+
 export const ORRERY_RINGS = [
   { id: 'ring-compute', radius: 210, label: 'RING 1 · COMPUTE' },
   { id: 'ring-network', radius: 520, label: 'RING 2 · NETWORK' },
   { id: 'ring-clients', radius: 840, label: 'RING 3 · CLIENTS' },
 ];
+
+// CHECKS: buildOrreryRings validates the ring gap rather than producing NaN
+// radii (which would degenerate the whole orrery into a single point).
+export function buildOrreryRings(ringGap = DEFAULT_RING_GAP) {
+  if (!Number.isFinite(ringGap) || ringGap <= 0) {
+    throw new Error('layout: ringGap must be a finite number > 0');
+  }
+  if (ringGap === DEFAULT_RING_GAP) return ORRERY_RINGS;
+  const r1 = Math.round((ORRERY_RINGS[0].radius * ringGap) / DEFAULT_RING_GAP);
+  const r2 = r1 + Math.round(ringGap);
+  const r3 = r1 + 2 * Math.round(ringGap);
+  return [ORRERY_RINGS[0], ORRERY_RINGS[1], ORRERY_RINGS[2]].map((ring, i) => ({
+    ...ring,
+    radius: [r1, r2, r3][i],
+  }));
+}
 
 export function polarToWorld(radius, angleDeg) {
   const rad = (angleDeg * Math.PI) / 180;
@@ -15,21 +33,20 @@ export function polarToWorld(radius, angleDeg) {
 
 // Satellites crowd the outer client ring on either side of the browser node's
 // 180° spot: arcs [135°, 172°] and [188°, 225°], evenly spaced per arc.
-function computeSatellites(users) {
+function computeSatellites(users, outerRadius) {
   const count = Math.max(0, Math.round(users));
   const leftCount = Math.ceil(count / 2);
   const rightCount = count - leftCount;
   const satellites = [];
-  for (let j = 0; j < leftCount; j += 1) {
-    const angleDeg = 135 + ((j + 1) / (leftCount + 1)) * 37;
-    const { x, y } = polarToWorld(840, angleDeg);
-    satellites.push({ index: satellites.length, x, y, angleDeg });
-  }
-  for (let j = 0; j < rightCount; j += 1) {
-    const angleDeg = 188 + ((j + 1) / (rightCount + 1)) * 37;
-    const { x, y } = polarToWorld(840, angleDeg);
-    satellites.push({ index: satellites.length, x, y, angleDeg });
-  }
+  const place = (arcCount, startAngle) => {
+    for (let j = 0; j < arcCount; j += 1) {
+      const angleDeg = startAngle + ((j + 1) / (arcCount + 1)) * 37;
+      const { x, y } = polarToWorld(outerRadius, angleDeg);
+      satellites.push({ index: satellites.length, x, y, angleDeg });
+    }
+  };
+  place(leftCount, 135);
+  place(rightCount, 188);
   return satellites;
 }
 
@@ -51,10 +68,14 @@ const ORRERY_BOUNDS = { minX: -1020, maxX: 340, minY: -340, maxY: 340 };
 
 // CHECKS: computeStageLayout validates the stage range rather than silently
 // rendering an unknown topology as empty space.
-export function computeStageLayout(stage = 1, users = 5) {
+export function computeStageLayout(stage = 1, users = 5, { ringGap = DEFAULT_RING_GAP } = {}) {
   if (stage !== 1 && stage !== 2) {
     throw new Error(`layout: unknown stage ${stage} (expected 1 or 2)`);
   }
+  const rings = buildOrreryRings(ringGap);
+  const r1 = rings[0].radius;
+  const r2 = rings[1].radius;
+  const r3 = rings[2].radius;
   const pos = (id, ring, radius, angleDeg) => ({
     id,
     ring,
@@ -64,31 +85,37 @@ export function computeStageLayout(stage = 1, users = 5) {
   });
 
   const nodes = {
-    'node-browser': pos('node-browser', 'ring-clients', 840, 180),
-    'node-network': pos('node-network', 'ring-network', 520, 180),
+    'node-browser': pos('node-browser', 'ring-clients', r3, 180),
+    'node-network': pos('node-network', 'ring-network', r2, 180),
   };
   let wires;
   if (stage === 2) {
-    nodes['node-lb'] = pos('node-lb', 'ring-compute', 210, 180);
+    nodes['node-lb'] = pos('node-lb', 'ring-compute', r1, 180);
     // DOCUMENTS: plan pins node-webserver(-2) at (140, ±156) here; the raw
     // -48°/+48° polar formula rounds to (141, ±156), so the pinned card
-    // coordinates are authoritative over the formula's 1px drift.
-    nodes['node-webserver'] = {
-      id: 'node-webserver',
-      ring: 'ring-compute',
-      radius: 210,
-      angleDeg: -48,
-      x: 140,
-      y: -156,
-    };
-    nodes['node-webserver-2'] = {
-      id: 'node-webserver-2',
-      ring: 'ring-compute',
-      radius: 210,
-      angleDeg: 48,
-      x: 140,
-      y: 156,
-    };
+    // coordinates are authoritative over the formula's 1px drift. A tuned
+    // ring gap re-derives them from polarToWorld at the scaled r1 instead.
+    if (r1 === 210) {
+      nodes['node-webserver'] = {
+        id: 'node-webserver',
+        ring: 'ring-compute',
+        radius: r1,
+        angleDeg: -48,
+        x: 140,
+        y: -156,
+      };
+      nodes['node-webserver-2'] = {
+        id: 'node-webserver-2',
+        ring: 'ring-compute',
+        radius: r1,
+        angleDeg: 48,
+        x: 140,
+        y: 156,
+      };
+    } else {
+      nodes['node-webserver'] = pos('node-webserver', 'ring-compute', r1, -48);
+      nodes['node-webserver-2'] = pos('node-webserver-2', 'ring-compute', r1, 48);
+    }
     wires = [
       makeWire(
         'wire-browser-network',
@@ -140,10 +167,16 @@ export function computeStageLayout(stage = 1, users = 5) {
   }
   return {
     stage,
-    rings: ORRERY_RINGS,
+    rings,
     nodes,
     wires,
-    satellites: computeSatellites(users),
-    bounds: ORRERY_BOUNDS,
+    satellites: computeSatellites(users, r3),
+    // DOCUMENTS: at the default ring gap this equals the plan's pinned
+    // { minX: -1020, maxX: 340, minY: -340, maxY: 340 }; tuned gaps scale the
+    // bounds with r1/r3 so Fit to view keeps the whole plane in frame.
+    bounds:
+      ringGap === DEFAULT_RING_GAP
+        ? ORRERY_BOUNDS
+        : { minX: -(r3 + 180), maxX: r1 + 130, minY: -(r1 + 130), maxY: r1 + 130 },
   };
 }

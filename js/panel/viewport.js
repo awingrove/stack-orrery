@@ -7,11 +7,13 @@ import { computeStageLayout } from './layout.js';
 import { panCamera, zoomCameraAt, fitCameraToBounds, formatWorldTransform } from './camera.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
-const ZOOM_STEP = 1.2;
+const DEFAULT_ZOOM_STEP = 1.2;
+const DEFAULT_RING_GAP = 315;
 const PAN_PX = 48;
 
-// Drag-start targets that own their pointer events (camera never hijacks them).
-const INTERACTIVE_TARGETS = 'button, input, select, a, .node-card';
+// Drag-start targets that own their pointer events (camera never hijacks
+// them: .camera-hud holds buttons and tuning sliders).
+const INTERACTIVE_TARGETS = 'button, input, select, a, .node-card, .camera-hud';
 
 const KEY_PANS = {
   ArrowLeft: [-PAN_PX, 0],
@@ -78,8 +80,13 @@ export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers })
   let camera = null;
   let layout = null;
   let lastStage = null;
+  let zoomStep = DEFAULT_ZOOM_STEP;
 
   const zoomStatus = byId('zoom-status');
+  const ringGapSlider = byId('ring-gap-slider');
+  const ringGapValue = byId('ring-gap-value');
+  const zoomSpeedSlider = byId('zoom-speed-slider');
+  const zoomSpeedValue = byId('zoom-speed-value');
   const viewSize = () => ({
     w: viewportEl.clientWidth || 960,
     h: viewportEl.clientHeight || 440,
@@ -91,15 +98,9 @@ export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers })
     zoomStatus.textContent = `${Math.round(camera.zoom * 100)}%`;
   }
 
-  // Rebuilds stage layout and repositions cards/lanes/SVG. Refits the camera
-  // only when the stage changed (init + stage switch); pans/zooms survive.
-  function syncLayout() {
-    const { w, h } = viewSize();
-    layout = computeStageLayout(getStage(), getUsers());
-    if (lastStage !== layout.stage) {
-      camera = fitCameraToBounds(layout.bounds, w, h);
-      lastStage = layout.stage;
-    }
+  // Repositions cards/lanes/SVG from the current layout (used by stage sync
+  // and by live ring-gap tuning).
+  function positionParts() {
     for (const node of Object.values(layout.nodes)) {
       const card = byId(node.id);
       if (card) setWorldPos(card, node.x, node.y);
@@ -118,16 +119,28 @@ export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers })
       }
     }
     drawOrrery(svgEl, layout);
+  }
+
+  // Rebuilds stage layout and repositions cards/lanes/SVG. Refits the camera
+  // only when the stage changed (init + stage switch); pans/zooms survive.
+  function syncLayout() {
+    const { w, h } = viewSize();
+    layout = computeStageLayout(getStage(), getUsers());
+    if (lastStage !== layout.stage) {
+      camera = fitCameraToBounds(layout.bounds, w, h);
+      lastStage = layout.stage;
+    }
+    positionParts();
     apply();
   }
 
   // --- interactions ---------------------------------------------------------
   byId('btn-zoom-in').addEventListener('click', () => {
-    camera = zoomCameraAt(camera, ZOOM_STEP, 0, 0);
+    camera = zoomCameraAt(camera, zoomStep, 0, 0);
     apply();
   });
   byId('btn-zoom-out').addEventListener('click', () => {
-    camera = zoomCameraAt(camera, 1 / ZOOM_STEP, 0, 0);
+    camera = zoomCameraAt(camera, 1 / zoomStep, 0, 0);
     apply();
   });
   byId('btn-zoom-fit').addEventListener('click', () => {
@@ -163,7 +176,7 @@ export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers })
     (e) => {
       e.preventDefault();
       const rect = viewportEl.getBoundingClientRect();
-      const factor = e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP;
+      const factor = e.deltaY < 0 ? zoomStep : 1 / zoomStep;
       camera = zoomCameraAt(
         camera,
         factor,
@@ -183,16 +196,34 @@ export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers })
       camera = panCamera(camera, ...KEY_PANS[e.key]);
       apply();
     } else if (e.key === '+' || e.key === '=') {
-      camera = zoomCameraAt(camera, ZOOM_STEP, 0, 0);
+      camera = zoomCameraAt(camera, zoomStep, 0, 0);
       apply();
     } else if (e.key === '-') {
-      camera = zoomCameraAt(camera, 1 / ZOOM_STEP, 0, 0);
+      camera = zoomCameraAt(camera, 1 / zoomStep, 0, 0);
       apply();
     } else if (e.key === '0') {
       const { w, h } = viewSize();
       camera = fitCameraToBounds(layout.bounds, w, h);
       apply();
     }
+  });
+
+  // Ring-gap tuning: rebuild the layout at the chosen spacing and reposition
+  // everything live — the camera is deliberately NOT reset, so the user can
+  // watch the rings expand/contract from the current view.
+  ringGapSlider.addEventListener('input', () => {
+    const ringGap = Number(ringGapSlider.value) || DEFAULT_RING_GAP;
+    ringGapValue.textContent = `${ringGap}px`;
+    layout = computeStageLayout(getStage(), getUsers(), { ringGap });
+    positionParts();
+    apply();
+  });
+
+  // Zoom-speed tuning: every zoom gesture (buttons, wheel, keyboard) reads
+  // this step size.
+  zoomSpeedSlider.addEventListener('input', () => {
+    zoomStep = Number(zoomSpeedSlider.value) || DEFAULT_ZOOM_STEP;
+    zoomSpeedValue.textContent = `${zoomStep.toFixed(2)}x`;
   });
 
   syncLayout();

@@ -60,13 +60,18 @@ Exports:
 Models the **Concentric Orrery Rings** with server/data resources at the center
 and clients on the outer orbit:
 
+- `DEFAULT_RING_GAP = 315`.
 - `ORRERY_RINGS`:
   - `{ id: 'ring-compute', radius: 210, label: 'RING 1 · COMPUTE' }`
   - `{ id: 'ring-network', radius: 520, label: 'RING 2 · NETWORK' }`
   - `{ id: 'ring-clients', radius: 840, label: 'RING 3 · CLIENTS' }`
+- `buildOrreryRings(ringGap = DEFAULT_RING_GAP)`:
+  - When `ringGap === DEFAULT_RING_GAP`, returns `ORRERY_RINGS` (`[210, 520, 840]`).
+  - Otherwise scales `r1 = Math.round((210 * ringGap) / DEFAULT_RING_GAP)`,
+    `r2 = r1 + ringGap`, `r3 = r1 + 2 * ringGap` and returns the 3 ring descriptors.
 - `polarToWorld(radius, angleDeg)`:
   - Converts polar `(radius, angleDeg)` to `{ x: Math.round(radius * Math.cos(rad)), y: Math.round(radius * Math.sin(rad)) }`.
-- `computeStageLayout(stage = 1, users = 5)`:
+- `computeStageLayout(stage = 1, users = 5, { ringGap = DEFAULT_RING_GAP } = {})`:
   - Validates `stage === 1 || stage === 2` (`CHECKS:`).
   - Returns `{ stage, rings: ORRERY_RINGS, nodes, wires, satellites, bounds }`:
     - **Nodes** (map of card DOM id -> `{ id, ring, radius, angleDeg, x, y }`):
@@ -149,3 +154,5 @@ Exports `initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers })`:
       polar formula gives x=141 at -48° but the node table pins x=140 — the
       pinned card coordinates are honored and documented in layout.js.)
 - [x] **Step 3: Tick completed steps in `docs/plans/2026-10-18-orrery-plane-camera.md`** and re-run `npm run verify`.
+- [x] **Step 4: Add live on-screen tuning controls in the camera HUD (`#ring-gap-slider` + `#ring-gap-value` for ring spacing and `#zoom-speed-slider` + `#zoom-speed-value` for zoom speed) wired through `js/panel/layout.js` and `js/panel/viewport.js`, with unit and e2e assertions in `test/panel/camera.test.js` and `e2e/panel.spec.js`, and tick this step.**
+      Verify: `npm run verify` green.

@@ -31,13 +31,14 @@
 }
 
 /* World-space backdrop: concentric rings, spokes, satellites. The SVG's box
-   is shifted so its viewBox origin lines up with world (0,0). */
+   is shifted so its viewBox origin lines up with world (0,0). Wide enough
+   that a tuned ring gap (up to 480) keeps the outer ring inside the box. */
 .orrery-svg {
   position: absolute;
-  left: -1100px;
-  top: -550px;
-  width: 1600px;
-  height: 1100px;
+  left: -1600px;
+  top: -1000px;
+  width: 3200px;
+  height: 2000px;
   pointer-events: none;
 }
 
@@ -91,6 +92,29 @@
   font-family: var(--mono);
   font-size: 0.72rem;
   color: var(--text-muted);
+}
+
+/* Live tuning sliders (ring spacing, zoom speed): compact HUD widgets. */
+.hud-tuning {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.hud-tuning span {
+  color: var(--accent);
+}
+
+.camera-hud input[type='range'] {
+  width: 7rem;
+  height: 0.85rem;
+  padding: 0;
+  margin: 0;
+  accent-color: var(--accent);
 }
 
 .backend-stack {

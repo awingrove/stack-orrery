@@ -149,4 +149,16 @@ test('should pan and zoom the concentric orrery plane and reset with Fit to view
   // Fit to view restores the initial framing exactly.
   await page.getByTestId('btn-zoom-fit').click();
   await expect(zoomStatus).toHaveText(initialZoom);
+
+  // Live tuning: the ring-gap slider rescales all three SVG rings in place
+  // (r1 = round(210·400/315) = 267 → outer ring 1067) with the camera left
+  // where Fit put it, and the readouts mirror their sliders immediately.
+  await page.getByTestId('ring-gap-slider').fill('400');
+  await expect(page.getByTestId('ring-gap-value')).toHaveText('400px');
+  await expect(page.locator('.orrery-ring').last()).toHaveAttribute('r', '1067');
+  await expect(zoomStatus).toHaveText(initialZoom); // camera untouched by tuning
+
+  // Zoom speed retunes every zoom gesture (buttons, wheel, keyboard).
+  await page.getByTestId('zoom-speed-slider').fill('1.5');
+  await expect(page.getByTestId('zoom-speed-value')).toHaveText('1.50x');
 });
