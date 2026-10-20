@@ -57,10 +57,15 @@ Fragments fine. Technical terms stay exact; code blocks unchanged.
 
 1. **Understand context** before modifying a file: pages → `js/panel` →
    `js/sim`; a change ripples outward, not downward.
-2. **Resumable plans:** work beyond ~3 tasks gets a committed brief at
-   `docs/plans/<feature>.md` with checkbox steps; a tick means the step's
-   commit exists (kit PLAN-FORMAT). Session context lives in the plan file,
-   not chat history.
+2. **Resumable plans & sub-agent execution:** work beyond ~3 tasks gets a
+   committed brief at `docs/plans/<feature>.md` with checkbox steps; a tick
+   means the step's commit exists (kit PLAN-FORMAT). Session context lives in
+   the plan file, not chat history. Once the human design gate passes and
+   Step 1 (the brief + `DESIGN.md` amendment) is committed, the lead session
+   (`opencode-go/gemini-4-argon-contributor`) dispatches a fresh `subagent`
+   (`agent: "general"`, `model: "opencode-go/glm-5.3-flash"`) to execute the
+   implementation steps cold from the committed brief — do not implement the
+   brief inline in the lead session.
 3. **Debug hygiene:** temporary probes are tracked as todos and removed
    before commit — never ride along in a feature diff.
 4. **Post-mortem capture:** a fix whose root cause reveals a systemic gap

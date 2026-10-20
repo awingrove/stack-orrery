@@ -31,6 +31,12 @@ two disagree, the kit wins and this file is fixed in the same change.
   `guard-file-size.mjs` (300-line split trigger), `guard-claims.mjs`
   (strict `CHECKS` / `PINS` / `DOCUMENTS` claim vocabulary) — run together
   by `npm run guard`.
+- **Sub-agent execution (cheap-model executor proof):** the lead session
+  (`opencode-go/gemini-4-argon-contributor`) runs the human design gate and
+  commits Step 1 (`DESIGN.md` + `docs/plans/<feature>.md`), then spawns a
+  fresh `general` subagent on `model: "opencode-go/glm-5.3-flash"` to execute
+  the remaining steps cold from the brief (proving the brief is
+  self-sufficient for a ≤ $1/1M-token executor without chat history).
 - **Human gates & rulesets:** per kit — design-before-code, PR approve +
   merge, plan-mandated findings. Server-side: `human-gates-main`
   (PR + approval, no force-push/delete on main), `agent-cannot-touch-anything`
