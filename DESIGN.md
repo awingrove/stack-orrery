@@ -115,6 +115,20 @@ human and — on agreement — amend this document in the same change
   no inline scripts, no inline event handlers, no inline `style=""` attributes in HTML.
 - CSS custom properties in `css/shell/base.css` mirror the front-matter tokens above.
 
+## Landing Page (`index.html`)
+
+- **Hero (`.hero`):** Dark surface card with a monospace eyebrow pill
+  (`.hero-eyebrow`), `<h1>stack-orrery</h1>`, tagline + `.lede` explaining the
+  concentric executable model, and a primary CTA button (`.hero-cta`,
+  `button-primary` tokens) linking into `panel.html`.
+- **Feature Pillars (`.feature-grid` / `.feature-card`):** Three cards
+  describing single-request hop tracing, deterministic crowd load / queue
+  dynamics, and the live Component Code & State Inspector.
+- **Scaling Ladder Preview (`.ladder-grid` / `.ladder-card`):** Six stage cards
+  matching the topbar scaling ladder, with unlocked stages (`1`–`3`) badged as
+  `Live` (`var(--good-soft)` / `var(--good)`) and upcoming stages (`4`–`6`) as
+  `Planned`.
+
 ## Layout & Zones
 
 Every stage diagram panel (`panel.html`) is organized into four vertical zones:

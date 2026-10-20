@@ -3,26 +3,126 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>stack-orrery</title>
+    <title>stack-orrery — Executable Architecture Orrery</title>
     <link rel="stylesheet" href="css/shell/base.css" />
   </head>
   <body>
     <header class="site-header">
       <nav class="site-nav" aria-label="Main">
-        <a class="brand" href="index.html">stack-orrery</a>
+        <a class="brand" href="index.html" aria-current="page">stack-orrery</a>
         <a href="panel.html">Diagram panel</a>
       </nav>
     </header>
     <main class="container">
-      <h1>stack-orrery</h1>
-      <p class="lede">
-        A runnable orrery of a web stack: simulated components on a discrete tick loop, making
-        scaling dynamics visible instead of described.
-      </p>
-      <p>
-        Watch the first stage — a single web server taking requests from N simulated users — on the
-        <a href="panel.html">Diagram panel</a>.
-      </p>
+      <section class="hero" aria-label="Introduction">
+        <span class="hero-eyebrow">EXECUTABLE ARCHITECTURE MODEL · DETERMINISTIC TICK LOOP</span>
+        <h1>stack-orrery</h1>
+        <p class="hero-tagline">Application architecture you can run, inspect, and understand.</p>
+        <p class="lede">
+          A mechanical model of a web stack on concentric orbital rings — not a static diagram or a
+          probability simulator. Addressable client browsers on the outer orbit send slim HTTP
+          requests over two-number mini-IPs through routing, load-balancing, web-server, and
+          cache-aside rings while you trace every hop or put the stack under load.
+        </p>
+        <div class="hero-actions">
+          <a class="hero-cta" data-testid="hero-cta" href="panel.html">
+            Get started — open Diagram panel &rarr;
+          </a>
+          <span class="hero-wire-sample">
+            10.2 -&gt; 10.1 GET /about =&gt; 200 This is the about page
+          </span>
+        </div>
+      </section>
+
+      <h2 class="section-heading">How the Orrery Works</h2>
+      <section class="feature-grid" aria-label="Core capabilities">
+        <article class="feature-card">
+          <h2>Trace 1 Request Hop-by-Hop</h2>
+          <p>
+            Pick any browser on the outer ring, choose <code class="mono">GET</code> or
+            <code class="mono">POST</code>, and step one hop at a time as your request crosses the
+            network, round-robins at the load balancer, checks the cache, and renders in the
+            viewport.
+          </p>
+        </article>
+        <article class="feature-card">
+          <h2>Watch Queues &amp; TTL Under Load</h2>
+          <p>
+            Dial up to 50 simulated browsers on a seeded tick clock. Watch visible FIFO queues climb
+            when arrivals exceed service rate, and see shared cache hits double warm capacity until
+            TTL expiry triggers a miss wave.
+          </p>
+        </article>
+        <article class="feature-card">
+          <h2>Inspect Real Code &amp; Live State</h2>
+          <p>
+            Click any component node on the pannable, zoomable orbital plane to read its working
+            JavaScript implementation side-by-side with its live internal JSON state and wire
+            journey log.
+          </p>
+        </article>
+      </section>
+
+      <h2 class="section-heading">Scaling Ladder Stages</h2>
+      <section class="ladder-grid" aria-label="Scaling ladder stages">
+        <article class="ladder-card">
+          <div class="ladder-head">
+            <h3>1 · Single Server</h3>
+            <span class="stage-badge is-live">Live</span>
+          </div>
+          <p>
+            3 concentric rings: <code class="mono">Browser (10.2+)</code> &rarr;
+            <code class="mono">Network (10.x)</code> &rarr;
+            <code class="mono">WebServer (10.1)</code> with visible FIFO queue and filesystem
+            routes.
+          </p>
+        </article>
+        <article class="ladder-card">
+          <div class="ladder-head">
+            <h3>2 · LB / Dup Servers</h3>
+            <span class="stage-badge is-live">Live</span>
+          </div>
+          <p>
+            4 rings: a round-robin <code class="mono">LoadBalancer (10.1)</code> distributes traffic
+            across duplicated <code class="mono">WebServer-1 (10.11)</code> and
+            <code class="mono">WebServer-2 (10.12)</code>, doubling service capacity.
+          </p>
+        </article>
+        <article class="ladder-card">
+          <div class="ladder-head">
+            <h3>3 · Cache</h3>
+            <span class="stage-badge is-live">Live</span>
+          </div>
+          <p>
+            5 rings: both backend servers share a cache-aside
+            <code class="mono">Cache (10.20)</code> with tick-based TTL, serving warm hits at twice
+            the origin rate.
+          </p>
+        </article>
+        <article class="ladder-card">
+          <div class="ladder-head">
+            <h3>4 · DB + Replication</h3>
+            <span class="stage-badge">Planned</span>
+          </div>
+          <p>Primary/replica database ring behind the cache-aside tier with replication lag.</p>
+        </article>
+        <article class="ladder-card">
+          <div class="ladder-head">
+            <h3>5 · Worker Queue</h3>
+            <span class="stage-badge">Planned</span>
+          </div>
+          <p>Asynchronous job queue and background workers decoupling slow writes.</p>
+        </article>
+        <article class="ladder-card">
+          <div class="ladder-head">
+            <h3>6 · Multi-Net / CDN</h3>
+            <span class="stage-badge">Planned</span>
+          </div>
+          <p>
+            DNS resolution, cross-subnet routing (<code class="mono">20.x</code>), and edge CDN.
+          </p>
+        </article>
+      </section>
     </main>
   </body>
 </html>

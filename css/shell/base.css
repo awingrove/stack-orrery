@@ -8,6 +8,7 @@
   --text: #e8eef9;
   --text-muted: #8fa0bf;
   --accent: #4da3ff;
+  --on-accent: #061224;
   --accent-soft: #1a365d;
   --good: #3ddc84;
   --good-soft: #13392a;
@@ -68,6 +69,7 @@ body {
 .lede {
   color: var(--text-muted);
   font-size: 1.05rem;
+  max-width: 52rem;
 }
 
 .mono {
@@ -77,4 +79,124 @@ body {
 
 a {
   color: var(--accent);
+}
+
+/* Landing page hero, feature pillars, and scaling ladder preview */
+.hero {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.7rem;
+  padding: 2.25rem 2rem;
+  margin-bottom: 1.5rem;
+}
+
+.hero-eyebrow {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  margin-bottom: 0.75rem;
+}
+
+.hero h1 {
+  font-size: 2rem;
+  line-height: 1.15;
+  margin: 0 0 0.35rem;
+}
+
+.hero-tagline {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 0.75rem;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.35rem;
+}
+
+.hero-cta {
+  display: inline-block;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
+  text-decoration: none;
+  padding: 0.65rem 1.15rem;
+  border-radius: 0.3rem;
+}
+
+.hero-cta:hover {
+  filter: brightness(1.08);
+}
+
+.hero-wire-sample {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: 0.45rem 0.75rem;
+  border-radius: 0.3rem;
+}
+
+.section-heading {
+  font-size: 1.05rem;
+  margin: 1.75rem 0 0.75rem;
+}
+
+.feature-grid,
+.ladder-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: 0.9rem;
+}
+
+.feature-card,
+.ladder-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.7rem;
+  padding: 1rem 1.1rem;
+}
+
+.feature-card h2,
+.ladder-card h3 {
+  font-size: 0.98rem;
+  margin: 0 0 0.4rem;
+}
+
+.feature-card p,
+.ladder-card p {
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  margin: 0;
+}
+
+.ladder-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.stage-badge {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+
+.stage-badge.is-live {
+  background: var(--good-soft);
+  color: var(--good);
 }
