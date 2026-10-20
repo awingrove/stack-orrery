@@ -5,19 +5,34 @@
 // arrive as wire records (from/to mini-IP + "GET /path"); responses leave as
 // "<status> <body>".
 //
+// Stage 3: with a Cache attached, GETs resolve through the cache-aside
+// lookup (`resolveRequest`) and step() spends a per-tick work budget — a
+// warm GET cache hit costs 1 unit, a miss or non-GET costs 2 — so a warm
+// server serves up to serviceRate * 2 requests per tick. With no cache
+// attached the component is unchanged Stage 1/2 behavior.
+//
 // CHECKS: constructor rejects a non-positive/non-integer serviceRate
 // (fail-loud over silent-slow).
-//
-// DOCUMENTS: matchRoute enforces the intrinsic HTTP method check (405 for
-// non-GET) and then looks up `path` in `fs`: a hit returns `200 <content>`
-// with a `routeId` so the panel can highlight the served file on disk; a
-// missing path returns `404 Page not found` with `routeId: null`.
 const DEFAULT_FILES = {
   '/': 'Welcome to the home page',
   '/about': 'This is the about page',
 };
 
-export function createWebServer({ address = '10.1', serviceRate = 4, files = DEFAULT_FILES } = {}) {
+function parseRequest(request = 'GET /') {
+  const trimmed = String(request).trim();
+  const spaceAt = trimmed.indexOf(' ');
+  return {
+    method: spaceAt === -1 ? trimmed : trimmed.slice(0, spaceAt),
+    path: spaceAt === -1 ? '' : trimmed.slice(spaceAt + 1),
+  };
+}
+
+export function createWebServer({
+  address = '10.1',
+  serviceRate = 4,
+  files = DEFAULT_FILES,
+  cache = null,
+} = {}) {
   if (!Number.isInteger(serviceRate) || serviceRate < 1) {
     throw new Error(`webserver: serviceRate must be a positive integer, got ${serviceRate}`);
   }
@@ -28,10 +43,7 @@ export function createWebServer({ address = '10.1', serviceRate = 4, files = DEF
   const WINDOW = 50;
 
   function matchRoute(request = 'GET /') {
-    const trimmed = String(request).trim();
-    const spaceAt = trimmed.indexOf(' ');
-    const method = spaceAt === -1 ? trimmed : trimmed.slice(0, spaceAt);
-    const path = spaceAt === -1 ? '' : trimmed.slice(spaceAt + 1);
+    const { method, path } = parseRequest(request);
     let response;
     let routeId = null;
     if (method !== 'GET') {
@@ -52,6 +64,38 @@ export function createWebServer({ address = '10.1', serviceRate = 4, files = DEF
     return matchRoute(request).response;
   }
 
+  // Cache-aside resolution: GETs consult the Cache first and fall through
+  // to the filesystem only on a miss, then fill the cache from the 200
+  // response. Everything else bypasses the cache untouched.
+  function resolveRequest(request = 'GET /', currentTick = 0) {
+    if (!cache) return { ...matchRoute(request), cacheStatus: null };
+    const { method, path } = parseRequest(request);
+    if (method !== 'GET') {
+      return { ...matchRoute(request), cacheStatus: 'BYPASS' };
+    }
+    const cached = cache.get(path, currentTick);
+    if (cached !== null) {
+      return {
+        response: `200 ${cached}`,
+        status: 200,
+        body: cached,
+        routeId: path === '/' ? 'route-home' : `route-${path.slice(1)}`,
+        cacheStatus: 'HIT',
+      };
+    }
+    const matched = matchRoute(request);
+    if (matched.status === 200) cache.set(path, matched.body, currentTick);
+    return { ...matched, cacheStatus: 'MISS' };
+  }
+
+  function pushLatency(responses) {
+    served += responses.length;
+    for (const r of responses) {
+      latencyWindow.push(r.latencyTicks);
+      if (latencyWindow.length > WINDOW) latencyWindow.shift();
+    }
+  }
+
   return {
     get address() {
       return address;
@@ -60,6 +104,8 @@ export function createWebServer({ address = '10.1', serviceRate = 4, files = DEF
     matchRoute,
 
     handleRequest,
+
+    resolveRequest,
 
     filesSnapshot() {
       return Object.fromEntries(fs);
@@ -71,13 +117,41 @@ export function createWebServer({ address = '10.1', serviceRate = 4, files = DEF
       queue.push({ id, atTick, from, to, request, isYou });
     },
 
-    // Consume up to serviceRate requests FIFO; emit one full wire record
-    // per response, keeping the fields the inspector needs on screen.
+    // No cache (Stages 1 and 2): consume up to serviceRate requests FIFO.
+    // With a cache (Stage 3): consume up to a work budget of serviceRate * 2
+    // units — a warm GET cache hit costs 1, a miss or non-GET costs 2.
     step(currentTick) {
-      const batch = queue.splice(0, serviceRate);
-      const responses = batch.map((r) => {
-        const matched = matchRoute(r.request);
-        return {
+      if (!cache) {
+        const batch = queue.splice(0, serviceRate);
+        const responses = batch.map((r) => {
+          const matched = matchRoute(r.request);
+          return {
+            id: r.id,
+            from: r.from,
+            to: r.to,
+            request: r.request,
+            isYou: r.isYou,
+            response: matched.response,
+            status: matched.status,
+            body: matched.body,
+            routeId: matched.routeId,
+            latencyTicks: currentTick - r.atTick + 1,
+          };
+        });
+        pushLatency(responses);
+        return responses;
+      }
+      const budget = serviceRate * 2;
+      const responses = [];
+      let used = 0;
+      while (queue.length > 0) {
+        const { method, path } = parseRequest(queue[0].request);
+        const cost = method === 'GET' && cache.has(path, currentTick) ? 1 : 2;
+        if (used + cost > budget) break;
+        const r = queue.shift();
+        used += cost;
+        const matched = resolveRequest(r.request, currentTick);
+        responses.push({
           id: r.id,
           from: r.from,
           to: r.to,
@@ -87,14 +161,11 @@ export function createWebServer({ address = '10.1', serviceRate = 4, files = DEF
           status: matched.status,
           body: matched.body,
           routeId: matched.routeId,
+          cacheStatus: matched.cacheStatus,
           latencyTicks: currentTick - r.atTick + 1,
-        };
-      });
-      served += responses.length;
-      for (const r of responses) {
-        latencyWindow.push(r.latencyTicks);
-        if (latencyWindow.length > WINDOW) latencyWindow.shift();
+        });
       }
+      pushLatency(responses);
       return responses;
     },
 

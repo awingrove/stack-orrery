@@ -24,12 +24,26 @@ const KEY_PANS = {
 
 // PINS: each wire lane sits on the midpoint of its wire in
 // world coordinates (col-left on browser↔network, col-right on
-// network↔webserver/lb, lb-backends centered between the two backend wires).
+// network↔webserver/lb, lb-backends centered between the two backend wires,
+// servers-cache centered between the two cache wires).
 const LANE_WIRES = {
   1: { 'wire-col-left': 'wire-browser-network', 'wire-col-right': 'wire-network-webserver' },
   2: { 'wire-col-left': 'wire-browser-network', 'wire-col-right': 'wire-network-lb' },
+  3: { 'wire-col-left': 'wire-browser-network', 'wire-col-right': 'wire-network-lb' },
 };
-const BACKEND_LANE = ['wire-lb-webserver', 'wire-lb-webserver-2'];
+// Lanes parked between two wires (Stage 2: LB→backends; Stage 3: backends→Cache).
+const LANES_BETWEEN = [
+  {
+    stage: 2,
+    laneId: 'wire-lb-backends',
+    wireIds: ['wire-lb-webserver', 'wire-lb-webserver-2'],
+  },
+  {
+    stage: 3,
+    laneId: 'wire-servers-cache',
+    wireIds: ['wire-webserver-cache', 'wire-webserver-2-cache'],
+  },
+];
 
 function byId(id) {
   return document.getElementById(id);
@@ -112,9 +126,10 @@ export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers, g
       const wire = wireById.get(wireId);
       if (lane && wire) setWorldPos(lane, wire.midX, wire.midY);
     }
-    if (layout.stage === 2) {
-      const lane = byId('wire-lb-backends');
-      const [w1, w2] = BACKEND_LANE.map((id) => wireById.get(id));
+    for (const { stage, laneId, wireIds } of LANES_BETWEEN) {
+      if (layout.stage !== stage) continue;
+      const lane = byId(laneId);
+      const [w1, w2] = wireIds.map((id) => wireById.get(id));
       if (lane && w1 && w2) {
         setWorldPos(lane, Math.round((w1.midX + w2.midX) / 2), Math.round((w1.midY + w2.midY) / 2));
       }

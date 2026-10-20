@@ -113,6 +113,51 @@ export const COMPONENT_SOURCE = {
   return { address, matchRoute, handleRequest, enqueue, step };
 }`,
   },
+  cache: {
+    file: 'js/sim/cache.js',
+    title: 'Cache — mini-IP 10.20',
+    code: `createCache({ address = '10.20', ttlTicks = 10 } = {}) {
+  // address must be "<net>.<host>" — a two-number mini-IP
+  const entries = new Map(); // path -> { value, cachedAtTick, expiresAtTick }
+  let hits = 0, misses = 0, sets = 0, evictions = 0, lastLookup = null;
+  function evictExpired(currentTick = 0) {
+    for (const entry of entries.values()) {
+      if (currentTick >= entry.expiresAtTick) {  // TTL elapsed
+        entries.delete(entry.key);
+        evictions += 1;
+      }
+    }
+  }
+  function has(key, currentTick = 0) {
+    evictExpired(currentTick);
+    return entries.has(key);
+  }
+  function get(key, currentTick = 0) {
+    evictExpired(currentTick);
+    const entry = entries.get(key);
+    if (entry) {
+      hits += 1;
+      lastLookup = { key, status: 'HIT', atTick: currentTick };
+      return entry.value;
+    }
+    misses += 1;
+    lastLookup = { key, status: 'MISS', atTick: currentTick };
+    return null;
+  }
+  function set(key, value, currentTick = 0) {
+    entries.set(key, { key, value, cachedAtTick: currentTick,
+      expiresAtTick: currentTick + ttlTicks });
+    sets += 1;
+  }
+  function snapshot(currentTick = 0) {
+    evictExpired(currentTick);
+    return { address, ttlTicks, hits, misses, sets, evictions, lastLookup,
+      entries: [...entries.values()].map((e) => ({ ...e,
+        ttlRemaining: e.expiresAtTick - currentTick })) };
+  }
+  return { address, evictExpired, has, get, set, snapshot };
+}`,
+  },
 };
 
 // The live-state side of the inspector: one builder per selectable
@@ -134,20 +179,31 @@ const STATE_BUILDERS = {
   },
   network: (snapshot) => ({
     subnet: '10.x',
+    // CHECKS: mini-IP keys are quoted strings — a bare `10.20:` literal
+    // collapses to the number 10.2 and collides with the browser's mini-IP.
     interfaces:
-      snapshot.stage === 2
+      snapshot.stage === 3
         ? {
             10.1: 'LoadBalancer',
             10.11: 'WebServer-1',
             10.12: 'WebServer-2',
             10.2: 'Browser (You)',
+            '10.20': 'Cache',
             Crowd: `${snapshot.users} simulated browsers`,
           }
-        : {
-            10.1: 'WebServer',
-            10.2: 'Browser (You)',
-            Crowd: `${snapshot.users} simulated browsers`,
-          },
+        : snapshot.stage === 2
+          ? {
+              10.1: 'LoadBalancer',
+              10.11: 'WebServer-1',
+              10.12: 'WebServer-2',
+              10.2: 'Browser (You)',
+              Crowd: `${snapshot.users} simulated browsers`,
+            }
+          : {
+              10.1: 'WebServer',
+              10.2: 'Browser (You)',
+              Crowd: `${snapshot.users} simulated browsers`,
+            },
     lastFrame: snapshot.lastFrame ?? null,
   }),
   loadbalancer: (snapshot) => ({
@@ -169,7 +225,7 @@ const STATE_BUILDERS = {
       lastMatchedRoute: snapshot.lastMatchedRoute ?? null,
     };
     if (snapshot.files) base.files = snapshot.files;
-    if (snapshot.stage === 2 && Array.isArray(snapshot.servers)) {
+    if (snapshot.stage >= 2 && Array.isArray(snapshot.servers)) {
       base.instances = snapshot.servers.map((s) => ({
         address: s.address,
         queueDepth: s.queueDepth,
@@ -179,6 +235,17 @@ const STATE_BUILDERS = {
     }
     return base;
   },
+  cache: (snapshot) => ({
+    address: snapshot.cache?.address ?? '10.20',
+    strategy: 'cache-aside',
+    ttlTicks: snapshot.cache?.ttlTicks ?? 10,
+    hits: snapshot.cache?.hits ?? 0,
+    misses: snapshot.cache?.misses ?? 0,
+    sets: snapshot.cache?.sets ?? 0,
+    evictions: snapshot.cache?.evictions ?? 0,
+    lastLookup: snapshot.cache?.lastLookup ?? null,
+    entries: snapshot.cache?.entries ?? [],
+  }),
 };
 
 export function formatComponentState(snapshot, component, browserAddress = '10.2') {

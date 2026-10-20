@@ -27,7 +27,9 @@
           <button data-testid="stage-pill-2" data-stage="2" class="stage-pill" type="button">
             2 · LB / Dup Servers
           </button>
-          <span class="stage-pill">3 · Cache</span>
+          <button data-testid="stage-pill-3" data-stage="3" class="stage-pill" type="button">
+            3 · Cache
+          </button>
           <span class="stage-pill">4 · DB + Replication</span>
           <span class="stage-pill">5 · Worker Queue</span>
           <span class="stage-pill">6 · Multi-Net / CDN</span>
@@ -108,7 +110,7 @@
             id="orrery-svg"
             data-testid="orrery-svg"
             class="orrery-svg"
-            viewBox="-2600 -2600 5200 5200"
+            viewBox="-3000 -3000 6000 6000"
             aria-hidden="true"
           ></svg>
 
@@ -235,6 +237,11 @@ Send a request or step a hop to render a response.</pre>
             <div id="packet-res-lb" class="wire-lane reverse">&lt;- response</div>
           </div>
 
+          <div id="wire-servers-cache" class="wire-column" aria-hidden="true" hidden>
+            <div id="packet-req-cache" class="wire-lane">cache.get =&gt;</div>
+            <div id="packet-res-cache" class="wire-lane reverse">&lt;- hit / set</div>
+          </div>
+
           <div class="backend-stack">
             <article
               class="node-card"
@@ -294,6 +301,32 @@ Send a request or step a hop to render a response.</pre>
               </ul>
             </article>
           </div>
+
+          <article
+            class="node-card"
+            id="node-cache"
+            data-testid="node-cache"
+            data-component="cache"
+            hidden
+          >
+            <header class="node-head">
+              <div class="node-name">
+                <span class="role-name">Cache</span>
+                <span class="node-subtitle">cache-aside TTL</span>
+              </div>
+              <span class="ip-chip">10.20</span>
+              <span class="code-chip">&lt;/&gt; Code</span>
+            </header>
+            <p id="cache-stats" data-testid="cache-stats" class="mono last-frame">
+              Hits: 0 · Misses: 0 · TTL: 10t
+            </p>
+            <ul
+              id="cache-entries-list"
+              data-testid="cache-entries-list"
+              class="route-list"
+              aria-label="Cache entries"
+            ></ul>
+          </article>
         </section>
       </div>
       <dl class="stats" aria-label="Live state">
@@ -328,6 +361,7 @@ Send a request or step a hop to render a response.</pre>
                 loadbalancer
               </button>
               <button class="comp-tab" type="button" data-select="webserver">webserver</button>
+              <button class="comp-tab" type="button" data-select="cache">cache</button>
             </div>
           </header>
           <div class="inspector-split">

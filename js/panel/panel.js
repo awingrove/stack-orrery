@@ -6,15 +6,8 @@
 import { createEngine } from '../sim/engine.js';
 import { TICK_MS } from './model.js';
 import { COMPONENT_SOURCE } from './inspector-source.js';
-import {
-  $,
-  els,
-  addToJourney,
-  render,
-  renderInspector,
-  renderStageTopology,
-  onStageRendered,
-} from './render.js';
+import { $, els, addToJourney, render, renderInspector } from './render.js';
+import { renderStageTopology, onStageRendered } from './render-stage.js';
 import { initViewport } from './viewport.js';
 
 let currentStage = 1;
@@ -112,7 +105,7 @@ function stepOneHop() {
     path: els.urlInput.value,
     from: activeBrowserAddress,
   });
-  const totalHops = snapshot.stage === 2 ? 5 : 4;
+  const totalHops = snapshot.stage === 3 ? 6 : snapshot.stage === 2 ? 5 : 4;
   addToJourney(`hop ${snapshot.trace.hop}/${totalHops}`, snapshot.lastFrame);
   updateView(snapshot);
   return snapshot;
@@ -122,7 +115,7 @@ $('btn-next-hop').addEventListener('click', stepOneHop);
 
 $('btn-play-request').addEventListener('click', () => {
   if (timer) pause();
-  const finalHop = currentStage === 2 ? 5 : 4;
+  const finalHop = currentStage === 3 ? 6 : currentStage === 2 ? 5 : 4;
   const iv = setInterval(() => {
     if (stepOneHop().trace.hop === finalHop) clearInterval(iv);
   }, TICK_MS);
@@ -130,7 +123,7 @@ $('btn-play-request').addEventListener('click', () => {
 
 $('btn-url-go').addEventListener('click', () => {
   if (timer) pause();
-  const finalHop = currentStage === 2 ? 5 : 4;
+  const finalHop = currentStage === 3 ? 6 : currentStage === 2 ? 5 : 4;
   for (let i = 0; i < finalHop + 1; i += 1) {
     if (stepOneHop().trace.hop === finalHop) break;
   }

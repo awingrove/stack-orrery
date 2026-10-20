@@ -199,4 +199,99 @@ describe('describeSnapshot', () => {
       perBackend: { 10.11: 1, 10.12: 0 },
     });
   });
+
+  it('describes Stage 3 6-hop cache-aside trace labels and cache inspector state', () => {
+    const cache = {
+      address: '10.20',
+      ttlTicks: 10,
+      hits: 1,
+      misses: 1,
+      sets: 1,
+      evictions: 0,
+      lastLookup: { key: '/about', status: 'HIT', atTick: 2 },
+      entries: [
+        {
+          key: '/about',
+          value: 'This is the about page',
+          cachedAtTick: 1,
+          expiresAtTick: 11,
+          ttlRemaining: 9,
+        },
+      ],
+    };
+    const snap = {
+      stage: 3,
+      tick: 2,
+      users: 5,
+      serverAddress: '10.1',
+      queueDepth: 0,
+      served: 2,
+      avgLatencyTicks: 1,
+      cache,
+      loadBalancer: {
+        address: '10.1',
+        algorithm: 'round-robin',
+        backends: ['10.11', '10.12'],
+        nextBackend: '10.11',
+        forwarded: 2,
+        lastTarget: '10.12',
+        perBackend: { 10.11: 1, 10.12: 1 },
+      },
+      servers: [
+        { address: '10.11', queueDepth: 0, served: 1, queue: [] },
+        { address: '10.12', queueDepth: 0, served: 1, queue: [] },
+      ],
+      trace: {
+        hop: 5,
+        method: 'GET',
+        path: '/about',
+        request: 'GET /about',
+        targetServer: '10.12',
+        cacheStatus: 'HIT',
+        response: '200 This is the about page',
+        status: 200,
+        body: 'This is the about page',
+        routeId: 'route-about',
+      },
+    };
+    const labels = describeSnapshot(snap);
+    expect(labels.stage).toBe(3);
+    expect(labels.totalHops).toBe(6);
+    expect(labels.hop).toBe(5);
+    expect(labels.hopStatus).toBe(
+      'Hop 5/6: WebServer (10.12) -> "200 This is the about page" (cache HIT)',
+    );
+    expect(labels.cacheStatsLabel).toBe('Hits: 1 · Misses: 1 · TTL: 10t');
+    expect(labels.cacheEntries).toEqual(cache.entries);
+
+    // The other six hops read as their own sentence, miss included.
+    const missLabels = (hop, over) =>
+      describeSnapshot({
+        ...snap,
+        trace: { ...snap.trace, hop, cacheStatus: over ? undefined : 'MISS', response: null },
+      }).hopStatus;
+    expect(missLabels(1)).toBe('Hop 1/6: Browser (10.2) emits "GET /about"');
+    expect(missLabels(2)).toBe('Hop 2/6: Network (10.x) routes to LoadBalancer (10.1)');
+    expect(missLabels(3)).toBe('Hop 3/6: LoadBalancer (10.1) -> 10.12 queue');
+    expect(missLabels(4)).toBe('Hop 4/6: WebServer (10.12) checks Cache (10.20) — MISS');
+    expect(missLabels(6)).toBe('Hop 6/6: Browser (10.2) rendered 200');
+    expect(missLabels(7)).toBe('Idle — type a path and click Go or Step 1 Hop ->');
+
+    // The cache inspector shows the live Map and counters; the network
+    // interface table names Cache 10.20 in Stage 3.
+    const cacheState = JSON.parse(formatComponentState(snap, 'cache'));
+    expect(cacheState).toEqual({
+      address: '10.20',
+      strategy: 'cache-aside',
+      ttlTicks: 10,
+      hits: 1,
+      misses: 1,
+      sets: 1,
+      evictions: 0,
+      lastLookup: { key: '/about', status: 'HIT', atTick: 2 },
+      entries: cache.entries,
+    });
+    const networkState = JSON.parse(formatComponentState(snap, 'network'));
+    expect(networkState.interfaces['10.20']).toBe('Cache');
+  });
 });

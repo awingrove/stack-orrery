@@ -83,10 +83,14 @@ describe('orrery layout', () => {
     expect(buildOrreryRings(400).map((r) => r.radius)).toEqual([400, 800, 1200]);
     expect(() => buildOrreryRings(0)).toThrow(/ringGap/);
     expect(() => buildOrreryRings(Number.NaN)).toThrow(/ringGap/);
-    expect(() => buildOrreryRings(400, 3)).toThrow(/stage/);
+    expect(() => buildOrreryRings(400, 4)).toThrow(/stage/);
     expect(polarToWorld(1200, 180)).toEqual({ x: -1200, y: 0 });
     expect(polarToWorld(400, 210)).toEqual({ x: -346, y: -200 });
     expect(polarToWorld(400, 150)).toEqual({ x: -346, y: 200 });
+
+    // CHECKS: the world frame widens for Stage 3's five rings (pan and fit
+    // reach the outer Ring 5 clients and the Ring 1 cache).
+    expect(WORLD_BOUNDS).toEqual({ minX: -2600, maxX: 600, minY: -900, maxY: 900 });
 
     // Stage 1: 3 layers -> 3 rings, one component seated per layer ring.
     const stage1 = computeStageLayout(1, 5);
@@ -127,7 +131,7 @@ describe('orrery layout', () => {
       expect(node.radius).toBeGreaterThan(0);
       expect(node.x !== 0 || node.y !== 0).toBe(true);
     }
-    expect(() => computeStageLayout(3)).toThrow(/stage/);
+    expect(() => computeStageLayout(4)).toThrow(/stage/);
 
     // Stage 2: 4 layers -> 4 rings, both backends on Ring 1's left arc.
     const stage2 = computeStageLayout(2, 5);
@@ -179,6 +183,71 @@ describe('orrery layout', () => {
       'wire-lb-webserver-2',
     ]);
     expect(stage2.bounds).toEqual({ minX: -1780, maxX: 120, minY: -540, maxY: 540 });
+
+    // Stage 3: 5 layers -> 5 rings, cache-aside Cache 10.20 on the innermost
+    // ring behind both backends, backends rotated to 200°/160°.
+    const stage3 = computeStageLayout(3, 5);
+    expect(stage3.rings.map((r) => r.radius)).toEqual([400, 800, 1200, 1600, 2000]);
+    expect(stage3.rings.map((r) => r.id)).toEqual([
+      'ring-cache',
+      'ring-compute',
+      'ring-lb',
+      'ring-network',
+      'ring-clients',
+    ]);
+    expect(stage3.nodes['node-cache']).toMatchObject({
+      x: -400,
+      y: 0,
+      radius: 400,
+      ring: 'ring-cache',
+    });
+    expect(stage3.nodes['node-webserver']).toMatchObject({
+      x: -752,
+      y: -274,
+      radius: 800,
+      ring: 'ring-compute',
+    });
+    expect(stage3.nodes['node-webserver-2']).toMatchObject({
+      x: -752,
+      y: 274,
+      radius: 800,
+      ring: 'ring-compute',
+    });
+    expect(stage3.nodes['node-lb']).toMatchObject({
+      x: -1200,
+      y: 0,
+      radius: 1200,
+      ring: 'ring-lb',
+    });
+    expect(stage3.nodes['node-network']).toMatchObject({
+      x: -1600,
+      y: 0,
+      radius: 1600,
+      ring: 'ring-network',
+    });
+    expect(stage3.nodes['node-browser']).toMatchObject({
+      x: -2000,
+      y: 0,
+      radius: 2000,
+      ring: 'ring-clients',
+    });
+    for (const node of Object.values(stage3.nodes)) {
+      expect(node.radius).toBeGreaterThan(0);
+      expect(node.x !== 0 || node.y !== 0).toBe(true);
+    }
+    expect(stage3.wires.map((w) => w.id)).toEqual([
+      'wire-browser-network',
+      'wire-network-lb',
+      'wire-lb-webserver',
+      'wire-lb-webserver-2',
+      'wire-webserver-cache',
+      'wire-webserver-2-cache',
+    ]);
+    // Each cache wire points from a backend at r=800 into the shared Cache
+    // at (-400, 0) on Ring 1.
+    expect(stage3.wires.at(-2)).toMatchObject({ x2: -400, y2: 0 });
+    expect(stage3.wires.at(-1)).toMatchObject({ x2: -400, y2: 0 });
+    expect(stage3.bounds).toEqual({ minX: -2180, maxX: 120, minY: -540, maxY: 540 });
 
     // Fit: bounds land inside the padded viewport with the camera centered.
     const fit = fitCameraToBounds(stage1.bounds, 1150, 448, 48);

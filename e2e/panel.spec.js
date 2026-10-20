@@ -110,6 +110,44 @@ test('should switch to Stage 2, alternate requests across 10.11 and 10.12 via th
   await expect(page.getByTestId('inspector-state')).toContainText('"forwardedTotal": 2');
 });
 
+// Stage 3 adds a shared cache-aside Cache (10.20) behind both backends with
+// tick-based TTL. The first 6-hop trace (round-robin -> 10.11) misses and
+// warms the cache; the second (-> 10.12) serves a warm HIT from the shared
+// entry, and the Cache's code and live TTL state open in the inspector.
+test('should switch to Stage 3, warm Cache 10.20 on a miss from 10.11, serve a hit from 10.12, and inspect cache code', async ({
+  page,
+}) => {
+  await page.goto('/panel.html');
+
+  await page.getByTestId('stage-pill-3').click();
+  await expect(page.getByTestId('node-cache')).toBeVisible();
+  await expect(page.getByTestId('node-lb')).toBeVisible();
+  await expect(page.getByTestId('node-webserver-2')).toBeVisible();
+  await expect(page.locator('.orrery-ring')).toHaveCount(5);
+  await expect(page.locator('.orrery-ring').first()).toHaveAttribute('r', '400');
+  await expect(page.locator('.orrery-ring').last()).toHaveAttribute('r', '2000');
+  await expect(page.getByTestId('cache-stats')).toHaveText('Hits: 0 · Misses: 0 · TTL: 10t');
+
+  // First trace: the cold cache lookup misses; the 200 response fills the
+  // shared entry (cache-aside set).
+  for (let hop = 0; hop < 6; hop++) await page.getByTestId('btn-next-hop').click();
+  await expect(page.getByTestId('hop-status')).toContainText('Hop 6/6');
+  await expect(page.getByTestId('cache-stats')).toHaveText('Hits: 0 · Misses: 1 · TTL: 10t');
+  await expect(page.getByTestId('cache-entries-list')).toContainText('/about');
+  await expect(page.getByTestId('lb-backend-1')).toHaveText('10.11 WebServer-1 (1)');
+
+  // Second trace: round-robin moves to 10.12; the shared entry answers a
+  // warm HIT — one cache, two backends.
+  for (let hop = 0; hop < 6; hop++) await page.getByTestId('btn-next-hop').click();
+  await expect(page.getByTestId('cache-stats')).toHaveText('Hits: 1 · Misses: 1 · TTL: 10t');
+  await expect(page.getByTestId('lb-backend-2')).toHaveText('10.12 WebServer-2 (1)');
+  await expect(page.getByTestId('browser-rendered-body')).toHaveText('This is the about page');
+
+  await page.getByTestId('node-cache').click();
+  await expect(page.getByTestId('inspector-code')).toContainText('createCache');
+  await expect(page.getByTestId('inspector-state')).toContainText('"hits": 1');
+});
+
 // The orrery plane is camera-driven: one concentric SVG ring per architectural
 // layer (3 in Stage 1, 4 in Stage 2, r_k = k * ringGap), zoom via HUD buttons
 // and wheel (toward the cursor), pan via pointer drag, and a Fit-to-view reset

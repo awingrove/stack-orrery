@@ -8,14 +8,15 @@ export const ORRERY_RINGS = buildOrreryRings(DEFAULT_RING_GAP, 1);
 
 // CHECKS: buildOrreryRings validates the ring gap rather than producing NaN
 // radii (which would degenerate the whole orrery into a single point).
-// DOCUMENTS: every architectural layer of a stage gets its own concentric ring
-// at r_k = k * ringGap — Stage 1 has 3 layers (3 rings), Stage 2 has 4 (4 rings).
+// DOCUMENTS: every architectural layer of a stage gets its own concentric
+// ring at r_k = k * ringGap — Stage 1 has 3 layers (3 rings), Stage 2 has 4
+// (4 rings), Stage 3 has 5 (cache-aside adds the innermost Cache ring).
 export function buildOrreryRings(ringGap = DEFAULT_RING_GAP, stage = 1) {
   if (!Number.isFinite(ringGap) || ringGap <= 0) {
     throw new Error('layout: ringGap must be a finite number > 0');
   }
-  if (stage !== 1 && stage !== 2) {
-    throw new Error(`layout: unknown stage ${stage} (expected 1 or 2)`);
+  if (stage !== 1 && stage !== 2 && stage !== 3) {
+    throw new Error(`layout: unknown stage ${stage} (expected 1, 2, or 3)`);
   }
   const gap = Math.round(ringGap);
   const ringSpecs =
@@ -26,11 +27,19 @@ export function buildOrreryRings(ringGap = DEFAULT_RING_GAP, stage = 1) {
           ['ring-network', 'RING 3 · NETWORK'],
           ['ring-clients', 'RING 4 · BROWSERS'],
         ]
-      : [
-          ['ring-compute', 'RING 1 · WEBSERVER'],
-          ['ring-network', 'RING 2 · NETWORK'],
-          ['ring-clients', 'RING 3 · BROWSERS'],
-        ];
+      : stage === 3
+        ? [
+            ['ring-cache', 'RING 1 · CACHE'],
+            ['ring-compute', 'RING 2 · WEBSERVERS'],
+            ['ring-lb', 'RING 3 · LOADBALANCER'],
+            ['ring-network', 'RING 4 · NETWORK'],
+            ['ring-clients', 'RING 5 · BROWSERS'],
+          ]
+        : [
+            ['ring-compute', 'RING 1 · WEBSERVER'],
+            ['ring-network', 'RING 2 · NETWORK'],
+            ['ring-clients', 'RING 3 · BROWSERS'],
+          ];
   return ringSpecs.map(([id, label], k) => ({ id, radius: (k + 1) * gap, label }));
 }
 
@@ -79,8 +88,8 @@ export function computeStageLayout(
   users = 5,
   { ringGap = DEFAULT_RING_GAP, activeBrowser = '10.2' } = {},
 ) {
-  if (stage !== 1 && stage !== 2) {
-    throw new Error(`layout: unknown stage ${stage} (expected 1 or 2)`);
+  if (stage !== 1 && stage !== 2 && stage !== 3) {
+    throw new Error(`layout: unknown stage ${stage} (expected 1, 2, or 3)`);
   }
   const rings = buildOrreryRings(ringGap, stage);
   const gap = Math.round(ringGap);
@@ -93,10 +102,10 @@ export function computeStageLayout(
   });
 
   // Addressable browsers on the outer client ring (Ring 3 in Stage 1, Ring 4
-  // in Stage 2): slot 0 (mini-IP 10.2) sits at 180° — the expanded
-  // #node-browser spot — and slots 1 .. users - 1 (10.3 .. 10.(users + 1))
-  // take the satellite arc positions. Compact nodes render at every slot not
-  // currently expanded.
+  // in Stage 2, Ring 5 in Stage 3): slot 0 (mini-IP 10.2) sits at 180° — the
+  // expanded #node-browser spot — and slots 1 .. users - 1 (10.3 ..
+  // 10.(users + 1)) take the satellite arc positions. Compact nodes render
+  // at every slot not currently expanded.
   const browserCount = Math.max(0, Math.round(users));
   const outerRadius = rings[rings.length - 1].radius;
   const walkArcs = computeSatellites(Math.max(0, browserCount - 1), outerRadius);
@@ -127,12 +136,48 @@ export function computeStageLayout(
   nodes['node-network'] = pos('node-network', 'ring-network', networkRing.radius, 180);
   let wires;
   const computeRing = rings.find((ring) => ring.id === 'ring-compute');
-  if (stage === 2) {
-    nodes['node-lb'] = pos('node-lb', 'ring-lb', rings[1].radius, 180);
-    // Both backends sit squarely on Ring 1 (Compute): 210° puts 10.11 in the
-    // top-left arc of the ring, 150° puts 10.12 in the bottom-left arc.
-    nodes['node-webserver'] = pos('node-webserver', 'ring-compute', computeRing.radius, 210);
-    nodes['node-webserver-2'] = pos('node-webserver-2', 'ring-compute', computeRing.radius, 150);
+  if (stage === 1) {
+    nodes['node-webserver'] = pos('node-webserver', 'ring-compute', computeRing.radius, 180);
+    wires = [
+      makeWire(
+        'wire-browser-network',
+        'node-browser',
+        'node-network',
+        nodes['node-browser'],
+        nodes['node-network'],
+      ),
+      makeWire(
+        'wire-network-webserver',
+        'node-network',
+        'node-webserver',
+        nodes['node-network'],
+        nodes['node-webserver'],
+      ),
+    ];
+  } else {
+    nodes['node-lb'] = pos(
+      'node-lb',
+      'ring-lb',
+      rings.find((ring) => ring.id === 'ring-lb').radius,
+      180,
+    );
+    // Both backends sit squarely on the Compute ring: Stage 2 uses 210°/150°
+    // (bottom-left / top-left arc); Stage 3 opens the arc to 200°/160° so the
+    // cache wires down to Ring 1 stay clear of the LB wire.
+    const backendAngle1 = stage === 3 ? 200 : 210;
+    const backendAngle2 = stage === 3 ? 160 : 150;
+    nodes['node-webserver'] = pos(
+      'node-webserver',
+      'ring-compute',
+      computeRing.radius,
+      backendAngle1,
+    );
+    nodes['node-webserver-2'] = pos(
+      'node-webserver-2',
+      'ring-compute',
+      computeRing.radius,
+      backendAngle2,
+    );
     wires = [
       makeWire(
         'wire-browser-network',
@@ -163,24 +208,32 @@ export function computeStageLayout(
         nodes['node-webserver-2'],
       ),
     ];
-  } else {
-    nodes['node-webserver'] = pos('node-webserver', 'ring-compute', computeRing.radius, 180);
-    wires = [
-      makeWire(
-        'wire-browser-network',
-        'node-browser',
-        'node-network',
-        nodes['node-browser'],
-        nodes['node-network'],
-      ),
-      makeWire(
-        'wire-network-webserver',
-        'node-network',
-        'node-webserver',
-        nodes['node-network'],
-        nodes['node-webserver'],
-      ),
-    ];
+    if (stage === 3) {
+      // Cache-aside: Ring 1's shared Cache sits behind both backends, each
+      // with its own lookup wire down the ring stack.
+      nodes['node-cache'] = pos(
+        'node-cache',
+        'ring-cache',
+        rings.find((ring) => ring.id === 'ring-cache').radius,
+        180,
+      );
+      wires.push(
+        makeWire(
+          'wire-webserver-cache',
+          'node-webserver',
+          'node-cache',
+          nodes['node-webserver'],
+          nodes['node-cache'],
+        ),
+        makeWire(
+          'wire-webserver-2-cache',
+          'node-webserver-2',
+          'node-cache',
+          nodes['node-webserver-2'],
+          nodes['node-cache'],
+        ),
+      );
+    }
   }
   return {
     stage,
