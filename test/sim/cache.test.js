@@ -27,8 +27,8 @@ describe('createCache', () => {
       },
     ]);
 
-    // The tick the TTL names is the first tick the entry is gone: the
-    // lookup evicts it (evictions +1) and reports a miss, never a stale hit.
+    // CHECKS: the tick the TTL names is the first tick the entry is gone —
+    // the lookup evicts it (evictions +1) and reports a miss rather than a stale hit.
     expect(cache.get('/about', 11)).toBe(null);
     expect(cache.has('/about', 11)).toBe(false);
     const snap = cache.snapshot(11);
@@ -71,8 +71,8 @@ describe('stage 3 cache-aside wiring', () => {
     expect(warmBatch).toHaveLength(8);
     expect(warmBatch.every((r) => r.cacheStatus === 'HIT')).toBe(true);
 
-    // Cold 404 paths never fill the cache, so every request misses and
-    // costs 2 units — budget 8 serves only 4 of the 10 queued.
+    // CHECKS: cold 404 paths do not fill the cache, so every request misses
+    // and costs 2 units — budget 8 serves only 4 of the 10 queued.
     const cold = createWebServer({ address: '10.12', serviceRate: 4, cache: createCache() });
     for (let i = 0; i < 10; i++) {
       cold.enqueue({ id: `cold:${i}`, atTick: 1, request: 'GET /missing' });

@@ -33,7 +33,7 @@
 /* World-space backdrop: concentric rings, spokes, satellites. The SVG's box
    is shifted so its viewBox origin lines up with world (0,0). Covers full
    circles up to r = 3000, so Stage 3's five rings at the max ring gap
-   (r5 = 5 * 560 = 2800) never clip. */
+   (r5 = 5 * 560 = 2800) do not clip. */
 .orrery-svg {
   position: absolute;
   left: -3000px;

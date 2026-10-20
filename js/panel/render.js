@@ -85,8 +85,8 @@ function renderRoutes(matchedRouteId, snapshot) {
   }
 }
 
-// Cache entries (Stage 3): one row per live cached key with its remaining
-// TTL in ticks — the Map on screen, never an aggregate hit rate.
+// DOCUMENTS: cache entries (Stage 3) render one row per live cached key with
+// its remaining TTL in ticks — the Map on screen rather than an aggregate hit rate.
 function renderCacheEntries(entries) {
   els.cacheEntries.replaceChildren(
     ...entries.map((e) => {
