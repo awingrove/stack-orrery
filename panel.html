@@ -30,7 +30,9 @@
           <button data-testid="stage-pill-3" data-stage="3" class="stage-pill" type="button">
             3 · Cache
           </button>
-          <span class="stage-pill">4 · DB + Replication</span>
+          <button data-testid="stage-pill-4" data-stage="4" class="stage-pill" type="button">
+            4 · DB + Replication
+          </button>
           <span class="stage-pill">5 · Worker Queue</span>
           <span class="stage-pill">6 · Multi-Net / CDN</span>
         </div>
@@ -327,6 +329,37 @@ Send a request or step a hop to render a response.</pre>
               aria-label="Cache entries"
             ></ul>
           </article>
+
+          <div id="wire-cache-db" class="wire-column" aria-hidden="true" hidden>
+            <div id="packet-req-db" class="wire-lane">write =&gt;</div>
+            <div id="packet-res-db" class="wire-lane reverse">&lt;- read replica</div>
+          </div>
+
+          <article
+            class="node-card"
+            id="node-db"
+            data-testid="node-db"
+            data-component="database"
+            hidden
+          >
+            <header class="node-head">
+              <div class="node-name">
+                <span class="role-name">Database</span>
+                <span class="node-subtitle">primary + read replica</span>
+              </div>
+              <span class="ip-chip">10.30</span>
+              <span class="code-chip">&lt;/&gt; Code</span>
+            </header>
+            <p id="db-stats" data-testid="db-stats" class="mono last-frame">
+              Reads: 0 · Writes: 0 · Lag: 3t
+            </p>
+            <ul
+              id="db-rows-list"
+              data-testid="db-rows-list"
+              class="route-list"
+              aria-label="Row versions"
+            ></ul>
+          </article>
         </section>
       </div>
       <dl class="stats" aria-label="Live state">
@@ -362,6 +395,7 @@ Send a request or step a hop to render a response.</pre>
               </button>
               <button class="comp-tab" type="button" data-select="webserver">webserver</button>
               <button class="comp-tab" type="button" data-select="cache">cache</button>
+              <button class="comp-tab" type="button" data-select="database">database</button>
             </div>
           </header>
           <div class="inspector-split">

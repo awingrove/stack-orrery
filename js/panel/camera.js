@@ -5,9 +5,9 @@
 export const MIN_ZOOM = 0.25;
 export const MAX_ZOOM = 2.0;
 // DOCUMENTS: the pannable world frame for all per-stage ring geometry —
-// widened for Stage 3's five rings (r_k = k * ringGap) so their left arcs
-// and node cards stay reachable by pan and fit.
-export const WORLD_BOUNDS = { minX: -2600, maxX: 600, minY: -900, maxY: 900 };
+// widened for Stage 3's five rings and Stage 4's six (r_k = k * ringGap) so
+// their left arcs and node cards stay reachable by pan and fit.
+export const WORLD_BOUNDS = { minX: -3100, maxX: 600, minY: -900, maxY: 900 };
 
 const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
 

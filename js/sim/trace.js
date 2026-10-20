@@ -5,7 +5,9 @@
 // (the LB's round-robin pick becomes its own hop); 6 in Stage 3 (the
 // backend's cache-aside lookup and the HTTP response emission split into
 // two hops so the learner can watch Cache 10.20 answer, then the backend
-// emit).
+// emit); 7 in Stage 4 (the Database hop inserted after the cache check —
+// the WRITE to Primary 10.30, the fresh or stale SELECT from Replica
+// 10.31, or the SKIP a warm cache HIT earns).
 //
 // The machine owns the trace state and hop transitions; the engine owns
 // the clock, the served-exchange record, and browser delivery, handed in
@@ -20,13 +22,14 @@ export function createTraceMachine({
   lb = null,
   network,
   cache = null,
+  database = null,
   bumpTick,
   getTick,
   onServe,
   onFinish,
 }) {
-  if (stage !== 1 && stage !== 2 && stage !== 3) {
-    throw new Error(`trace: stage must be 1, 2, or 3, got ${stage}`);
+  if (stage !== 1 && stage !== 2 && stage !== 3 && stage !== 4) {
+    throw new Error(`trace: stage must be 1, 2, 3, or 4, got ${stage}`);
   }
   let trace = freshTrace();
   let served = null; // the drained response record, held between hops 4/6 and 5/6
@@ -40,6 +43,8 @@ export function createTraceMachine({
       request: 'GET /about',
       targetServer: null,
       cacheStatus: null,
+      dbOp: null,
+      dbStale: false,
       response: null,
       status: null,
       body: null,
@@ -84,7 +89,7 @@ export function createTraceMachine({
     // One hop per call. Returns the hop's lastFrame string, or null when
     // nothing moved (the engine keeps its previous frame then).
     step({ method = 'GET', path = '/about', from = '10.2' } = {}) {
-      const finalHop = stage === 3 ? 6 : stage === 2 ? 5 : 4;
+      const finalHop = stage === 4 ? 7 : stage === 3 ? 6 : stage === 2 ? 5 : 4;
       let frame = null;
       if (trace.hop === 0 || trace.hop >= finalHop) {
         const request = `${method} ${path}`;
@@ -96,6 +101,8 @@ export function createTraceMachine({
           request,
           targetServer: stage === 1 ? serverAddress : null,
           cacheStatus: null,
+          dbOp: null,
+          dbStale: false,
           response: null,
           status: null,
           body: null,
@@ -171,6 +178,44 @@ export function createTraceMachine({
         }
       } else if (stage === 3 && trace.hop === 5) {
         trace.hop = 6;
+        finish(trace.targetServer ?? serverAddress);
+      } else if (stage === 4 && trace.hop === 3) {
+        // Hop 4/7: the target backend checks Cache and serves the queued
+        // request (a POST write-through carries cacheStatus INVALIDATE);
+        // the response record is held so the learner watches the cache
+        // lookup, then the database hop.
+        trace.hop = 4;
+        const backend = backendFor(trace.targetServer);
+        served = drainUntilYou(backend);
+        if (served) {
+          trace.cacheStatus = served.cacheStatus ?? null;
+          frame = `${backend.address} -> ${cache.address} | cache ${trace.cacheStatus} (${trace.path})`;
+        }
+      } else if (stage === 4 && trace.hop === 4) {
+        // Hop 5/7: the database hop — hop 6's WRITE landed on Primary
+        // 10.30 (replication queued toward 10.31), hop 5's SELECT read
+        // Replica 10.31 fresh or stale, and a warm cache HIT skips the
+        // database entirely.
+        trace.hop = 5;
+        if (served) {
+          trace.dbOp = served.dbOp ?? null;
+          trace.dbStale = Boolean(served.dbStale);
+          if (trace.dbOp === 'WRITE') {
+            frame = `Database WRITE ${trace.path} @ ${database.primaryAddress} (replica ${database.replicaAddress} lags ${database.replicationLagTicks}t)`;
+          } else if (trace.dbOp === 'SELECT') {
+            frame = `Database SELECT ${trace.path} @ ${database.replicaAddress} (${trace.dbStale ? 'STALE' : 'fresh'})`;
+          } else {
+            frame = `Database SKIP ${trace.path} (warm cache HIT @ ${cache.address})`;
+          }
+        }
+      } else if (stage === 4 && trace.hop === 5) {
+        trace.hop = 6;
+        if (served) {
+          serve(served);
+          frame = `${trace.targetServer} -> ${trace.from} | ${served.response} (cache ${trace.cacheStatus})`;
+        }
+      } else if (stage === 4 && trace.hop === 6) {
+        trace.hop = 7;
         finish(trace.targetServer ?? serverAddress);
       }
       return frame;

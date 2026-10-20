@@ -1,7 +1,8 @@
 // DOCUMENTS: the bottom inspector's code side — a readable, hand-edited
 // mirror of each sim component's real implementation (js/sim/* is the
-// executable truth; this module renders the same logic for learners),
-// plus the live-state JSON derived from an engine snapshot.
+// executable truth; this module renders the same logic for learners).
+// The live-state builders and their JSON formatting live in
+// inspector-state.js (split by responsibility, guard-file-size).
 export const COMPONENT_SOURCE = {
   browser: {
     file: 'js/sim/browser.js',
@@ -84,10 +85,11 @@ export const COMPONENT_SOURCE = {
   },
   webserver: {
     file: 'js/sim/webserver.js',
-    title: 'WebServer — mini-IP 10.1',
-    code: `createWebServer({ address = '10.1', serviceRate = 4, files = DEFAULT_FILES }) {
+    title: 'WebServer — mini-IP 10.11 / 10.12',
+    code: `createWebServer({ address = '10.1', serviceRate = 4, files = DEFAULT_FILES,
+  cache = null, database = null } = {}) {
   const fs = new Map(Object.entries(files)); // '/' and '/about' on disk
-  let queue = [];      // FIFO; served up to serviceRate per step()
+  let queue = [];      // FIFO; work budget serviceRate * 2 per step()
   let served = 0;
   function matchRoute(request = 'GET /') {
     const [method, ...rest] = String(request).trim().split(' ');
@@ -106,11 +108,36 @@ export const COMPONENT_SOURCE = {
     queue.push({ id, atTick, from, to, request, isYou });
   }
   function handleRequest(request = 'GET /') { return matchRoute(request).response; }
+  function resolveRequest(request = 'GET /', currentTick = 0) {
+    const { method, path } = parseRequest(request);
+    if (method === 'GET' && cache) {
+      const cached = cache.get(path, currentTick);
+      if (cached) return { response: \`200 \${cached}\`, cacheStatus: 'HIT' };
+    }
+    if (database && method === 'POST') {
+      const written = database.write(path, \`Updated \${path} at tick \${currentTick}\`, currentTick);
+      cache?.del(path);  // write-through: drop the cached copy
+      return { response: \`200 \${written.value}\`, cacheStatus: 'INVALIDATE',
+        dbOp: 'WRITE', dbTarget: database.primaryAddress, dbStale: false };
+    }
+    // cache MISS: read the replica (Stage 4) or the filesystem (Stage 3).
+    const row = database ? database.read(path, currentTick) : null;
+    if (row && row.found) {
+      if (!row.stale) cache?.set(path, row.value, currentTick);
+      return { response: \`200 \${row.value}\`, cacheStatus: 'MISS',
+        dbOp: 'SELECT', dbTarget: database.replicaAddress, dbStale: row.stale };
+    }
+    const matched = matchRoute(request);
+    if (matched.status === 200) cache?.set(path, matched.body, currentTick);
+    return { ...matched, cacheStatus: 'MISS' };
+  }
   function step(currentTick) {
-    return queue.splice(0, serviceRate).map((r) => ({ ...r, ...matchRoute(r.request),
+    const budget = cache || database ? serviceRate * 2 : serviceRate;
+    // ... drain the queue up to the work budget, resolving each request
+    return queue.splice(0, budget).map((r) => ({ ...r, ...resolveRequest(r.request, currentTick),
       latencyTicks: currentTick - r.atTick + 1 }));
   }
-  return { address, matchRoute, handleRequest, enqueue, step };
+  return { address, matchRoute, handleRequest, resolveRequest, enqueue, step };
 }`,
   },
   cache: {
@@ -149,107 +176,66 @@ export const COMPONENT_SOURCE = {
       expiresAtTick: currentTick + ttlTicks });
     sets += 1;
   }
+  function del(key) {  // Stage 4: write-through invalidation
+    return entries.delete(key);
+  }
   function snapshot(currentTick = 0) {
     evictExpired(currentTick);
     return { address, ttlTicks, hits, misses, sets, evictions, lastLookup,
       entries: [...entries.values()].map((e) => ({ ...e,
         ttlRemaining: e.expiresAtTick - currentTick })) };
   }
-  return { address, evictExpired, has, get, set, snapshot };
+  return { address, evictExpired, has, get, set, del, snapshot };
+}`,
+  },
+  database: {
+    file: 'js/sim/database.js',
+    title: 'Database — Primary 10.30 / Replica 10.31',
+    code: `createDatabase({ primaryAddress = '10.30', replicaAddress = '10.31',
+  replicationLagTicks = 3, rows = DEFAULT_ROWS } = {}) {
+  // addresses must be "<net>.<host>" — two-number mini-IPs
+  const primary = new Map();   // key -> { key, value, version, updatedAtTick }
+  const replica = new Map();   // same shape; serves all reads
+  const replicationQueue = []; // FIFO { key, value, version, writtenAtTick, applyAtTick }
+  let reads = 0, writes = 0, staleReads = 0, replicated = 0, lastOp = null;
+  function stepReplication(currentTick = 0) {
+    // oldest pending write first; applies once its applyAtTick arrives
+    while (replicationQueue.length > 0 && currentTick >= replicationQueue[0].applyAtTick) {
+      const entry = replicationQueue.shift();
+      replica.set(entry.key, { key: entry.key, value: entry.value,
+        version: entry.version, updatedAtTick: entry.applyAtTick });
+      replicated += 1;
+    }
+  }
+  function read(key, currentTick = 0) {   // always the replica
+    stepReplication(currentTick);
+    reads += 1;
+    const replicaRow = replica.get(key) ?? null;
+    const primaryRow = primary.get(key) ?? null;
+    const stale = Boolean(primaryRow &&
+      (!replicaRow || replicaRow.version < primaryRow.version));
+    if (stale) staleReads += 1;
+    lastOp = { op: 'SELECT', target: replicaAddress, key, found: Boolean(replicaRow),
+      stale, atTick: currentTick };
+    return { found: Boolean(replicaRow), value: replicaRow ? replicaRow.value : null,
+      version: replicaRow ? replicaRow.version : 0, stale, source: replicaAddress };
+  }
+  function write(key, value, currentTick = 0) {  // always the primary
+    stepReplication(currentTick);
+    writes += 1;
+    const version = (primary.get(key)?.version ?? 0) + 1;
+    const applyAtTick = currentTick + replicationLagTicks;
+    primary.set(key, { key, value, version, updatedAtTick: currentTick });
+    replicationQueue.push({ key, value, version, writtenAtTick: currentTick, applyAtTick });
+    lastOp = { op: 'WRITE', target: primaryAddress, key, version, applyAtTick, atTick: currentTick };
+    return { key, value, version, applyAtTick, source: primaryAddress };
+  }
+  function snapshot(currentTick = 0) {
+    stepReplication(currentTick);
+    return { primaryAddress, replicaAddress, replicationLagTicks, reads, writes,
+      staleReads, replicated, lastOp, pendingReplication: replicationQueue.length };
+  }
+  return { stepReplication, read, write, snapshot };
 }`,
   },
 };
-
-// The live-state side of the inspector: one builder per selectable
-// component, all derived from the engine snapshot (nothing faked).
-const STATE_BUILDERS = {
-  browser: (snapshot, browserAddress = '10.2') => {
-    const browsers = Array.isArray(snapshot.browsers) ? snapshot.browsers : [];
-    const slot = browsers.find((b) => b.address === browserAddress) ?? null;
-    return {
-      name:
-        browserAddress === '10.2'
-          ? 'Browser (You)'
-          : `Browser-${Number(browserAddress.split('.')[1]) - 1}`,
-      address: browserAddress,
-      lastDisplay:
-        (slot ? slot.lastDisplay : null) ??
-        (browserAddress === '10.2' ? (snapshot.browserDisplay ?? null) : null),
-    };
-  },
-  network: (snapshot) => ({
-    subnet: '10.x',
-    // CHECKS: mini-IP keys are quoted strings — a bare `10.20:` literal
-    // collapses to the number 10.2 and collides with the browser's mini-IP.
-    interfaces:
-      snapshot.stage === 3
-        ? {
-            10.1: 'LoadBalancer',
-            10.11: 'WebServer-1',
-            10.12: 'WebServer-2',
-            10.2: 'Browser (You)',
-            '10.20': 'Cache',
-            Crowd: `${snapshot.users} simulated browsers`,
-          }
-        : snapshot.stage === 2
-          ? {
-              10.1: 'LoadBalancer',
-              10.11: 'WebServer-1',
-              10.12: 'WebServer-2',
-              10.2: 'Browser (You)',
-              Crowd: `${snapshot.users} simulated browsers`,
-            }
-          : {
-              10.1: 'WebServer',
-              10.2: 'Browser (You)',
-              Crowd: `${snapshot.users} simulated browsers`,
-            },
-    lastFrame: snapshot.lastFrame ?? null,
-  }),
-  loadbalancer: (snapshot) => ({
-    address: snapshot.loadBalancer?.address ?? '10.1',
-    algorithm: 'round-robin',
-    backends: snapshot.loadBalancer?.backends ?? ['10.11', '10.12'],
-    nextBackend: snapshot.loadBalancer?.nextBackend ?? '10.11',
-    forwardedTotal: snapshot.loadBalancer?.forwarded ?? 0,
-    lastTarget: snapshot.loadBalancer?.lastTarget ?? null,
-    perBackend: snapshot.loadBalancer?.perBackend ?? { 10.11: 0, 10.12: 0 },
-  }),
-  webserver: (snapshot) => {
-    const base = {
-      address: snapshot.serverAddress ?? '10.1',
-      serviceRatePerTick: 4,
-      queueDepth: snapshot.queueDepth,
-      queuedRequests: (snapshot.queue ?? []).slice(0, 8).map((q) => `${q.from} -> ${q.request}`),
-      servedTotal: snapshot.served,
-      lastMatchedRoute: snapshot.lastMatchedRoute ?? null,
-    };
-    if (snapshot.files) base.files = snapshot.files;
-    if (snapshot.stage >= 2 && Array.isArray(snapshot.servers)) {
-      base.instances = snapshot.servers.map((s) => ({
-        address: s.address,
-        queueDepth: s.queueDepth,
-        served: s.served,
-        files: s.files,
-      }));
-    }
-    return base;
-  },
-  cache: (snapshot) => ({
-    address: snapshot.cache?.address ?? '10.20',
-    strategy: 'cache-aside',
-    ttlTicks: snapshot.cache?.ttlTicks ?? 10,
-    hits: snapshot.cache?.hits ?? 0,
-    misses: snapshot.cache?.misses ?? 0,
-    sets: snapshot.cache?.sets ?? 0,
-    evictions: snapshot.cache?.evictions ?? 0,
-    lastLookup: snapshot.cache?.lastLookup ?? null,
-    entries: snapshot.cache?.entries ?? [],
-  }),
-};
-
-export function formatComponentState(snapshot, component, browserAddress = '10.2') {
-  const build = STATE_BUILDERS[component];
-  if (!build) throw new Error(`inspector-source: unknown component ${component}`);
-  return JSON.stringify(build(snapshot, browserAddress), null, 2);
-}
