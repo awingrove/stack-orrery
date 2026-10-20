@@ -125,8 +125,8 @@ human and — on agreement — amend this document in the same change
   describing single-request hop tracing, deterministic crowd load / queue
   dynamics, and the live Component Code & State Inspector.
 - **Scaling Ladder Preview (`.ladder-grid` / `.ladder-card`):** Six stage cards
-  matching the topbar scaling ladder, with unlocked stages (`1`–`3`) badged as
-  `Live` (`var(--good-soft)` / `var(--good)`) and upcoming stages (`4`–`6`) as
+  matching the topbar scaling ladder, with unlocked stages (`1`–`4`) badged as
+  `Live` (`var(--good-soft)` / `var(--good)`) and upcoming stages (`5`–`6`) as
   `Planned`.
 
 ## Layout & Zones
@@ -135,13 +135,15 @@ Every stage diagram panel (`panel.html`) is organized into four vertical zones:
 
 1. **Topbar & Stage Ladder (`.topbar` / `.stage-ladder`):** Shows the app brand
    and the scaling-ladder stage pills (`1 · Single Server` through `6 · Multi-Net / CDN`).
-   Unlocked stages (`1 · Single Server`, `2 · LB / Dup Servers`, `3 · Cache`) are clickable
-   `<button class="stage-pill">` elements that toggle the active stage topology on
-   the canvas (`aria-current="true"` and `.active-stage` on the selected stage).
+   Unlocked stages (`1 · Single Server`, `2 · LB / Dup Servers`, `3 · Cache`,
+   `4 · DB + Replication`) are clickable `<button class="stage-pill">` elements
+   that toggle the active stage topology on the canvas (`aria-current="true"` and
+   `.active-stage` on the selected stage).
 2. **Control Strip (`.control-strip`):** Split into two groups:
    - **Single Request Trace:** `Send & Watch Hops`, `Step 1 Hop ->`, and the
      monospace `#hop-status` pill showing the current hop (`Hop 1/4` .. `Hop 4/4`
-     in Stage 1; `Hop 1/5` .. `Hop 5/5` in Stage 2; `Hop 1/6` .. `Hop 6/6` in Stage 3).
+     in Stage 1; `Hop 1/5` .. `Hop 5/5` in Stage 2; `Hop 1/6` .. `Hop 6/6` in
+     Stage 3; `Hop 1/7` .. `Hop 7/7` in Stage 4).
    - **Client Browsers Load:** Slider (`#users-slider`) for the number of
      simulated browsers on the outer ring, `Start` / `Pause` (`#start-button`),
      and `Step 1 tick` (`#step-button`).
@@ -158,6 +160,9 @@ Every stage diagram panel (`panel.html`) is organized into four vertical zones:
    - **Stage 3 (5 rings):** Ring 1 (`Cache 10.20`), Ring 2 (`WebServer-1 10.11` &
      `WebServer-2 10.12`), Ring 3 (`LoadBalancer 10.1`), Ring 4 (`Network 10.x`),
      Ring 5 (`Browsers 10.2+`).
+   - **Stage 4 (6 rings):** Ring 1 (`Database 10.30/10.31`), Ring 2 (`Cache 10.20`),
+     Ring 3 (`WebServer-1 10.11` & `WebServer-2 10.12`), Ring 4 (`LoadBalancer 10.1`),
+     Ring 5 (`Network 10.x`), Ring 6 (`Browsers 10.2+`).
      All `N` client browsers (`10.2` .. `10.(N+1)`) sit on the outermost ring: the
      currently selected browser renders as the full expanded `#node-browser` card,
      while the other `N - 1` browsers render as clickable compact `.browser-compact`
@@ -220,6 +225,12 @@ Every stage diagram panel (`panel.html`) is organized into four vertical zones:
   `Cache` (`10.20`) sits on Ring 1 (shared cache-aside tier behind `WebServer-1`
   and `WebServer-2`) and displays its hit/miss/TTL counters (`#cache-stats`) and
   live cached `Map` keys with remaining TTL in ticks (`#cache-entries-list`).
+- **Database Primary/Replica & Replication Lag (`#node-db`, `#db-rows-list`):**
+  In Stage 4, `Database` (`10.30` Primary / `10.31` Replica) sits on Ring 1
+  behind `Cache` (`10.20`, Ring 2) and displays its read/write/lag counters
+  (`#db-stats`) and live row versions (`#db-rows-list`, highlighting rows where
+  `Replica` lags `Primary` with `.you-pill` / `var(--warn-soft)` until async
+  replication completes).
 
 ## Do's and Don'ts
 
