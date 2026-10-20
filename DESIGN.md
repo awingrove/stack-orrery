@@ -121,13 +121,13 @@ Every stage diagram panel (`panel.html`) is organized into four vertical zones:
 
 1. **Topbar & Stage Ladder (`.topbar` / `.stage-ladder`):** Shows the app brand
    and the scaling-ladder stage pills (`1 · Single Server` through `6 · Multi-Net / CDN`).
-   Unlocked stages (`1 · Single Server`, `2 · LB / Dup Servers`) are clickable
+   Unlocked stages (`1 · Single Server`, `2 · LB / Dup Servers`, `3 · Cache`) are clickable
    `<button class="stage-pill">` elements that toggle the active stage topology on
    the canvas (`aria-current="true"` and `.active-stage` on the selected stage).
 2. **Control Strip (`.control-strip`):** Split into two groups:
    - **Single Request Trace:** `Send & Watch Hops`, `Step 1 Hop ->`, and the
      monospace `#hop-status` pill showing the current hop (`Hop 1/4` .. `Hop 4/4`
-     in Stage 1; `Hop 1/5` .. `Hop 5/5` in Stage 2).
+     in Stage 1; `Hop 1/5` .. `Hop 5/5` in Stage 2; `Hop 1/6` .. `Hop 6/6` in Stage 3).
    - **Client Browsers Load:** Slider (`#users-slider`) for the number of
      simulated browsers on the outer ring, `Start` / `Pause` (`#start-button`),
      and `Step 1 tick` (`#step-button`).
@@ -141,6 +141,9 @@ Every stage diagram panel (`panel.html`) is organized into four vertical zones:
      Ring 3 (`Browsers 10.2+`).
    - **Stage 2 (4 rings):** Ring 1 (`WebServer-1 10.11` & `WebServer-2 10.12`),
      Ring 2 (`LoadBalancer 10.1`), Ring 3 (`Network 10.x`), Ring 4 (`Browsers 10.2+`).
+   - **Stage 3 (5 rings):** Ring 1 (`Cache 10.20`), Ring 2 (`WebServer-1 10.11` &
+     `WebServer-2 10.12`), Ring 3 (`LoadBalancer 10.1`), Ring 4 (`Network 10.x`),
+     Ring 5 (`Browsers 10.2+`).
      All `N` client browsers (`10.2` .. `10.(N+1)`) sit on the outermost ring: the
      currently selected browser renders as the full expanded `#node-browser` card,
      while the other `N - 1` browsers render as clickable compact `.browser-compact`
@@ -199,6 +202,10 @@ Every stage diagram panel (`panel.html`) is organized into four vertical zones:
   and the file served by the most recent `200` response carries
   `.matched-route` (`var(--good-soft)`). Intrinsic HTTP responses (`404`, `405`)
   live in the server's executable code rather than as configured rows.
+- **Cache Entries & Tick TTL (`#node-cache`, `#cache-entries-list`):** In Stage 3,
+  `Cache` (`10.20`) sits on Ring 1 (shared cache-aside tier behind `WebServer-1`
+  and `WebServer-2`) and displays its hit/miss/TTL counters (`#cache-stats`) and
+  live cached `Map` keys with remaining TTL in ticks (`#cache-entries-list`).
 
 ## Do's and Don'ts
 
