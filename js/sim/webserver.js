@@ -178,7 +178,7 @@ export function createWebServer({
     },
 
     // The panel renders the waiting requests as individual visible
-    // tokens (DESIGN.md: never only an opaque progress bar).
+    // tokens (DESIGN.md: not only an opaque progress bar).
     queueSnapshot() {
       return queue.map((r) => ({ ...r }));
     },

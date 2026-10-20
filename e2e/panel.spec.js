@@ -181,7 +181,7 @@ test('should pan and zoom the concentric orrery plane and reset with Fit to view
 
   // ...and the wheel zooms toward the cursor (crowd satellite dots stay).
   // Wheel and drag coordinates derive from the viewport's bounding box, so
-  // they stay inside the clipped plane and never depend on hardcoded page
+  // they stay inside the clipped plane and do not depend on hardcoded page
   // coordinates like y = 600.
   const box = await viewport.boundingBox();
   const cx = box.x + box.width / 2;

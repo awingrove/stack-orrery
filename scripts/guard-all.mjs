@@ -11,6 +11,7 @@ const guards = [
   'guard-slices.mjs',
   'guard-story-refs.mjs',
   'guard-file-size.mjs',
+  'guard-claims.mjs',
 ];
 
 const results = [];

@@ -11,7 +11,7 @@ const DEFAULT_ZOOM_STEP = 1.2;
 const DEFAULT_RING_GAP = 400;
 const PAN_PX = 48;
 
-// Drag-start targets that own their pointer events (camera never hijacks
+// Drag-start targets that own their pointer events (camera does not hijack
 // them: .camera-hud holds buttons and tuning sliders).
 const INTERACTIVE_TARGETS = 'button, input, select, a, .node-card, .camera-hud';
 

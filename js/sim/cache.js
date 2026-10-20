@@ -1,5 +1,5 @@
 // DOCUMENTS: the Stage 3 component — a shared cache-aside Cache with
-// tick-based TTL. It is a real Map lookup on the request path, never a
+// tick-based TTL. It is a real Map lookup on the request path rather than a
 // probability: entries carry cachedAtTick/expiresAtTick, lookups evict
 // anything past its TTL first, and hit/miss counters record what actually
 // happened. Deterministic by construction: no clock, no RNG — time arrives

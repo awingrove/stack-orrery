@@ -53,7 +53,7 @@ export function createUsers({ count = 5, serverAddress = '10.1' } = {}) {
 
     // One entry per simulated browser (10.2 .. 10.(n + 1)) with its current
     // rendered viewport state — after `Math.random()`-free construction, so
-    // calling it never disturbs the engine's RNG sequence.
+    // calling it does not disturb the engine's RNG sequence.
     getBrowsers() {
       return Array.from({ length: n }, (_, i) => {
         const b = browserFor(i);
