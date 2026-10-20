@@ -34,9 +34,11 @@ browser, devDeps for the gates.
 
 ## Status
 
-Phase 1 bootstrap: app shell, simulator core, and the first diagram panel
-(one simulated web server under N simulated users). Built by an AI-executed
-factory — process contract in
+Stages 1–3 live on the concentric orrery plane (`1 · Single Server`,
+`2 · LB / Dup Servers`, `3 · Cache` with tick-based TTL), with pannable/zoomable
+orbital rings, addressable outer-ring browsers, hop-by-hop request tracing, and
+live component code/state inspection. Built by an AI-executed factory — process
+contract in
 [factory-kit](https://github.com/awingrove/factory-kit), instantiated here
 in [FACTORY.md](FACTORY.md); work driven by committed briefs in
 `docs/plans/`.
