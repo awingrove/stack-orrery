@@ -1,0 +1,105 @@
+/* Node internals (PANEL slice, split from canvas.css by responsibility):
+   the mini-IP interface table, visible FIFO queue pills, and the filesystem
+   route list rendered inside component cards. All colors come from the
+   shell tokens. */
+/* Mini-IP interface table inside the network node. */
+.mini-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.mini-table td {
+  padding: 0.18rem 0.3rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.mini-table td:first-child {
+  color: var(--accent);
+}
+
+.last-frame {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* WebServer internals: visible FIFO queue pills + route table. */
+.queue-slots {
+  min-height: 3.2rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-content: flex-start;
+}
+
+.queue-pill {
+  padding: 0.12rem 0.45rem;
+  border-radius: 0.3rem;
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.queue-pill.you-pill {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.queue-empty-hint {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.queue-track {
+  height: 0.8rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.3rem;
+  overflow: hidden;
+}
+
+.queue-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--good);
+  transition: width 90ms linear;
+}
+
+.route-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--mono);
+  font-size: 0.74rem;
+}
+
+.route-item {
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.3rem;
+  color: var(--text-muted);
+}
+
+.route-item.matched-route {
+  background: var(--good-soft);
+  color: var(--text);
+}
+
+/* Crowd dots (control strip), styled beside their canvas satellites. */
+.user-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+#user-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  max-width: 8rem;
+  min-height: 1rem;
+}

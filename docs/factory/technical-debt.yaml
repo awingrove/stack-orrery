@@ -21,4 +21,27 @@ open: []
 
 closed: []
 
-defects: []
+defects:
+  - id: DL-1
+    title: >-
+      Compact Ring-3 browser nodes stayed stationary when the ring-gap slider scaled
+    found: 2026-10-19
+    injection_stage: >-
+      Step 5 of docs/plans/2026-10-18-orrery-plane-camera.md (commit 9900ac1)
+    detection_stage: >-
+      Human interactive exploratory check on panel.html
+    what: >-
+      Dragging #ring-gap-slider scaled the SVG rings, spokes, and .node-card
+      elements via viewport.js positionParts(), but .browser-compact buttons
+      were only positioned inside render.js renderRingBrowsers() and
+      syncLayout() omitted ringGapSlider.value.
+    systemic_gap: >-
+      World-space coordinate writes were split between viewport.js
+      (positionParts) and render.js (renderRingBrowsers), and the e2e test for
+      ring-gap scaling only asserted the SVG circle r attribute rather than the
+      positioned DOM nodes on that ring.
+    closed_in: >-
+      8ab0e21 — viewport.js positionParts() repositions .browser-compact slots
+      alongside .node-card elements, syncLayout() preserves ringGapSlider.value,
+      and e2e/panel.spec.js asserts browser-node-10.3 style.left updates on
+      ring-gap change.

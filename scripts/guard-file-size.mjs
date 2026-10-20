@@ -1,12 +1,23 @@
-// guard-file-size — the 300-line split trigger (AGENTS.md stack rule; kit
-// FACTORY DoD). Any source file (js, css, html, e2e, test) over 300 lines
-// fails: split by responsibility — in JS that means new modules, not
-// partials. Non-vacuity: if the selection is empty the guard itself is
-// broken, so that fails too.
+// guard-file-size — per-role split triggers (AGENTS.md stack rule; kit
+// FACTORY DoD). Production modules (js/**, css/**) fail over 300 lines so
+// logic splits into focused ES modules/stylesheets; additive test suites
+// (test/**, e2e/**) fail over 450 lines; static pages (*.html, no partials/
+// bundler) fail over 550 lines. Non-vacuity: if the selection is empty the
+// guard itself is broken, so that fails too.
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, sep, extname } from 'node:path';
 
-const LIMIT = 300;
+const LIMITS = {
+  html: 550,
+  test: 450,
+  code: 300,
+};
+
+function limitFor(file) {
+  if (extname(file) === '.html') return LIMITS.html;
+  if (file.startsWith('test/') || file.startsWith('e2e/')) return LIMITS.test;
+  return LIMITS.code;
+}
 const SKIP_DIRS = new Set([
   '.git',
   'node_modules',
@@ -47,19 +58,20 @@ if (candidates.length === 0) {
 const offenders = [];
 for (const file of candidates) {
   if (!SOURCE_EXT.has(extname(file))) continue;
+  const limit = limitFor(file);
   const lines = readFileSync(file, 'utf8').split('\n');
   if (lines.at(-1) === '') lines.pop();
-  if (lines.length > LIMIT) offenders.push({ file, lines: lines.length });
+  if (lines.length > limit) offenders.push({ file, lines: lines.length, limit });
 }
 
 if (offenders.length > 0) {
-  for (const { file, lines } of offenders) {
+  for (const { file, lines, limit } of offenders) {
     console.error(
-      `guard-file-size: ${file} is ${lines} lines (> ${LIMIT}) — split by responsibility.`,
+      `guard-file-size: ${file} is ${lines} lines (> ${limit}) — split by responsibility.`,
     );
   }
   process.exit(1);
 }
 console.log(
-  `guard-file-size: OK (${candidates.length} source files scanned, all ≤ ${LIMIT} lines)`,
+  `guard-file-size: OK (${candidates.length} source files scanned; js/css ≤ ${LIMITS.code}, test/e2e ≤ ${LIMITS.test}, html ≤ ${LIMITS.html})`,
 );

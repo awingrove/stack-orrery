@@ -12,10 +12,11 @@ function fillPercent(depth) {
 
 function formatHopStatus(snapshot, serverAddress) {
   const hop = snapshot.trace?.hop ?? 0;
+  const from = snapshot.trace?.from ?? '10.2';
   if (snapshot.stage === 2) {
     const target = snapshot.trace?.targetServer ?? '10.11';
     return hop === 1
-      ? `Hop 1/5: Browser (10.2) emits "${snapshot.trace.request}"`
+      ? `Hop 1/5: Browser (${from}) emits "${snapshot.trace.request}"`
       : hop === 2
         ? `Hop 2/5: Network (10.x) routes to LoadBalancer (${serverAddress})`
         : hop === 3
@@ -23,17 +24,17 @@ function formatHopStatus(snapshot, serverAddress) {
           : hop === 4
             ? `Hop 4/5: WebServer (${target}) -> "${snapshot.trace.response}"`
             : hop === 5
-              ? `Hop 5/5: Browser (10.2) rendered ${snapshot.trace.status}`
+              ? `Hop 5/5: Browser (${from}) rendered ${snapshot.trace.status}`
               : HOP_START_SENTENCE;
   }
   return hop === 1
-    ? `Hop 1/4: Browser (10.2) emits "${snapshot.trace.request}"`
+    ? `Hop 1/4: Browser (${from}) emits "${snapshot.trace.request}"`
     : hop === 2
       ? `Hop 2/4: Network (10.x) routes to ${serverAddress} queue`
       : hop === 3
         ? `Hop 3/4: WebServer (${serverAddress}) -> "${snapshot.trace.response}"`
         : hop === 4
-          ? `Hop 4/4: Browser (10.2) rendered ${snapshot.trace.status}`
+          ? `Hop 4/4: Browser (${from}) rendered ${snapshot.trace.status}`
           : HOP_START_SENTENCE;
 }
 

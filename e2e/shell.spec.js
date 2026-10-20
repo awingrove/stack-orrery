@@ -9,5 +9,6 @@ test('should reach the diagram panel from the landing page', async ({ page }) =>
   await page.getByRole('main').getByRole('link', { name: 'Diagram panel' }).click();
 
   await expect(page).toHaveURL(/panel\.html$/);
-  await expect(page.getByRole('heading', { level: 1, name: /Diagram panel/ })).toBeVisible();
+  await expect(page.getByTestId('stage-pill-1')).toBeVisible();
+  await expect(page.getByTestId('orrery-viewport')).toBeVisible();
 });

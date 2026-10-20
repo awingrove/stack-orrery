@@ -63,6 +63,7 @@ export function createEngine({
     hop: 0,
     method: 'GET',
     path: '/about',
+    from: '10.2',
     request: 'GET /about',
     targetServer: null,
     response: null,
@@ -87,7 +88,21 @@ export function createEngine({
     trace.routeId = you.routeId;
     lastExchange = you;
     lastMatchedRoute = you.routeId;
-    lastFrame = `${fromAddr} -> 10.2 | ${you.response}`;
+    lastFrame = `${fromAddr} -> ${trace.from} | ${you.response}`;
+  }
+
+  // Final trace hop: the rendered response lands on the browser the trace
+  // originated from. The learner's own browser (10.2) keeps its dedicated
+  // clientBrowser; pool browsers receive theirs via userPool.receiveResponse.
+  function finishTrace(toAddress) {
+    const record = {
+      from: trace.from ?? '10.2',
+      to: toAddress,
+      request: trace.request,
+      response: trace.response,
+    };
+    userPool.receiveResponse(record);
+    if (record.from === '10.2') clientBrowser.receiveResponse(record);
   }
 
   return {
@@ -109,7 +124,11 @@ export function createEngine({
         lastMatchedRoute = lastExchange.routeId;
         lastFrame = `${lastExchange.from} -> ${lastExchange.to} | ${lastExchange.request} => ${lastExchange.response}`;
         for (const item of servedBatch) {
-          if (item.isYou) clientBrowser.receiveResponse(item);
+          // Every served exchange is delivered back to its originating
+          // browser; the learner's own interactive client additionally
+          // renders anything it originated (trace items or 10.2 crowd rays).
+          userPool.receiveResponse(item);
+          if (item.isYou || item.from === '10.2') clientBrowser.receiveResponse(item);
         }
       }
       return this.snapshot();
@@ -117,15 +136,17 @@ export function createEngine({
 
     // One hop per call: 4 hops in Stage 1 (emit, route, serve, render);
     // 5 hops in Stage 2 (emit, route to LB, LB round-robin to backend,
-    // backend serve, render).
-    traceHop({ method = 'GET', path = '/about' } = {}) {
+    // backend serve, render). `from` is the mini-IP of the browser the
+    // trace originates from (default the learner's own 10.2).
+    traceHop({ method = 'GET', path = '/about', from = '10.2' } = {}) {
       const finalHop = stage === 2 ? 5 : 4;
       if (trace.hop === 0 || trace.hop >= finalHop) {
-        const request = clientBrowser.createRequest(path, method);
+        const request = `${method} ${path}`;
         trace = {
           hop: 1,
           method,
           path,
+          from,
           request,
           targetServer: stage === 1 ? serverAddress : null,
           response: null,
@@ -133,39 +154,34 @@ export function createEngine({
           body: null,
           routeId: null,
         };
-        lastFrame = `10.2 -> ${serverAddress} | ${request}`;
+        lastFrame = `${from} -> ${serverAddress} | ${request}`;
       } else if (stage === 1 && trace.hop === 1) {
         trace.hop = 2;
         tick += 1;
         network.deliverToQueue({
           id: `you:${tick}`,
-          from: '10.2',
+          from: trace.from,
           to: serverAddress,
           request: trace.request,
           atTick: tick,
           isYou: true,
         });
-        lastFrame = `routed 10.2 -> ${serverAddress} (${trace.request}) into queue`;
+        lastFrame = `routed ${trace.from} -> ${serverAddress} (${trace.request}) into queue`;
       } else if (stage === 1 && trace.hop === 2) {
         trace.hop = 3;
         recordTraceServe(drainUntilYou(servers[0]), serverAddress);
       } else if (stage === 1 && trace.hop === 3) {
         trace.hop = 4;
-        clientBrowser.receiveResponse({
-          from: '10.2',
-          to: serverAddress,
-          request: trace.request,
-          response: trace.response,
-        });
+        finishTrace(serverAddress);
       } else if (stage === 2 && trace.hop === 1) {
         trace.hop = 2;
-        lastFrame = `routed 10.2 -> ${serverAddress} (${trace.request}) to LoadBalancer`;
+        lastFrame = `routed ${trace.from} -> ${serverAddress} (${trace.request}) to LoadBalancer`;
       } else if (stage === 2 && trace.hop === 2) {
         trace.hop = 3;
         tick += 1;
         const target = lb.enqueue({
           id: `you:${tick}`,
-          from: '10.2',
+          from: trace.from,
           to: serverAddress,
           request: trace.request,
           atTick: tick,
@@ -179,12 +195,7 @@ export function createEngine({
         recordTraceServe(drainUntilYou(backend), backend.address);
       } else if (stage === 2 && trace.hop === 4) {
         trace.hop = 5;
-        clientBrowser.receiveResponse({
-          from: '10.2',
-          to: trace.targetServer ?? serverAddress,
-          request: trace.request,
-          response: trace.response,
-        });
+        finishTrace(trace.targetServer ?? serverAddress);
       }
       return this.snapshot();
     },
@@ -223,6 +234,7 @@ export function createEngine({
         lastMatchedRoute,
         lastFrame,
         browserDisplay: clientBrowser.last(),
+        browsers: userPool.getBrowsers(),
         trace: { ...trace },
       };
     },

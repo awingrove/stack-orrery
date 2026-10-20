@@ -42,5 +42,23 @@ export function createUsers({ count = 5, serverAddress = '10.1' } = {}) {
       }
       return requests;
     },
+
+    // DOCUMENTS: a served exchange is routed back to the browser whose
+    // mini-IP host number it carries (from "10.<i + 2>" -> browser i) so
+    // every browser keeps its own rendered last() state.
+    receiveResponse(exchange) {
+      const i = Number(String(exchange.from).split('.')[1]) - 2;
+      if (i >= 0) browserFor(i).receiveResponse(exchange);
+    },
+
+    // One entry per simulated browser (10.2 .. 10.(n + 1)) with its current
+    // rendered viewport state — after `Math.random()`-free construction, so
+    // calling it never disturbs the engine's RNG sequence.
+    getBrowsers() {
+      return Array.from({ length: n }, (_, i) => {
+        const b = browserFor(i);
+        return { index: i, name: b.name, address: b.address, lastDisplay: b.last() };
+      });
+    },
   };
 }

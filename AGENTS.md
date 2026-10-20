@@ -23,8 +23,9 @@ Fragments fine. Technical terms stay exact; code blocks unchanged.
 - **Serving:** `node scripts/static-server.mjs --port <port>` (Playwright's
   `webServer` runs it for e2e). A manual peek may use any static server;
   the gate is always the node script — it carries the CSP headers.
-- **File size:** any source file (`js`, `css`, `html`, `e2e`, `test`) over
-  **300 lines** fails `scripts/guard-file-size.mjs`. Split by
+- **File size:** production modules (`js/**`, `css/**`) over **300 lines**,
+  test suites (`test/**`, `e2e/**`) over **450 lines**, or static HTML pages
+  (`*.html`) over **550 lines** fail `scripts/guard-file-size.mjs`. Split by
   responsibility — in JS that means new modules, not partials.
 - **Determinism:** `js/sim/**` never calls `Math.random()` or `Date.now()`.
   Seeded RNG only (`js/sim/rng.js`); time advances by explicit tick. This

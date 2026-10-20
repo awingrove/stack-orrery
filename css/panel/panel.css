@@ -1,16 +1,16 @@
 /* Diagram panel styles (PANEL slice). Inspector styles live in
    css/panel/inspector.css. All colors come from the shell tokens. */
-.container > h1 {
-  margin: 0 0 0.75rem;
-  font-size: 1.15rem;
-}
 
-/* Stage ladder — scaling-ladder pills, current stage highlighted. */
+/* CHECKS: the header (with the stage ladder) flows straight into the control
+   strip, so the shared shell container is tightened only on this page. */
+.container {
+  padding-top: 0.75rem;
+}
 .stage-ladder {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
-  margin-bottom: 0.9rem;
+  margin: 0;
 }
 
 .stage-pill,
