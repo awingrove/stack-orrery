@@ -8,7 +8,7 @@
 .orrery-viewport {
   position: relative;
   overflow: hidden;
-  height: 28rem;
+  height: 36rem;
   border-radius: 0.7rem;
   border: 1px solid var(--border);
   background: var(--bg);

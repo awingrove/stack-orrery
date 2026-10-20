@@ -142,15 +142,21 @@ test('should pan and zoom the concentric orrery plane and reset with Fit to view
   await expect(zoomStatus).not.toHaveText(initialZoom);
 
   // ...and the wheel zooms toward the cursor (crowd satellite dots stay).
-  await page.mouse.move(80, 600);
+  // Wheel and drag coordinates derive from the viewport's bounding box, so
+  // they stay inside the clipped plane and never depend on hardcoded page
+  // coordinates like y = 600.
+  const box = await viewport.boundingBox();
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  await page.mouse.move(box.x + 80, cy);
   await page.mouse.wheel(0, -120);
   await expect(page.locator('.orrery-satellite')).toHaveCount(5);
 
   // Pointer drag pans the plane: the world transform changes, and the
   // transient .is-panning class is gone once the drag ends.
-  await page.mouse.move(100, 600);
+  await page.mouse.move(box.x + 100, cy);
   await page.mouse.down();
-  await page.mouse.move(350, 580, { steps: 6 });
+  await page.mouse.move(cx + 100, cy - 20, { steps: 6 });
   await page.mouse.up();
   const transformAfterPan = await world.evaluate((el) => el.style.transform);
   expect(transformAfterPan).not.toBe(transformBefore);

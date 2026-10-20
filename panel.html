@@ -14,29 +14,27 @@
     <header class="site-header">
       <nav class="site-nav" aria-label="Main">
         <a class="brand" href="index.html">stack-orrery</a>
-        <a href="panel.html" aria-current="page">Diagram panel</a>
+        <div class="stage-ladder" aria-label="Scaling ladder">
+          <button
+            data-testid="stage-pill-1"
+            data-stage="1"
+            class="stage-pill active-stage"
+            type="button"
+            aria-current="true"
+          >
+            1 · Single Server
+          </button>
+          <button data-testid="stage-pill-2" data-stage="2" class="stage-pill" type="button">
+            2 · LB / Dup Servers
+          </button>
+          <span class="stage-pill">3 · Cache</span>
+          <span class="stage-pill">4 · DB + Replication</span>
+          <span class="stage-pill">5 · Worker Queue</span>
+          <span class="stage-pill">6 · Multi-Net / CDN</span>
+        </div>
       </nav>
     </header>
     <main class="container">
-      <h1>Diagram panel — single web server</h1>
-      <div class="stage-ladder" aria-label="Scaling ladder">
-        <button
-          data-testid="stage-pill-1"
-          data-stage="1"
-          class="stage-pill active-stage"
-          type="button"
-          aria-current="true"
-        >
-          1 · Single Server
-        </button>
-        <button data-testid="stage-pill-2" data-stage="2" class="stage-pill" type="button">
-          2 · LB / Dup Servers
-        </button>
-        <span class="stage-pill">3 · Cache</span>
-        <span class="stage-pill">4 · DB + Replication</span>
-        <span class="stage-pill">5 · Worker Queue</span>
-        <span class="stage-pill">6 · Multi-Net / CDN</span>
-      </div>
       <section class="control-strip" aria-label="Simulation controls">
         <div class="control-group trace-controls" aria-label="Single request trace">
           <button id="btn-play-request" data-testid="btn-play-request" type="button">
