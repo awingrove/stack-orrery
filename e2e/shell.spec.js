@@ -5,6 +5,8 @@ import { test, expect } from '@playwright/test';
 test('should reach the diagram panel from the landing page', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1, name: 'stack-orrery' })).toBeVisible();
+  await expect(page.getByTestId('hero-cta')).toContainText('Get started');
+  await expect(page.locator('.ladder-card')).toHaveCount(6);
 
   await page.getByRole('main').getByRole('link', { name: 'Diagram panel' }).click();
 

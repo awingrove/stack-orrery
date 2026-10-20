@@ -15,7 +15,7 @@ activities:
         name: Enter the app
         entry_point: index.html (app root)
         stories:
-          - title: See a landing page that links to the diagram panel
+          - title: See a hero landing page with the scaling ladder overview that links to the diagram panel
             status: done
             priority: high
             tests:
