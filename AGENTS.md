@@ -68,11 +68,13 @@ Fragments fine. Technical terms stay exact; code blocks unchanged.
    brief inline in the lead session.
 3. **Debug hygiene:** temporary probes are tracked as todos and removed
    before commit — never ride along in a feature diff.
-4. **Post-mortem & human-intervention capture:** a fix — or an unprompted
-   human intervention correcting a code or process miss outside scheduled
-   human gates — whose root cause reveals a systemic gap updates
+4. **Post-mortem, human-intervention & metrics capture:** a fix — or an
+   unprompted human intervention correcting a code or process miss outside
+   scheduled human gates — whose root cause reveals a systemic gap updates
    `docs/factory/technical-debt.yaml` (`DL-\d+`) and the rule doc in the same
-   change (kit DEBT-REGISTER).
+   change (kit DEBT-REGISTER). Every completed brief records its intervention
+   counts and sub-agent session telemetry (`opencode session export <id>`) in
+   `docs/factory/slice-metrics.yaml` (kit METRICS).
 5. **Claim vocabulary:** guarantee-comments carry `CHECKS:` / `PINS:` /
    `DOCUMENTS:` — guarantee-language outside a claim is a review defect
    (kit CLAIM-LANGUAGE).
@@ -81,7 +83,7 @@ Fragments fine. Technical terms stay exact; code blocks unchanged.
    (kit SLICES).
 7. **Design:** UI that introduces or alters a visual pattern raises the
    `DESIGN.md` amendment question with the human and updates `DESIGN.md` in
-   the same change (kit DESIGN pattern).
+   the same change (kit DESIGN + DESIGN-REVIEW patterns).
 
 ## Gates
 
@@ -96,7 +98,7 @@ Fragments fine. Technical terms stay exact; code blocks unchanged.
 Shells authenticate as `awingrove-opencode` via
 `.opencode/plugins/agent-identity.js` (token file + isolated `GH_CONFIG_DIR`,
 fail-closed sentinel). Runbook:
-[VitaTrack docs/factory/agent-identity.md](https://github.com/awingrove/VitaTrack/blob/main/docs/factory/agent-identity.md).
+[factory-kit AGENT-IDENTITY.md](https://github.com/awingrove/factory-kit/blob/main/AGENT-IDENTITY.md).
 Agents push feature branches and open PRs — never approve, merge, delete,
 or force-push (server-side rulesets, human-only bypass). Closing the agent's
 own PRs is permitted.

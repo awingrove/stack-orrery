@@ -10,9 +10,12 @@ two disagree, the kit wins and this file is fixed in the same change.
 | Process, DoD per slice, human gates | [FACTORY.md](https://github.com/awingrove/factory-kit/blob/main/FACTORY.md)               | this file                                              |
 | Slice manifest grammar + meta-rules | [SLICES.md](https://github.com/awingrove/factory-kit/blob/main/SLICES.md)                 | `slices.yaml` (static-JS flavor, from the kit example) |
 | Briefs, checkbox ticks, cold resume | [PLAN-FORMAT.md](https://github.com/awingrove/factory-kit/blob/main/PLAN-FORMAT.md)       | `docs/plans/`                                          |
+| Pre-briefing design review          | [DESIGN-REVIEW.md](https://github.com/awingrove/factory-kit/blob/main/DESIGN-REVIEW.md)   | Step 1 human design gate before code                   |
 | Debt register shapes                | [DEBT-REGISTER.md](https://github.com/awingrove/factory-kit/blob/main/DEBT-REGISTER.md)   | `docs/factory/technical-debt.yaml`                     |
+| Slice metrics & intervention ledger | [METRICS.md](https://github.com/awingrove/factory-kit/blob/main/METRICS.md)               | `docs/factory/slice-metrics.yaml`                      |
 | CHECKS / PINS / DOCUMENTS           | [CLAIM-LANGUAGE.md](https://github.com/awingrove/factory-kit/blob/main/CLAIM-LANGUAGE.md) | guarantee-comments in `js/**`, `test/**`, `e2e/**`     |
 | The testing line                    | [TEST-RULES.md](https://github.com/awingrove/factory-kit/blob/main/TEST-RULES.md)         | `e2e/**` against the real static server                |
+| Machine GitHub identity & rulesets  | [AGENT-IDENTITY.md](https://github.com/awingrove/factory-kit/blob/main/AGENT-IDENTITY.md) | `.opencode/plugins/agent-identity.js`                  |
 | Design contract format              | [DESIGN.md](https://github.com/awingrove/factory-kit/blob/main/DESIGN.md)                 | `DESIGN.md` (dark-canvas orrery tokens + rules)        |
 
 ## App specifics
@@ -26,11 +29,12 @@ two disagree, the kit wins and this file is fixed in the same change.
   `build-must-pass` requires the `build` check (strict/up-to-date).
 - **Guardrails** (own scripts, kit-derived examples):
   `scripts/guard-plan-ticks.mjs` (ticks evidence files),
-  `guard-debt.mjs` (register schema), `guard-slices.mjs` (manifest
-  meta-rules + file claims), `guard-story-refs.mjs` (test refs resolve),
-  `guard-file-size.mjs` (300-line split trigger), `guard-claims.mjs`
-  (strict `CHECKS` / `PINS` / `DOCUMENTS` claim vocabulary) — run together
-  by `npm run guard`.
+  `guard-debt.mjs` (register schema), `guard-metrics.mjs` (slice metrics &
+  intervention ledger), `guard-slices.mjs` (manifest meta-rules + file
+  claims), `guard-story-refs.mjs` (test refs resolve), `guard-file-size.mjs`
+  (300/450/550-line per-role split triggers), `guard-claims.mjs` (strict
+  `CHECKS` / `PINS` / `DOCUMENTS` claim vocabulary) — run together by
+  `npm run guard`.
 - **Sub-agent execution (cheap-model executor proof):** the lead session
   (`opencode-go/gemini-4-argon-contributor`) runs the human design gate and
   commits Step 1 (`DESIGN.md` + `docs/plans/<feature>.md`), then spawns a
