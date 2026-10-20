@@ -6,7 +6,7 @@ meta:
     A runnable orrery of a web stack: simulated components driven by a
     discrete tick queue, making scaling dynamics visible instead of
     described.
-  last_updated: 2026-10-19
+  last_updated: 2026-10-20
 
 activities:
   - name: 'Stage 1 — Single server under load'
@@ -112,3 +112,27 @@ activities:
             tests:
               - unit: test/panel/model.test.js::describes Stage 2 5-hop load-balancer trace labels and loadbalancer inspector state
               - e2e: panel::should switch to Stage 2, alternate requests across 10.11 and 10.12 via the load balancer, and inspect its code
+
+  - name: 'Stage 3 — Cache (TTL, cache-aside)'
+    tasks:
+      - id: SIM-3
+        name: Serve cache-aside GETs with tick-based TTL behind the load balancer
+        entry_point: n/a (engine behavior, not navigable)
+        stories:
+          - title: Serve cache hits before TTL expiry, evict expired entries, and double warm capacity
+            status: done
+            priority: high
+            tests:
+              - unit: test/sim/cache.test.js::serves cache hits before TTL expiry and evicts entries once ttlTicks elapse
+              - unit: test/sim/cache.test.js::stage 3 engine shares cache-aside entries across 10.11 and 10.12
+
+      - id: PANEL-3
+        name: Switch to Stage 3 and trace through the shared cache
+        entry_point: index.html -> Diagram Panel link -> 3 · Cache pill
+        stories:
+          - title: Switch to Stage 3, warm Cache 10.20 on a miss, serve a shared hit across backends, and inspect Cache code and TTL state
+            status: done
+            priority: high
+            tests:
+              - unit: test/panel/model.test.js::describes Stage 3 6-hop cache-aside trace labels and cache inspector state
+              - e2e: panel::should switch to Stage 3, warm Cache 10.20 on a miss from 10.11, serve a hit from 10.12, and inspect cache code

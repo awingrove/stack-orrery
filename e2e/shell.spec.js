@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-// Arrival is by clicking in-app links (TEST-RULES click-through rule),
+// CHECKS: arrival is by clicking in-app links (TEST-RULES click-through rule),
 // never goto() deep URLs — this spec proves the shell leads somewhere.
 test('should reach the diagram panel from the landing page', async ({ page }) => {
   await page.goto('/');

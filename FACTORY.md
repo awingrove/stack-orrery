@@ -28,8 +28,9 @@ two disagree, the kit wins and this file is fixed in the same change.
   `scripts/guard-plan-ticks.mjs` (ticks evidence files),
   `guard-debt.mjs` (register schema), `guard-slices.mjs` (manifest
   meta-rules + file claims), `guard-story-refs.mjs` (test refs resolve),
-  `guard-file-size.mjs` (300-line split trigger) — run together by
-  `npm run guard`.
+  `guard-file-size.mjs` (300-line split trigger), `guard-claims.mjs`
+  (strict `CHECKS` / `PINS` / `DOCUMENTS` claim vocabulary) — run together
+  by `npm run guard`.
 - **Human gates & rulesets:** per kit — design-before-code, PR approve +
   merge, plan-mandated findings. Server-side: `human-gates-main`
   (PR + approval, no force-push/delete on main), `agent-cannot-touch-anything`
