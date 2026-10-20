@@ -132,6 +132,6 @@ Exports `createDatabase({ primaryAddress = '10.30', replicaAddress = '10.31', re
 ## Steps
 
 - [x] **Step 1: Commit `DESIGN.md` amendment and this brief** at `docs/plans/2026-10-20-stage4-database.md`.
-- [ ] **Step 2: Implement `js/sim/database.js`, Stage 4 support in `js/sim/cache.js`, `js/sim/webserver.js`, `js/sim/trace.js`, and `js/sim/engine.js`, 6-ring geometry and UI in `js/panel/camera.js`, `js/panel/layout.js`, `js/panel/viewport.js`, `js/panel/model.js`, `js/panel/inspector-source.js`, `js/panel/inspector-state.js`, `js/panel/render-stage.js`, `js/panel/render.js`, `js/panel/panel.js`, `panel.html`, `index.html`, unit tests in `test/sim/database.test.js`, `test/panel/model.test.js`, `test/panel/camera.test.js`, e2e test in `e2e/panel.spec.js`, and manifest updates in `slices.yaml` and `storymap.yaml`.**
+- [x] **Step 2: Implement `js/sim/database.js`, Stage 4 support in `js/sim/cache.js`, `js/sim/webserver.js`, `js/sim/trace.js`, and `js/sim/engine.js`, 6-ring geometry and UI in `js/panel/camera.js`, `js/panel/layout.js`, `js/panel/viewport.js`, `js/panel/model.js`, `js/panel/inspector-source.js`, `js/panel/inspector-state.js`, `js/panel/render-stage.js`, `js/panel/render.js`, `js/panel/panel.js`, `panel.html`, `index.html`, unit tests in `test/sim/database.test.js`, `test/panel/model.test.js`, `test/panel/camera.test.js`, e2e test in `e2e/panel.spec.js`, and manifest updates in `slices.yaml` and `storymap.yaml`.**
       Verify: `npm run verify` green.
-- [ ] **Step 3: Tick completed steps in `docs/plans/2026-10-20-stage4-database.md`** and re-run `npm run verify`.
+- [x] **Step 3: Tick completed steps in `docs/plans/2026-10-20-stage4-database.md`** and re-run `npm run verify`.
