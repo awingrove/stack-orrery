@@ -41,6 +41,8 @@ slices:
       - unit: test/sim/loadbalancer.test.js::stage 2 engine splits load across 10.11 and 10.12 and doubles service capacity
       - unit: test/sim/cache.test.js::serves cache hits before TTL expiry and evicts entries once ttlTicks elapse
       - unit: test/sim/cache.test.js::stage 3 engine shares cache-aside entries across 10.11 and 10.12
+      - unit: test/sim/database.test.js::replicates primary writes to the read replica after replicationLagTicks and tracks stale reads
+      - unit: test/sim/database.test.js::stage 4 engine writes to Primary 10.30, invalidates Cache 10.20, serves stale replica reads during lag, and catches up
     entry_point: n/a (engine logic; rendered by PANEL-1)
 
   - id: PANEL
@@ -72,11 +74,13 @@ slices:
       - unit: test/panel/camera.test.js::computes concentric ring coordinates and stage bounding boxes for the orrery
       - unit: test/panel/camera.test.js::maps every simulated browser to an addressable Ring 3 slot around the expanded one
       - unit: test/panel/model.test.js::describes Stage 3 6-hop cache-aside trace labels and cache inspector state
+      - unit: test/panel/model.test.js::describes Stage 4 7-hop database trace labels and database inspector state
       - e2e: panel::should show queue depth climbing as simulated users increase
       - e2e: panel::should step a single tick and display the slim HTTP exchange over mini-IP 10.1
       - e2e: panel::should trace a custom URL hop-by-hop into the browser viewport and inspect component code
       - e2e: panel::should switch to Stage 2, alternate requests across 10.11 and 10.12 via the load balancer, and inspect its code
       - e2e: panel::should switch to Stage 3, warm Cache 10.20 on a miss from 10.11, serve a hit from 10.12, and inspect cache code
+      - e2e: panel::should switch to Stage 4, write to Primary 10.30 on POST, observe replica lag on GET, and inspect database code
       - e2e: panel::should pan and zoom the concentric orrery plane and reset with Fit to view
       - e2e: panel::should expand Ring 3 browsers by clicking their compact nodes and return to 10.2
     entry_point: index.html -> Diagram Panel link

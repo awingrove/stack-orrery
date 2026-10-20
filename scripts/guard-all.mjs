@@ -8,6 +8,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const guards = [
   'guard-plan-ticks.mjs',
   'guard-debt.mjs',
+  'guard-metrics.mjs',
   'guard-slices.mjs',
   'guard-story-refs.mjs',
   'guard-file-size.mjs',

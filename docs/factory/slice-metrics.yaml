@@ -1,0 +1,173 @@
+# slice-metrics.yaml — intervention, rework, and session telemetry ledger
+# (factory-kit METRICS.md, https://github.com/awingrove/factory-kit/blob/main/METRICS.md).
+# Validated by scripts/guard-metrics.mjs (run via `npm run guard`).
+#
+# Required per entry: id, slice, name, brief, agent (cheap | frontier | human),
+# human_interventions, agent_review_rounds, guardrail_failures, fix_commits,
+# defects_escaped.
+# Optional telemetry (from `opencode session export <sessionID>` -> info):
+# lead_model, agent_model, session_id, tokens_input, tokens_output,
+# tokens_reasoning, tokens_cache_read, cost_usd, notes.
+
+entries:
+  - id: PHASE1-BOOTSTRAP
+    slice:
+      - SHELL
+      - SIM
+      - PANEL
+    name: Phase 1 factory bootstrap & Stage 1 tracer bullet
+    brief: docs/plans/2026-10-12-phase1-bootstrap.md
+    agent: frontier
+    lead_model: opencode-go/gemini-4-argon-contributor
+    agent_model: opencode-go/gemini-4-argon-contributor
+    human_interventions: 0
+    agent_review_rounds: 0
+    guardrail_failures: 1
+    fix_commits: 0
+    defects_escaped: 0
+    notes: >-
+      Initial factory scaffold, tooling, guardrails with negative-path proofs,
+      and Stage 1 tracer slice. Pre-dates sub-agent executor split; token/cost
+      fields omitted rather than estimated.
+
+  - id: STAGE1-MODEL
+    slice:
+      - SIM
+      - PANEL
+    name: Stage 1 alignment — executable conceptual model (Browser + Network + WebServer)
+    brief: docs/plans/2026-10-15-stage1-executable-model.md
+    agent: frontier
+    lead_model: opencode-go/gemini-4-argon-contributor
+    agent_model: opencode-go/gemini-4-argon-contributor
+    human_interventions: 0
+    agent_review_rounds: 0
+    guardrail_failures: 0
+    fix_commits: 0
+    defects_escaped: 0
+    notes: >-
+      Replaced statistical arrival/response stubs with executable Browser,
+      Network, and WebServer components over two-number mini-IPs (10.1, 10.2+).
+      Executed in lead session ses_eb45c4d6bffex4PS4dGQJabPhu before sub-agent
+      dispatch was adopted.
+
+  - id: STAGE1-UI
+    slice:
+      - SIM
+      - PANEL
+    name: Stage 1 interactive Orrery UI, hop-by-hop trace, and code/state inspector
+    brief: docs/plans/2026-10-16-stage1-interactive-orrery-ui.md
+    agent: frontier
+    lead_model: opencode-go/gemini-4-argon-contributor
+    agent_model: opencode-go/gemini-4-argon-contributor
+    human_interventions: 0
+    agent_review_rounds: 0
+    guardrail_failures: 0
+    fix_commits: 0
+    defects_escaped: 0
+    notes: >-
+      Added mini-browser URL bar, 4-hop single-request trace, visible FIFO
+      queue pills, and bottom Component Code & State Inspector. Executed in
+      ses_eb45c4d6bffex4PS4dGQJabPhu.
+
+  - id: STAGE2-LB
+    slice:
+      - SIM
+      - PANEL
+    name: Stage 2 — LoadBalancer (10.1) & duplicated WebServers (10.11, 10.12)
+    brief: docs/plans/2026-10-17-stage2-load-balancer.md
+    agent: frontier
+    lead_model: opencode-go/gemini-4-argon-contributor
+    agent_model: opencode-go/gemini-4-argon-contributor
+    human_interventions: 0
+    agent_review_rounds: 0
+    guardrail_failures: 0
+    fix_commits: 0
+    defects_escaped: 0
+    notes: >-
+      Round-robin LoadBalancer at 10.1 distributing across 10.11 and 10.12,
+      5-hop trace, and stage-switcher pills. Executed in
+      ses_eb45c4d6bffex4PS4dGQJabPhu.
+
+  - id: ORRERY-CAMERA
+    slice: PANEL
+    name: Pannable Orrery Plane, Concentric Layer Rings, and Addressable Ring Browsers
+    brief: docs/plans/2026-10-18-orrery-plane-camera.md
+    agent: cheap
+    lead_model: opencode-go/gemini-4-argon-contributor
+    agent_model: opencode-go/glm-5.3-flash
+    session_id: >-
+      ses_eaf42f026ffeFwH6E3dfVoSOzm, ses_eaa78ab56ffe6EVqK5ZYKxrIAu,
+      ses_eaa248f33ffe0MwOu4H8Qyoz18, ses_eaa0c35d9ffesYLbDz5vzUIJIx,
+      ses_ea9e1af47ffeiItUQvBnRrokWt, ses_ea8195422ffeqZz5XadPa5hh9M
+    tokens_input: 1679205
+    tokens_output: 61362
+    tokens_reasoning: 45553
+    tokens_cache_read: 10370816
+    cost_usd: 0.6166
+    human_interventions: 1
+    agent_review_rounds: 0
+    guardrail_failures: 0
+    fix_commits: 1
+    defects_escaped: 1
+    notes: >-
+      Six GLM-5.3-Flash sub-agent dispatches across Steps 2-8. One escaped UI
+      defect found during interactive exploration (DL-1: compact Ring-3 browser
+      nodes did not move when #ring-gap-slider scaled because position writes
+      were split between viewport.js and render.js; closed in 8ab0e21 /
+      ses_eaa0c35d9ffesYLbDz5vzUIJIx).
+
+  - id: STAGE-3
+    slice:
+      - SHELL
+      - SIM
+      - PANEL
+    name: Stage 3 — Application Cache-Aside & Tick-Based TTL (10.20)
+    brief: docs/plans/2026-10-20-stage3-cache.md
+    agent: cheap
+    lead_model: opencode-go/gemini-4-argon-contributor
+    agent_model: opencode-go/glm-5.3-flash
+    session_id: ses_ea7fbfc89ffem2uvt97ElDlUh3
+    tokens_input: 140063
+    tokens_output: 32068
+    tokens_reasoning: 33020
+    tokens_cache_read: 8219348
+    cost_usd: 0.3001
+    human_interventions: 0
+    agent_review_rounds: 1
+    guardrail_failures: 0
+    fix_commits: 1
+    defects_escaped: 0
+    notes: >-
+      Executed cold from the Stage 3 brief by GLM-5.3-Flash
+      (ses_ea7fbfc89ffem2uvt97ElDlUh3) in 2ad0e93 and 58a7f8e; followed by one
+      controller claim-language tightening pass (f11921, 8a6f0ec) when strict
+      guard-claims.mjs was introduced.
+
+  - id: STAGE-4
+    slice:
+      - SHELL
+      - SIM
+      - PANEL
+    name: Stage 4 — Database Primary/Replica & Replication Lag (10.30 / 10.31)
+    brief: docs/plans/2026-10-20-stage4-database.md
+    agent: cheap
+    lead_model: opencode-go/gemini-4-argon-contributor
+    agent_model: opencode-go/glm-5.3-flash
+    session_id: ses_ea4fef3c6ffeBItBo3dwngtwEU
+    tokens_input: 498313
+    tokens_output: 34606
+    tokens_reasoning: 28001
+    tokens_cache_read: 10922176
+    cost_usd: 0.4337
+    human_interventions: 1
+    agent_review_rounds: 0
+    guardrail_failures: 0
+    fix_commits: 0
+    defects_escaped: 0
+    notes: >-
+      One human intervention before sub-agent dispatch (DL-2: lead session
+      started implementing Step 2 inline because lead-to-subagent cold dispatch
+      was not yet codified in AGENTS.md / FACTORY.md; reverted and codified in
+      5741b20 + factory-kit#2). GLM-5.3-Flash sub-agent
+      (ses_ea4fef3c6ffeBItBo3dwngtwEU) then executed Steps 2 and 3 cold in
+      ec89f94 and 92cfbe2 with zero red gate cycles.

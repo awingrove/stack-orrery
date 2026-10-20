@@ -3,6 +3,8 @@
 // render.js own all DOM writes.
 export const TICK_MS = 100;
 const QUEUE_BAR_SATURATION = 20; // bar reads full at 20 queued requests
+// Total hops per stage's trace shape (trace.js and engine.traceHop agree).
+const TOTAL_HOPS = { 1: 4, 2: 5, 3: 6, 4: 7 };
 
 const HOP_START_SENTENCE = 'Idle — type a path and click Go or Step 1 Hop ->';
 
@@ -12,10 +14,34 @@ function fillPercent(depth) {
 
 // One hop-status sentence per hop, in hop order, for each stage's trace
 // shape: 4 hops in Stage 1 (emit, route, serve, render), 5 in Stage 2 (LB
-// round-robin pick), 6 in Stage 3 (cache check, then response emit).
+// round-robin pick), 6 in Stage 3 (cache check, then response emit), 7 in
+// Stage 4 (the database hop after the cache check).
 function hopSentences(stage, snapshot, from, serverAddress) {
   const t = snapshot.trace ?? {};
   const target = t.targetServer ?? '10.11';
+  if (stage === 4) {
+    const db = snapshot.database ?? null;
+    const primary = db?.primaryAddress ?? '10.30';
+    const replica = db?.replicaAddress ?? '10.31';
+    const lag = db?.replicationLagTicks ?? 3;
+    const dbSentence =
+      t.dbOp === 'WRITE'
+        ? `Hop 5/7: Database WRITE @ Primary (${primary}) — replica lags ${lag}t`
+        : t.dbOp === 'SELECT' && t.dbStale
+          ? `Hop 5/7: Database SELECT @ Replica (${replica}) — STALE (lag ${lag}t)`
+          : t.dbOp === 'SELECT'
+            ? `Hop 5/7: Database SELECT @ Replica (${replica}) — fresh`
+            : `Hop 5/7: Database SKIP — warm cache HIT (10.20)`;
+    return [
+      `Hop 1/7: Browser (${from}) emits "${t.request}"`,
+      `Hop 2/7: Network (10.x) routes to LoadBalancer (${serverAddress})`,
+      `Hop 3/7: LoadBalancer (${serverAddress}) -> ${target} queue`,
+      `Hop 4/7: WebServer (${target}) checks Cache (10.20) — ${t.cacheStatus}`,
+      dbSentence,
+      `Hop 6/7: WebServer (${target}) -> "${t.response}" (cache ${t.cacheStatus})`,
+      `Hop 7/7: Browser (${from}) rendered ${t.status}`,
+    ];
+  }
   if (stage === 3) {
     return [
       `Hop 1/6: Browser (${from}) emits "${t.request}"`,
@@ -64,7 +90,7 @@ export function describeSnapshot(snapshot) {
   const perBackend = snapshot.loadBalancer?.perBackend ?? {};
   return {
     stage,
-    totalHops: stage === 3 ? 6 : stage === 2 ? 5 : 4,
+    totalHops: TOTAL_HOPS[stage] ?? 4,
     tick: String(snapshot.tick),
     users: String(snapshot.users),
     queueDepth: String(snapshot.queueDepth),
@@ -83,6 +109,8 @@ export function describeSnapshot(snapshot) {
     lbBackend2Label: `10.12 WebServer-2 (${perBackend['10.12'] ?? 0})`,
     cacheStatsLabel: `Hits: ${snapshot.cache?.hits ?? 0} · Misses: ${snapshot.cache?.misses ?? 0} · TTL: ${snapshot.cache?.ttlTicks ?? 10}t`,
     cacheEntries: snapshot.cache?.entries ?? [],
+    dbStatsLabel: `Reads: ${snapshot.database?.reads ?? 0} · Writes: ${snapshot.database?.writes ?? 0} · Lag: ${snapshot.database?.replicationLagTicks ?? 3}t`,
+    dbRows: snapshot.database?.rows ?? [],
     exchangeSummary: last
       ? `${last.from} -> ${last.to} ${last.request} => ${last.response}`
       : 'No requests served yet',

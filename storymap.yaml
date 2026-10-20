@@ -136,3 +136,31 @@ activities:
             tests:
               - unit: test/panel/model.test.js::describes Stage 3 6-hop cache-aside trace labels and cache inspector state
               - e2e: panel::should switch to Stage 3, warm Cache 10.20 on a miss from 10.11, serve a hit from 10.12, and inspect cache code
+
+  - name: 'Stage 4 — Database primary/replica with replication lag'
+    tasks:
+      - id: SIM-4
+        name: Write through Primary 10.30 and read stale or fresh from Replica 10.31
+        entry_point: n/a (engine behavior, not navigable)
+        stories:
+          - title: Replicate primary writes to the read replica after replicationLagTicks and track stale reads
+            status: done
+            priority: high
+            tests:
+              - unit: test/sim/database.test.js::replicates primary writes to the read replica after replicationLagTicks and tracks stale reads
+          - title: On POST write to Primary 10.30 and invalidate the cached path; on GET miss read Replica 10.31 fresh or stale and catch up
+            status: done
+            priority: high
+            tests:
+              - unit: test/sim/database.test.js::stage 4 engine writes to Primary 10.30, invalidates Cache 10.20, serves stale replica reads during lag, and catches up
+
+      - id: PANEL-4
+        name: Switch to Stage 4 and trace through the primary/replica database
+        entry_point: index.html -> Diagram Panel link -> 4 · DB + Replication pill
+        stories:
+          - title: Switch to Stage 4, write to Primary 10.30 on POST, observe replica lag on GET, and inspect Database code and row versions
+            status: done
+            priority: high
+            tests:
+              - unit: test/panel/model.test.js::describes Stage 4 7-hop database trace labels and database inspector state
+              - e2e: panel::should switch to Stage 4, write to Primary 10.30 on POST, observe replica lag on GET, and inspect database code

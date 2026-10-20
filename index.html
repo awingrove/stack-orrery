@@ -102,9 +102,14 @@
         <article class="ladder-card">
           <div class="ladder-head">
             <h3>4 · DB + Replication</h3>
-            <span class="stage-badge">Planned</span>
+            <span class="stage-badge is-live">Live</span>
           </div>
-          <p>Primary/replica database ring behind the cache-aside tier with replication lag.</p>
+          <p>
+            6 rings: a write-through
+            <code class="mono">Primary (10.30)</code> and async
+            <code class="mono">Replica (10.31)</code> serving reads while trailing replication lag
+            behind the cache tier.
+          </p>
         </article>
         <article class="ladder-card">
           <div class="ladder-head">

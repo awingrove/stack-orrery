@@ -88,6 +88,13 @@
   color: var(--text);
 }
 
+/* Stage 4 repl-lag rows: replica lagging primary shows the .you-pill
+   warning colors (DESIGN.md db-rows-list). */
+.route-item.you-pill {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
 /* Crowd dots (control strip), styled beside their canvas satellites. */
 .user-dot {
   width: 0.55rem;

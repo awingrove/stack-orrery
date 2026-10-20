@@ -13,14 +13,15 @@
 // in test/sim/engine.test.js.
 //
 // CHECKS: constructor validates config ranges via its components (seed is
-// coerced uint32; arrivalProb must be within [0, 1]; stage must be 1, 2,
-// or 3).
+// coerced uint32; arrivalProb must be within [0, 1]; stage must be 1, 2, 3,
+// or 4).
 import { createRng } from './rng.js';
 import { createNetwork } from './network.js';
 import { createBrowser } from './browser.js';
 import { createWebServer } from './webserver.js';
 import { createLoadBalancer } from './loadbalancer.js';
 import { createCache } from './cache.js';
+import { createDatabase } from './database.js';
 import { createUsers } from './users.js';
 import { createTraceMachine } from './trace.js';
 
@@ -34,16 +35,27 @@ export function createEngine({
   backendAddresses = ['10.11', '10.12'],
   ttlTicks = 10,
   cacheAddress = '10.20',
+  replicationLagTicks = 3,
+  dbPrimaryAddress = '10.30',
+  dbReplicaAddress = '10.31',
 } = {}) {
   if (typeof arrivalProb !== 'number' || arrivalProb < 0 || arrivalProb > 1) {
     throw new Error(`engine: arrivalProb must be within [0, 1], got ${arrivalProb}`);
   }
-  if (stage !== 1 && stage !== 2 && stage !== 3) {
-    throw new Error(`engine: stage must be 1, 2, or 3, got ${stage}`);
+  if (stage !== 1 && stage !== 2 && stage !== 3 && stage !== 4) {
+    throw new Error(`engine: stage must be 1, 2, 3, or 4, got ${stage}`);
   }
   const rng = createRng(seed);
   const network = createNetwork();
-  const cache = stage === 3 ? createCache({ address: cacheAddress, ttlTicks }) : null;
+  const cache = stage >= 3 ? createCache({ address: cacheAddress, ttlTicks }) : null;
+  const database =
+    stage === 4
+      ? createDatabase({
+          primaryAddress: dbPrimaryAddress,
+          replicaAddress: dbReplicaAddress,
+          replicationLagTicks,
+        })
+      : null;
   let servers;
   let lb = null;
   if (stage === 1) {
@@ -53,9 +65,10 @@ export function createEngine({
   } else {
     // Stage 2 wires the LB in front of two duplicated backends; Stage 3
     // attaches the shared cache-aside Cache to both backends, so a fill
-    // through one backend serves warm hits through the other.
+    // through one backend serves warm hits through the other; Stage 4 adds
+    // the primary/replica Database behind the cache tier.
     servers = backendAddresses.map((addr) =>
-      createWebServer({ address: addr, serviceRate, cache }),
+      createWebServer({ address: addr, serviceRate, cache, database }),
     );
     for (const s of servers) network.registerServer(s.address, s);
     lb = createLoadBalancer({ address: serverAddress, backends: backendAddresses, network });
@@ -81,6 +94,7 @@ export function createEngine({
     lb,
     network,
     cache,
+    database,
     bumpTick: () => {
       tick += 1;
       return tick;
@@ -102,6 +116,9 @@ export function createEngine({
       // TTL eviction happens once per tick, before anything is served:
       // expired entries are gone before this tick's work is priced.
       if (cache) cache.evictExpired(tick);
+      // Stage 4: replication advances one tick at a time, so queued primary
+      // writes reach the read replica once their applyAtTick arrives.
+      if (database) database.stepReplication(tick);
       const arrivals = userPool.step(rng, arrivalProb);
       for (const r of arrivals) {
         network.deliverToQueue({
@@ -130,7 +147,8 @@ export function createEngine({
 
     // One hop per call, delegated to the trace machine: 4 hops in Stage 1
     // (emit, route, serve, render); 5 in Stage 2 (LB round-robin between
-    // route and serve); 6 in Stage 3 (cache check, then response emit).
+    // route and serve); 6 in Stage 3 (cache check, then response emit);
+    // 7 in Stage 4 (the database hop inserted after the cache check).
     // `from` is the mini-IP of the browser the trace originates from
     // (default the learner's own 10.2).
     traceHop({ method = 'GET', path = '/about', from = '10.2' } = {}) {
@@ -171,6 +189,7 @@ export function createEngine({
         servers: serverSnapshots,
         loadBalancer: lb ? lb.snapshot() : null,
         cache: cache ? cache.snapshot(tick) : null,
+        database: database ? database.snapshot(tick) : null,
         lastMatchedRoute,
         lastFrame,
         browserDisplay: clientBrowser.last(),

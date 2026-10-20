@@ -3,7 +3,8 @@
 // balancer backend counters, and inspector panes). Stage topology and hop
 // highlights live in render-stage.js; event wiring in panel.js.
 import { describeSnapshot } from './model.js';
-import { COMPONENT_SOURCE, formatComponentState } from './inspector-source.js';
+import { COMPONENT_SOURCE } from './inspector-source.js';
+import { formatComponentState } from './inspector-state.js';
 import { renderHopHighlights, renderDots, renderRingBrowsers } from './render-stage.js';
 
 export const $ = (id) => document.getElementById(id);
@@ -32,6 +33,8 @@ export const els = {
   queueBar2: $('queue-bar-2'),
   cacheStats: $('cache-stats'),
   cacheEntries: $('cache-entries-list'),
+  dbStats: $('db-stats'),
+  dbRows: $('db-rows-list'),
   inspectorTitle: $('inspector-title'),
   inspectorCode: $('inspector-code'),
   inspectorState: $('inspector-state'),
@@ -75,7 +78,7 @@ function renderQueueInto(container, queue) {
 }
 
 function renderRoutes(matchedRouteId, snapshot) {
-  const behindLb = snapshot.stage === 2 || snapshot.stage === 3;
+  const behindLb = snapshot.stage >= 2;
   const servedBy2 = behindLb && snapshot.lastExchange?.to === '10.12';
   for (const node of document.querySelectorAll('[data-file]')) {
     node.classList.toggle('matched-route', !servedBy2 && node.dataset.file === matchedRouteId);
@@ -93,6 +96,20 @@ function renderCacheEntries(entries) {
       const item = document.createElement('li');
       item.className = 'route-item';
       item.textContent = `${e.key} · ttl ${e.ttlRemaining}t`;
+      return item;
+    }),
+  );
+}
+
+// DOCUMENTS: database rows (Stage 4) render one row per primary key with
+// both sides' versions; a row whose Replica lags Primary carries .you-pill
+// until async replication completes (DESIGN.md db-rows-list).
+function renderDbRows(rows) {
+  els.dbRows.replaceChildren(
+    ...rows.map((row) => {
+      const item = document.createElement('li');
+      item.className = `route-item${row.lagging ? ' you-pill' : ''}`;
+      item.textContent = `${row.key} · P v${row.primaryVersion} · R v${row.replicaVersion}`;
       return item;
     }),
   );
@@ -154,10 +171,11 @@ export function render(snapshot, selectedComponent, { layout, activeAddress = '1
     : 'No response yet';
   els.statusBadge.className = `status-badge${badgeClass(display)}`;
   renderQueueInto(els.queueList, snapshot.queue ?? []);
-  if (snapshot.stage === 2 || snapshot.stage === 3) {
+  renderQueueInto(els.queueList2, snapshot.servers?.[1]?.queue ?? []);
+  renderRoutes(labels.matchedRouteId, snapshot);
+  if (snapshot.stage >= 2) {
     els.server2Address.textContent = labels.server2Address;
     els.queueBar2.style.width = labels.queueFill2;
-    renderQueueInto(els.queueList2, snapshot.servers?.[1]?.queue ?? []);
     els.lbNext.textContent = labels.lbNextBackend;
     els.lbBackend1.textContent = labels.lbBackend1Label;
     els.lbBackend2.textContent = labels.lbBackend2Label;
@@ -165,11 +183,14 @@ export function render(snapshot, selectedComponent, { layout, activeAddress = '1
     els.lbBackend1.classList.toggle('matched-route', lastTarget === '10.11');
     els.lbBackend2.classList.toggle('matched-route', lastTarget === '10.12');
   }
-  if (snapshot.stage === 3 && snapshot.cache) {
+  if ((snapshot.stage === 3 || snapshot.stage === 4) && snapshot.cache) {
     els.cacheStats.textContent = labels.cacheStatsLabel;
     renderCacheEntries(labels.cacheEntries);
   }
-  renderRoutes(labels.matchedRouteId, snapshot);
+  if (snapshot.stage === 4 && snapshot.database) {
+    els.dbStats.textContent = labels.dbStatsLabel;
+    renderDbRows(labels.dbRows);
+  }
   renderHopHighlights(snapshot, selectedComponent);
   renderDots(snapshot.users);
   renderRingBrowsers(layout?.browserSlots ?? [], activeAddress);

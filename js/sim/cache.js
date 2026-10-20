@@ -63,6 +63,13 @@ export function createCache({ address = '10.20', ttlTicks = 10 } = {}) {
     sets += 1;
   }
 
+  // Stage 4 invalidation: a write through the primary drops the cached copy
+  // so the next read refills from the database row instead of serving the
+  // now-outdated value.
+  function del(key) {
+    return entries.delete(key);
+  }
+
   function snapshot(currentTick = 0) {
     evictExpired(currentTick);
     return {
@@ -91,6 +98,7 @@ export function createCache({ address = '10.20', ttlTicks = 10 } = {}) {
     has,
     get,
     set,
+    del,
     snapshot,
   };
 }

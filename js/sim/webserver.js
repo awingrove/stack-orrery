@@ -11,6 +11,11 @@
 // server serves up to serviceRate * 2 requests per tick. With no cache
 // attached the component is unchanged Stage 1/2 behavior.
 //
+// Stage 4: with a Database attached, POSTs write through to the primary and
+// invalidate the cached path, and a cache MISS fills from the read replica —
+// a stale replica read is served but not cached, so the entry only warms
+// from rows the replica has already caught up to.
+//
 // CHECKS: constructor rejects a non-positive/non-integer serviceRate
 // (fail-loud over silent-slow).
 const DEFAULT_FILES = {
@@ -27,11 +32,16 @@ function parseRequest(request = 'GET /') {
   };
 }
 
+function routeIdFor(path) {
+  return path === '/' ? 'route-home' : `route-${path.slice(1)}`;
+}
+
 export function createWebServer({
   address = '10.1',
   serviceRate = 4,
   files = DEFAULT_FILES,
   cache = null,
+  database = null,
 } = {}) {
   if (!Number.isInteger(serviceRate) || serviceRate < 1) {
     throw new Error(`webserver: serviceRate must be a positive integer, got ${serviceRate}`);
@@ -50,7 +60,7 @@ export function createWebServer({
       response = '405 Only GET requests are supported';
     } else if (fs.has(path)) {
       response = `200 ${fs.get(path)}`;
-      routeId = path === '/' ? 'route-home' : `route-${path.slice(1)}`;
+      routeId = routeIdFor(path);
     } else {
       response = '404 Page not found';
     }
@@ -64,23 +74,71 @@ export function createWebServer({
     return matchRoute(request).response;
   }
 
-  // Cache-aside resolution: GETs consult the Cache first and fall through
-  // to the filesystem only on a miss, then fill the cache from the 200
-  // response. Everything else bypasses the cache untouched.
+  // Cache-aside resolution: GETs consult the Cache first and fall through to
+  // the filesystem only on a miss, then fill the cache from the 200 response.
+  // With a Database attached (Stage 4), POSTs write through to the primary
+  // and invalidate the cached path, and a miss fills from the read replica —
+  // stale rows are served but not cached, so the cache only warms from
+  // replica rows that have already caught up. Everything else bypasses
+  // untouched.
   function resolveRequest(request = 'GET /', currentTick = 0) {
-    if (!cache) return { ...matchRoute(request), cacheStatus: null };
+    if (!cache && !database) return { ...matchRoute(request), cacheStatus: null };
     const { method, path } = parseRequest(request);
     if (method !== 'GET') {
-      return { ...matchRoute(request), cacheStatus: 'BYPASS' };
-    }
-    const cached = cache.get(path, currentTick);
-    if (cached !== null) {
+      if (!database) return { ...matchRoute(request), cacheStatus: 'BYPASS' };
+      const written = database.write(path, `Updated ${path} at tick ${currentTick}`, currentTick);
+      cache?.del(path);
       return {
-        response: `200 ${cached}`,
+        response: `200 ${written.value}`,
         status: 200,
-        body: cached,
-        routeId: path === '/' ? 'route-home' : `route-${path.slice(1)}`,
-        cacheStatus: 'HIT',
+        body: written.value,
+        routeId: routeIdFor(path),
+        cacheStatus: 'INVALIDATE',
+        dbOp: 'WRITE',
+        dbTarget: database.primaryAddress,
+        dbStale: false,
+      };
+    }
+    if (cache) {
+      const cached = cache.get(path, currentTick);
+      if (cached !== null) {
+        const hit = {
+          response: `200 ${cached}`,
+          status: 200,
+          body: cached,
+          routeId: routeIdFor(path),
+          cacheStatus: 'HIT',
+        };
+        if (database) {
+          hit.dbOp = null;
+          hit.dbTarget = null;
+          hit.dbStale = false;
+        }
+        return hit;
+      }
+    }
+    if (database) {
+      const row = database.read(path, currentTick);
+      if (row.found) {
+        if (!row.stale) cache?.set(path, row.value, currentTick);
+        return {
+          response: `200 ${row.value}`,
+          status: 200,
+          body: row.value,
+          routeId: routeIdFor(path),
+          cacheStatus: 'MISS',
+          dbOp: 'SELECT',
+          dbTarget: database.replicaAddress,
+          dbStale: row.stale,
+        };
+      }
+      const missing = matchRoute(request);
+      return {
+        ...missing,
+        cacheStatus: 'MISS',
+        dbOp: 'SELECT',
+        dbTarget: database.replicaAddress,
+        dbStale: false,
       };
     }
     const matched = matchRoute(request);
@@ -117,11 +175,12 @@ export function createWebServer({
       queue.push({ id, atTick, from, to, request, isYou });
     },
 
-    // No cache (Stages 1 and 2): consume up to serviceRate requests FIFO.
-    // With a cache (Stage 3): consume up to a work budget of serviceRate * 2
-    // units — a warm GET cache hit costs 1, a miss or non-GET costs 2.
+    // No cache or database (Stages 1 and 2): consume up to serviceRate
+    // requests FIFO. With a cache (Stage 3+): consume up to a work budget of
+    // serviceRate * 2 units — a warm GET cache hit costs 1, a miss or
+    // non-GET costs 2.
     step(currentTick) {
-      if (!cache) {
+      if (!cache && !database) {
         const batch = queue.splice(0, serviceRate);
         const responses = batch.map((r) => {
           const matched = matchRoute(r.request);
@@ -146,12 +205,12 @@ export function createWebServer({
       let used = 0;
       while (queue.length > 0) {
         const { method, path } = parseRequest(queue[0].request);
-        const cost = method === 'GET' && cache.has(path, currentTick) ? 1 : 2;
+        const cost = method === 'GET' && (!cache || cache.has(path, currentTick)) ? 1 : 2;
         if (used + cost > budget) break;
         const r = queue.shift();
         used += cost;
         const matched = resolveRequest(r.request, currentTick);
-        responses.push({
+        const record = {
           id: r.id,
           from: r.from,
           to: r.to,
@@ -163,7 +222,13 @@ export function createWebServer({
           routeId: matched.routeId,
           cacheStatus: matched.cacheStatus,
           latencyTicks: currentTick - r.atTick + 1,
-        });
+        };
+        if (database) {
+          record.dbOp = matched.dbOp ?? null;
+          record.dbTarget = matched.dbTarget ?? null;
+          record.dbStale = Boolean(matched.dbStale);
+        }
+        responses.push(record);
       }
       pushLatency(responses);
       return responses;

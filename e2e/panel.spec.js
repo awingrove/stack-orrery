@@ -148,6 +148,70 @@ test('should switch to Stage 3, warm Cache 10.20 on a miss from 10.11, serve a h
   await expect(page.getByTestId('inspector-state')).toContainText('"hits": 1');
 });
 
+// Stage 4 adds a write-through Primary (10.30) plus an async read Replica
+// (10.31) on the innermost ring behind the shared Cache. A 7-hop POST writes
+// to Primary and invalidates the cache; the next two 7-hop GETs fall inside
+// the 3-tick replication lag window and read the stale replica row (without
+// warming it); the fourth GET (tick 4 = the write's applyAtTick) reads fresh.
+test('should switch to Stage 4, write to Primary 10.30 on POST, observe replica lag on GET, and inspect database code', async ({
+  page,
+}) => {
+  await page.goto('/panel.html');
+
+  await page.getByTestId('stage-pill-4').click();
+  await expect(page.getByTestId('node-db')).toBeVisible();
+  await expect(page.getByTestId('node-cache')).toBeVisible();
+  await expect(page.locator('.orrery-ring')).toHaveCount(6);
+  await expect(page.locator('.orrery-ring').first()).toHaveAttribute('r', '400');
+  await expect(page.locator('.orrery-ring').last()).toHaveAttribute('r', '2400');
+  await expect(page.getByTestId('db-stats')).toHaveText('Reads: 0 · Writes: 0 · Lag: 3t');
+
+  // POST trace (write happens at tick 1 during the cache-check hop): the
+  // database hop shows the WRITE and the rendered body is the updated row.
+  await page.getByTestId('req-method').selectOption('POST');
+  await page.getByTestId('url-input').fill('/about');
+  for (let hop = 0; hop < 7; hop++) await page.getByTestId('btn-next-hop').click();
+  await expect(page.getByTestId('hop-status')).toContainText('Hop 7/7');
+  await expect(page.getByTestId('browser-rendered-body')).toHaveText('Updated /about at tick 1');
+  await expect(page.getByTestId('db-stats')).toHaveText('Reads: 0 · Writes: 1 · Lag: 3t');
+  await expect(page.getByTestId('db-rows-list')).toContainText('/about · P v2 · R v1');
+  await expect(page.locator('#db-rows-list .you-pill')).toHaveCount(1);
+
+  // GET trace at tick 2 — inside the lag window: the replica still serves
+  // the old row, the rendered page is stale, and the cache is not warmed.
+  // Hop 5/7 (the database hop) is asserted mid-trace, then the final 2 hops
+  // land the stale row on the browser.
+  await page.getByTestId('req-method').selectOption('GET');
+  for (let hop = 0; hop < 5; hop++) await page.getByTestId('btn-next-hop').click();
+  await expect(page.getByTestId('hop-status')).toContainText(
+    'Database SELECT @ Replica (10.31) — STALE (lag 3t)',
+  );
+  for (let hop = 0; hop < 2; hop++) await page.getByTestId('btn-next-hop').click();
+  await expect(page.getByTestId('browser-rendered-body')).toHaveText('This is the about page');
+  await expect(page.getByTestId('cache-stats')).toHaveText('Hits: 0 · Misses: 1 · TTL: 10t');
+  await expect(page.getByTestId('db-stats')).toHaveText('Reads: 1 · Writes: 1 · Lag: 3t');
+
+  // Two more GET traces push the clock to tick 4 = applyAtTick: trace 3
+  // (tick 3) still reads stale; trace 4 (tick 4) reads fresh from the caught
+  // -up replica (P v2 · R v2, no lag row) and warms the cache at last.
+  for (let hop = 0; hop < 7; hop++) await page.getByTestId('btn-next-hop').click();
+  await expect(page.getByTestId('browser-rendered-body')).toHaveText('This is the about page');
+  await expect(page.getByTestId('db-stats')).toHaveText('Reads: 2 · Writes: 1 · Lag: 3t');
+  for (let hop = 0; hop < 5; hop++) await page.getByTestId('btn-next-hop').click();
+  await expect(page.getByTestId('hop-status')).toContainText(
+    'Database SELECT @ Replica (10.31) — fresh',
+  );
+  for (let hop = 0; hop < 2; hop++) await page.getByTestId('btn-next-hop').click();
+  await expect(page.getByTestId('browser-rendered-body')).toHaveText('Updated /about at tick 1');
+  await expect(page.getByTestId('db-stats')).toHaveText('Reads: 3 · Writes: 1 · Lag: 3t');
+  await expect(page.locator('#db-rows-list .you-pill')).toHaveCount(0);
+  await expect(page.getByTestId('db-rows-list')).toContainText('/about · P v2 · R v2');
+
+  await page.getByTestId('node-db').click();
+  await expect(page.getByTestId('inspector-code')).toContainText('stepReplication');
+  await expect(page.getByTestId('inspector-state')).toContainText('"staleReads": 2');
+});
+
 // The orrery plane is camera-driven: one concentric SVG ring per architectural
 // layer (3 in Stage 1, 4 in Stage 2, r_k = k * ringGap), zoom via HUD buttons
 // and wheel (toward the cursor), pan via pointer drag, and a Fit-to-view reset

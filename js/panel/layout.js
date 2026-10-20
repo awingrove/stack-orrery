@@ -10,22 +10,26 @@ export const ORRERY_RINGS = buildOrreryRings(DEFAULT_RING_GAP, 1);
 // radii (which would degenerate the whole orrery into a single point).
 // DOCUMENTS: every architectural layer of a stage gets its own concentric
 // ring at r_k = k * ringGap — Stage 1 has 3 layers (3 rings), Stage 2 has 4
-// (4 rings), Stage 3 has 5 (cache-aside adds the innermost Cache ring).
+// (4 rings), Stage 3 has 5 (cache-aside adds the innermost Cache ring), and
+// Stage 4 has 6 (the Database primary/replica takes the innermost ring in
+// front of the Cache ring).
 export function buildOrreryRings(ringGap = DEFAULT_RING_GAP, stage = 1) {
   if (!Number.isFinite(ringGap) || ringGap <= 0) {
     throw new Error('layout: ringGap must be a finite number > 0');
   }
-  if (stage !== 1 && stage !== 2 && stage !== 3) {
-    throw new Error(`layout: unknown stage ${stage} (expected 1, 2, or 3)`);
+  if (stage !== 1 && stage !== 2 && stage !== 3 && stage !== 4) {
+    throw new Error(`layout: unknown stage ${stage} (expected 1, 2, 3, or 4)`);
   }
   const gap = Math.round(ringGap);
   const ringSpecs =
-    stage === 2
+    stage === 4
       ? [
-          ['ring-compute', 'RING 1 · WEBSERVERS'],
-          ['ring-lb', 'RING 2 · LOADBALANCER'],
-          ['ring-network', 'RING 3 · NETWORK'],
-          ['ring-clients', 'RING 4 · BROWSERS'],
+          ['ring-db', 'RING 1 · DATABASE'],
+          ['ring-cache', 'RING 2 · CACHE'],
+          ['ring-compute', 'RING 3 · WEBSERVERS'],
+          ['ring-lb', 'RING 4 · LOADBALANCER'],
+          ['ring-network', 'RING 5 · NETWORK'],
+          ['ring-clients', 'RING 6 · BROWSERS'],
         ]
       : stage === 3
         ? [
@@ -35,11 +39,18 @@ export function buildOrreryRings(ringGap = DEFAULT_RING_GAP, stage = 1) {
             ['ring-network', 'RING 4 · NETWORK'],
             ['ring-clients', 'RING 5 · BROWSERS'],
           ]
-        : [
-            ['ring-compute', 'RING 1 · WEBSERVER'],
-            ['ring-network', 'RING 2 · NETWORK'],
-            ['ring-clients', 'RING 3 · BROWSERS'],
-          ];
+        : stage === 2
+          ? [
+              ['ring-compute', 'RING 1 · WEBSERVERS'],
+              ['ring-lb', 'RING 2 · LOADBALANCER'],
+              ['ring-network', 'RING 3 · NETWORK'],
+              ['ring-clients', 'RING 4 · BROWSERS'],
+            ]
+          : [
+              ['ring-compute', 'RING 1 · WEBSERVER'],
+              ['ring-network', 'RING 2 · NETWORK'],
+              ['ring-clients', 'RING 3 · BROWSERS'],
+            ];
   return ringSpecs.map(([id, label], k) => ({ id, radius: (k + 1) * gap, label }));
 }
 
@@ -88,8 +99,8 @@ export function computeStageLayout(
   users = 5,
   { ringGap = DEFAULT_RING_GAP, activeBrowser = '10.2' } = {},
 ) {
-  if (stage !== 1 && stage !== 2 && stage !== 3) {
-    throw new Error(`layout: unknown stage ${stage} (expected 1, 2, or 3)`);
+  if (stage !== 1 && stage !== 2 && stage !== 3 && stage !== 4) {
+    throw new Error(`layout: unknown stage ${stage} (expected 1, 2, 3, or 4)`);
   }
   const rings = buildOrreryRings(ringGap, stage);
   const gap = Math.round(ringGap);
@@ -162,10 +173,10 @@ export function computeStageLayout(
       180,
     );
     // Both backends sit squarely on the Compute ring: Stage 2 uses 210°/150°
-    // (bottom-left / top-left arc); Stage 3 opens the arc to 200°/160° so the
-    // cache wires down to Ring 1 stay clear of the LB wire.
-    const backendAngle1 = stage === 3 ? 200 : 210;
-    const backendAngle2 = stage === 3 ? 160 : 150;
+    // (bottom-left / top-left arc); Stages 3–4 open the arc to 200°/160° so
+    // the cache wires down the ring stack stay clear of the LB wire.
+    const backendAngle1 = stage >= 3 ? 200 : 210;
+    const backendAngle2 = stage >= 3 ? 160 : 150;
     nodes['node-webserver'] = pos(
       'node-webserver',
       'ring-compute',
@@ -208,9 +219,10 @@ export function computeStageLayout(
         nodes['node-webserver-2'],
       ),
     ];
-    if (stage === 3) {
-      // Cache-aside: Ring 1's shared Cache sits behind both backends, each
-      // with its own lookup wire down the ring stack.
+    if (stage === 3 || stage === 4) {
+      // Cache-aside: the shared Cache sits behind both backends, each with
+      // its own lookup wire down the ring stack (Ring 1 in Stage 3, Ring 2
+      // in Stage 4).
       nodes['node-cache'] = pos(
         'node-cache',
         'ring-cache',
@@ -232,6 +244,19 @@ export function computeStageLayout(
           nodes['node-webserver-2'],
           nodes['node-cache'],
         ),
+      );
+    }
+    if (stage === 4) {
+      // Stage 4 adds the primary/replica Database on the innermost ring in
+      // front of the Cache, with one write/read wire from Cache to Database.
+      nodes['node-db'] = pos(
+        'node-db',
+        'ring-db',
+        rings.find((ring) => ring.id === 'ring-db').radius,
+        180,
+      );
+      wires.push(
+        makeWire('wire-cache-db', 'node-cache', 'node-db', nodes['node-cache'], nodes['node-db']),
       );
     }
   }

@@ -18,6 +18,10 @@ let currentSnapshot = null;
 // The browser currently expanded into #node-browser (mini-IP on Ring 3);
 // every other browser renders as a compact clickable node in its slot.
 let activeBrowserAddress = '10.2';
+// Total hops per stage; trace.js's machine and model.js's labels agree.
+const TOTAL_HOPS = { 1: 4, 2: 5, 3: 6, 4: 7 };
+
+const totalHopsFor = (stage) => TOTAL_HOPS[stage] ?? TOTAL_HOPS[1];
 
 function createEngineFromControls() {
   return createEngine({
@@ -105,7 +109,7 @@ function stepOneHop() {
     path: els.urlInput.value,
     from: activeBrowserAddress,
   });
-  const totalHops = snapshot.stage === 3 ? 6 : snapshot.stage === 2 ? 5 : 4;
+  const totalHops = totalHopsFor(snapshot.stage);
   addToJourney(`hop ${snapshot.trace.hop}/${totalHops}`, snapshot.lastFrame);
   updateView(snapshot);
   return snapshot;
@@ -115,7 +119,7 @@ $('btn-next-hop').addEventListener('click', stepOneHop);
 
 $('btn-play-request').addEventListener('click', () => {
   if (timer) pause();
-  const finalHop = currentStage === 3 ? 6 : currentStage === 2 ? 5 : 4;
+  const finalHop = totalHopsFor(currentStage);
   const iv = setInterval(() => {
     if (stepOneHop().trace.hop === finalHop) clearInterval(iv);
   }, TICK_MS);
@@ -123,7 +127,7 @@ $('btn-play-request').addEventListener('click', () => {
 
 $('btn-url-go').addEventListener('click', () => {
   if (timer) pause();
-  const finalHop = currentStage === 3 ? 6 : currentStage === 2 ? 5 : 4;
+  const finalHop = totalHopsFor(currentStage);
   for (let i = 0; i < finalHop + 1; i += 1) {
     if (stepOneHop().trace.hop === finalHop) break;
   }
