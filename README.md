@@ -34,11 +34,11 @@ browser, devDeps for the gates.
 
 ## Status
 
-Stages 1–3 live on the concentric orrery plane (`1 · Single Server`,
-`2 · LB / Dup Servers`, `3 · Cache` with tick-based TTL), with pannable/zoomable
-orbital rings, addressable outer-ring browsers, hop-by-hop request tracing, and
-live component code/state inspection. Built by an AI-executed factory — process
-contract in
+Stages 1–4 live on the concentric orrery plane (`1 · Single Server`,
+`2 · LB / Dup Servers`, `3 · Cache` with tick-based TTL, `4 · DB + Replication`
+with Primary/Replica lag), with pannable/zoomable orbital rings, addressable
+outer-ring browsers, hop-by-hop request tracing, and live component code/state
+inspection. Built by an AI-executed factory — process contract in
 [factory-kit](https://github.com/awingrove/factory-kit), instantiated here
 in [FACTORY.md](FACTORY.md); work driven by committed briefs in
 `docs/plans/`.

@@ -68,8 +68,10 @@ Fragments fine. Technical terms stay exact; code blocks unchanged.
    brief inline in the lead session.
 3. **Debug hygiene:** temporary probes are tracked as todos and removed
    before commit — never ride along in a feature diff.
-4. **Post-mortem capture:** a fix whose root cause reveals a systemic gap
-   updates `docs/factory/technical-debt.yaml` and the rule doc in the same
+4. **Post-mortem & human-intervention capture:** a fix — or an unprompted
+   human intervention correcting a code or process miss outside scheduled
+   human gates — whose root cause reveals a systemic gap updates
+   `docs/factory/technical-debt.yaml` (`DL-\d+`) and the rule doc in the same
    change (kit DEBT-REGISTER).
 5. **Claim vocabulary:** guarantee-comments carry `CHECKS:` / `PINS:` /
    `DOCUMENTS:` — guarantee-language outside a claim is a review defect

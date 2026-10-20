@@ -45,3 +45,25 @@ defects:
       alongside .node-card elements, syncLayout() preserves ringGapSlider.value,
       and e2e/panel.spec.js asserts browser-node-10.3 style.left updates on
       ring-gap change.
+  - id: DL-2
+    title: >-
+      Lead session began executing Stage 4 Step 2 inline instead of dispatching a sub-agent on the project's configured executor model
+    found: 2026-10-20
+    injection_stage: >-
+      Phase 1 bootstrap of AGENTS.md and FACTORY.md (commit 9884fd5)
+    detection_stage: >-
+      Human intervention during Stage 4 execution
+    what: >-
+      After committing Step 1 of docs/plans/2026-10-20-stage4-database.md, the
+      lead session started implementing Step 2 directly in the lead context
+      instead of spawning a fresh sub-agent on opencode-go/glm-5.3-flash.
+    systemic_gap: >-
+      Neither factory-kit nor this repo's AGENTS.md and FACTORY.md codified the
+      lead-to-subagent cold brief execution rule, the project's configured
+      lead/executor models, or the requirement that every unprompted human
+      intervention be logged in the defect register.
+    closed_in: >-
+      5741b20 & awingrove/factory-kit#2 — AGENTS.md and FACTORY.md codify
+      lead-to-subagent cold execution on opencode-go/glm-5.3-flash and
+      human-intervention defect logging; factory-kit#2 adds project model
+      selection and intervention capture to the kit contract.
