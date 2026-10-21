@@ -4,7 +4,15 @@
 //
 // Usage: node scripts/extract-session-metrics.mjs <sessionID> [moreSessionIDs...]
 import { execFileSync } from 'node:child_process';
-import { openSync, closeSync, readFileSync, unlinkSync, existsSync, statSync } from 'node:fs';
+import {
+  openSync,
+  closeSync,
+  readFileSync,
+  unlinkSync,
+  existsSync,
+  statSync,
+  readdirSync,
+} from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
@@ -20,25 +28,35 @@ const DIAGNOSTIC_ONLY = /^\s*(grep|sed|cat|head|tail)\b/;
 const FAILURE_OUTPUT =
   /(\bFAIL\b|\b[1-9]\d*\s+failed\b|AssertionError:|violation\(s\)|offenders|Exited with code [1-9])/;
 
-function resolveAntigravityPath(id) {
+function resolveAntigravitySession(id) {
   if (existsSync(id)) {
     const st = statSync(id);
-    if (st.isFile()) return id;
+    if (st.isFile()) return { type: 'file', path: id };
     if (st.isDirectory()) {
       const fullPath = join(id, '.system_generated/logs/transcript_full.jsonl');
-      if (existsSync(fullPath)) return fullPath;
+      if (existsSync(fullPath)) return { type: 'file', path: fullPath };
       const transPath = join(id, '.system_generated/logs/transcript.jsonl');
-      if (existsSync(transPath)) return transPath;
+      if (existsSync(transPath)) return { type: 'file', path: transPath };
       const jsonlInDir = join(id, 'transcript.jsonl');
-      if (existsSync(jsonlInDir)) return jsonlInDir;
+      if (existsSync(jsonlInDir)) return { type: 'file', path: jsonlInDir };
     }
   }
 
   const appData = process.env.ANTIGRAVITY_APP_DATA_DIR || join(homedir(), '.gemini/antigravity');
   const candidateFull = join(appData, 'brain', id, '.system_generated/logs/transcript_full.jsonl');
-  if (existsSync(candidateFull)) return candidateFull;
+  if (existsSync(candidateFull)) return { type: 'file', path: candidateFull };
   const candidate = join(appData, 'brain', id, '.system_generated/logs/transcript.jsonl');
-  if (existsSync(candidate)) return candidate;
+  if (existsSync(candidate)) return { type: 'file', path: candidate };
+
+  const brainDir = join(appData, 'brain');
+  if (existsSync(brainDir)) {
+    for (const parentId of readdirSync(brainDir)) {
+      const subagentMeta = join(brainDir, parentId, '.system_generated/subagents', `${id}.json`);
+      if (existsSync(subagentMeta)) {
+        return { type: 'subagent', parentId, id, metaPath: subagentMeta };
+      }
+    }
+  }
 
   return null;
 }
@@ -140,6 +158,59 @@ function parseAntigravitySession(filePath) {
   };
 }
 
+function parseAntigravitySubagent(subagentInfo) {
+  const appData = process.env.ANTIGRAVITY_APP_DATA_DIR || join(homedir(), '.gemini/antigravity');
+  const parentBrainDir = join(appData, 'brain', subagentInfo.parentId);
+  let model = 'flash_lite';
+  let failures = 0;
+
+  const parentTranscript = join(parentBrainDir, '.system_generated/logs/transcript_full.jsonl');
+  if (existsSync(parentTranscript)) {
+    const lines = readFileSync(parentTranscript, 'utf8').split('\n');
+    for (const l of lines) {
+      if (!l.includes('invoke_subagent')) continue;
+      try {
+        const step = JSON.parse(l);
+        for (const tc of step.tool_calls ?? []) {
+          if (tc.name === 'invoke_subagent' && tc.args?.Model) {
+            model = tc.args.Model;
+          }
+        }
+      } catch {
+        // skip
+      }
+    }
+  }
+
+  const messagesDir = join(parentBrainDir, '.system_generated/messages');
+  if (existsSync(messagesDir)) {
+    for (const f of readdirSync(messagesDir)) {
+      if (!f.endsWith('.json')) continue;
+      try {
+        const msg = JSON.parse(readFileSync(join(messagesDir, f), 'utf8'));
+        if (msg.sender === subagentInfo.id) {
+          const text = msg.content ?? '';
+          const m = text.match(/Red gate encounters:\s*(\d+)/i);
+          if (m) failures = Number(m[1]);
+        }
+      } catch {
+        // skip
+      }
+    }
+  }
+
+  return {
+    model,
+    tokensInput: 0,
+    tokensOutput: 0,
+    tokensReasoning: 0,
+    tokensCacheRead: 0,
+    costUsd: 0,
+    failures,
+    details: [],
+  };
+}
+
 function exportOpenCodeSession(id) {
   const tmpFile = join('/tmp', `opencode-export-${process.pid}-${id}.json`);
   const fd = openSync(tmpFile, 'w');
@@ -208,9 +279,10 @@ function parseOpenCodeSession(data) {
 }
 
 function loadSession(id) {
-  const agPath = resolveAntigravityPath(id);
-  if (agPath) {
-    return parseAntigravitySession(agPath);
+  const resolved = resolveAntigravitySession(id);
+  if (resolved) {
+    if (resolved.type === 'file') return parseAntigravitySession(resolved.path);
+    if (resolved.type === 'subagent') return parseAntigravitySubagent(resolved);
   }
   const opencodeData = exportOpenCodeSession(id);
   return parseOpenCodeSession(opencodeData);

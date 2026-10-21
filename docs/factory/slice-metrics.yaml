@@ -176,3 +176,30 @@ entries:
       (ses_ea4fef3c6ffeBItBo3dwngtwEU) then executed Steps 2 and 3 cold in
       ec89f94 and 92cfbe2, self-correcting 5 in-session red gate cycles (1
       unit, 2 guard-claims, 2 e2e) before committing.
+
+  - id: STAGE-5
+    slice:
+      - SHELL
+      - SIM
+      - PANEL
+    name: Stage 5 — Worker Queue & Async Background Processing (10.40 / 10.41)
+    brief: docs/plans/2026-10-21-stage5-worker-queue.md
+    agent: cheap
+    lead_model: Gemini 3.8 Flash (Medium)
+    agent_model: flash_lite
+    session_id: 433cff5a-d8b4-4ef7-ac14-558974b8fe6e
+    tokens_input: 0
+    tokens_output: 0
+    tokens_reasoning: 0
+    tokens_cache_read: 0
+    cost_usd: 0
+    human_interventions: 0
+    agent_review_rounds: 0
+    guardrail_failures: 0
+    fix_commits: 0
+    defects_escaped: 0
+    notes: >-
+      Executed cold from the Stage 5 brief by Antigravity sub-agent on flash_lite
+      (433cff5a-d8b4-4ef7-ac14-558974b8fe6e) in commit b12ba6b; implemented
+      WorkerQueue (10.40), Worker (10.41), async HTTP 202 route, 7-ring orrery layout,
+      8-hop trace, unit & e2e tests with 0 red gate runs before green.
