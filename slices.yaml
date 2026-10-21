@@ -87,6 +87,7 @@ slices:
 
 allowlist:
   - .github/**
+  - .githooks/**
   - .gitignore
   - .opencode/**
   - .prettierignore

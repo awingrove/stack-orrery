@@ -93,8 +93,13 @@ if (entries.length >= 3 && existsSync(PLANS_DIR)) {
     .filter((f) => f.endsWith('.md'))
     .map((f) => `${PLANS_DIR}/${f}`);
   for (const plan of planFiles) {
-    if (!seenBriefs.has(plan)) {
-      errors.push(`unrecorded brief: '${plan}' has no entry in ${METRICS_FILE}`);
+    const raw = readFileSync(plan, 'utf8');
+    const hasTicked = /^\s*- \[x\] /m.test(raw);
+    const hasUnticked = /^\s*- \[ \] /m.test(raw);
+    // In-progress briefs (Steps 1-2, while Step 3 is still unticked) are exempt
+    // until Step 3 ticks the final checkbox and records the sub-agent session.
+    if (hasTicked && !hasUnticked && !seenBriefs.has(plan)) {
+      errors.push(`unrecorded completed brief: '${plan}' has no entry in ${METRICS_FILE}`);
     }
   }
 }

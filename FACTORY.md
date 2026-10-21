@@ -28,19 +28,22 @@ two disagree, the kit wins and this file is fixed in the same change.
   guard → e2e. CI job `build` runs the same five steps; the ruleset
   `build-must-pass` requires the `build` check (strict/up-to-date).
 - **Guardrails** (own scripts, kit-derived examples):
-  `scripts/guard-plan-ticks.mjs` (ticks evidence files),
-  `guard-debt.mjs` (register schema), `guard-metrics.mjs` (slice metrics &
-  intervention ledger), `guard-slices.mjs` (manifest meta-rules + file
-  claims), `guard-story-refs.mjs` (test refs resolve), `guard-file-size.mjs`
-  (300/450/550-line per-role split triggers), `guard-claims.mjs` (strict
-  `CHECKS` / `PINS` / `DOCUMENTS` claim vocabulary) — run together by
-  `npm run guard`.
+  `scripts/guard-plan-ticks.mjs` (ticks evidence files + ≤ 120-line boundary
+  brief cap), `guard-debt.mjs` (register schema), `guard-metrics.mjs` (slice
+  metrics & intervention ledger on completed briefs), `guard-slices.mjs`
+  (manifest meta-rules + file claims), `guard-story-refs.mjs` (test refs
+  resolve), `guard-file-size.mjs` (300/450/550-line per-role split triggers),
+  `guard-claims.mjs` (strict `CHECKS` / `PINS` / `DOCUMENTS` claim vocabulary)
+  — run together by `npm run guard` and on every commit via
+  `.githooks/pre-commit` (`npm run prepare`).
 - **Sub-agent execution (cheap-model executor proof):** the lead session
   (`opencode-go/gemini-4-argon-contributor`) runs the human design gate and
-  commits Step 1 (`DESIGN.md` + `docs/plans/<feature>.md`), then spawns a
-  fresh `general` subagent on `model: "opencode-go/glm-5.3-flash"` to execute
-  the remaining steps cold from the brief (proving the brief is
-  self-sufficient for a ≤ $1/1M-token executor without chat history).
+  commits Step 1 (`DESIGN.md` + `docs/plans/<feature>.md`, ≤ 120 lines of
+  boundary contracts), then spawns the project `executor` subagent
+  (`.opencode/agents/executor.md`, pinned to `opencode-go/glm-5.3-flash`) to
+  execute Step 2 cold from the brief, and finishes Step 3 by extracting
+  session telemetry via `npm run metrics:extract -- <sessionID>` into
+  `docs/factory/slice-metrics.yaml`.
 - **Human gates & rulesets:** per kit — design-before-code, PR approve +
   merge, plan-mandated findings. Server-side: `human-gates-main`
   (PR + approval, no force-push/delete on main), `agent-cannot-touch-anything`

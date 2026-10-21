@@ -7,6 +7,15 @@ import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 const PLANS_DIR = 'docs/plans';
+const MAX_BRIEF_LINES = 120;
+// Pre-existing briefs authored before the 120-line boundary-contract rule.
+const LEGACY_LONG_BRIEFS = new Set([
+  'docs/plans/2026-10-15-stage1-executable-model.md',
+  'docs/plans/2026-10-16-stage1-interactive-orrery-ui.md',
+  'docs/plans/2026-10-18-orrery-plane-camera.md',
+  'docs/plans/2026-10-20-stage3-cache.md',
+  'docs/plans/2026-10-20-stage4-database.md',
+]);
 
 function planFiles(dir) {
   if (!existsSync(dir)) return [];
@@ -46,6 +55,15 @@ if (files.length === 0) {
 }
 
 for (const file of files) {
+  const normalized = file.replace(/\\/g, '/');
+  const rawLines = readFileSync(file, 'utf8').split('\n');
+  if (rawLines.at(-1) === '') rawLines.pop();
+  if (!LEGACY_LONG_BRIEFS.has(normalized) && rawLines.length > MAX_BRIEF_LINES) {
+    console.error(
+      `guard-plan-ticks: ${normalized} is ${rawLines.length} lines (> ${MAX_BRIEF_LINES}) — write boundary contracts, not pseudocode.`,
+    );
+    failures++;
+  }
   const lines = stripFences(readFileSync(file, 'utf8')).split('\n');
   for (const [i, line] of lines.entries()) {
     const m = line.match(/^\s*- \[x\] (.*)/);

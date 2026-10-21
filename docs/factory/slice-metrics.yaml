@@ -106,14 +106,16 @@ entries:
     cost_usd: 0.6166
     human_interventions: 1
     agent_review_rounds: 0
-    guardrail_failures: 0
+    guardrail_failures: 11
     fix_commits: 1
     defects_escaped: 1
     notes: >-
-      Six GLM-5.3-Flash sub-agent dispatches across Steps 2-8. One escaped UI
-      defect found during interactive exploration (DL-1: compact Ring-3 browser
-      nodes did not move when #ring-gap-slider scaled because position writes
-      were split between viewport.js and render.js; closed in 8ab0e21 /
+      Six GLM-5.3-Flash sub-agent dispatches across Steps 2-8 (11 in-session
+      red gate cycles extracted via scripts/extract-session-metrics.mjs, all
+      self-corrected before commit). One escaped UI defect found during
+      interactive exploration (DL-1: compact Ring-3 browser nodes did not move
+      when #ring-gap-slider scaled because position writes were split between
+      viewport.js and render.js; closed in 8ab0e21 /
       ses_eaa0c35d9ffesYLbDz5vzUIJIx).
 
   - id: STAGE-3
@@ -134,14 +136,16 @@ entries:
     cost_usd: 0.3001
     human_interventions: 0
     agent_review_rounds: 1
-    guardrail_failures: 0
+    guardrail_failures: 2
     fix_commits: 1
     defects_escaped: 0
     notes: >-
       Executed cold from the Stage 3 brief by GLM-5.3-Flash
-      (ses_ea7fbfc89ffem2uvt97ElDlUh3) in 2ad0e93 and 58a7f8e; followed by one
-      controller claim-language tightening pass (f11921, 8a6f0ec) when strict
-      guard-claims.mjs was introduced.
+      (ses_ea7fbfc89ffem2uvt97ElDlUh3) in 2ad0e93 and 58a7f8e; 2 in-session
+      unit red cycles self-corrected (including the JS { 10.20: 'Cache' } ->
+      10.2 float key collision), followed by one controller claim-language
+      tightening pass (f11921, 8a6f0ec) when strict guard-claims.mjs was
+      introduced.
 
   - id: STAGE-4
     slice:
@@ -161,7 +165,7 @@ entries:
     cost_usd: 0.4337
     human_interventions: 1
     agent_review_rounds: 0
-    guardrail_failures: 0
+    guardrail_failures: 5
     fix_commits: 0
     defects_escaped: 0
     notes: >-
@@ -170,4 +174,5 @@ entries:
       was not yet codified in AGENTS.md / FACTORY.md; reverted and codified in
       5741b20 + factory-kit#2). GLM-5.3-Flash sub-agent
       (ses_ea4fef3c6ffeBItBo3dwngtwEU) then executed Steps 2 and 3 cold in
-      ec89f94 and 92cfbe2 with zero red gate cycles.
+      ec89f94 and 92cfbe2, self-correcting 5 in-session red gate cycles (1
+      unit, 2 guard-claims, 2 e2e) before committing.
