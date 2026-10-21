@@ -42,6 +42,7 @@ export function createWebServer({
   files = DEFAULT_FILES,
   cache = null,
   database = null,
+  workerQueue = null,
 } = {}) {
   if (!Number.isInteger(serviceRate) || serviceRate < 1) {
     throw new Error(`webserver: serviceRate must be a positive integer, got ${serviceRate}`);
@@ -82,9 +83,28 @@ export function createWebServer({
   // replica rows that have already caught up. Everything else bypasses
   // untouched.
   function resolveRequest(request = 'GET /', currentTick = 0) {
-    if (!cache && !database) return { ...matchRoute(request), cacheStatus: null };
+    if (!cache && !database && !workerQueue) return { ...matchRoute(request), cacheStatus: null };
     const { method, path } = parseRequest(request);
     if (method !== 'GET') {
+      if (workerQueue && (path === '/jobs' || path === '/export')) {
+        const job = workerQueue.enqueue(
+          path,
+          `Payload for ${path} at tick ${currentTick}`,
+          currentTick,
+        );
+        return {
+          response: `202 {"jobId": ${job.jobId}, "status": "queued"}`,
+          status: 202,
+          body: `{"jobId": ${job.jobId}, "status": "queued"}`,
+          routeId: routeIdFor(path),
+          cacheStatus: 'ASYNC',
+          dbOp: null,
+          dbTarget: null,
+          dbStale: false,
+          asyncJob: true,
+          jobId: job.jobId,
+        };
+      }
       if (!database) return { ...matchRoute(request), cacheStatus: 'BYPASS' };
       const written = database.write(path, `Updated ${path} at tick ${currentTick}`, currentTick);
       cache?.del(path);

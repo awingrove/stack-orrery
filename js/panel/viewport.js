@@ -35,15 +35,15 @@ const LANE_WIRES = {
     'wire-col-right': 'wire-network-lb',
     'wire-cache-db': 'wire-cache-db',
   },
-};
-// Lanes parked between two wires (Stage 2: LB→backends; Stages 3–4:
-// backends→Cache).
-const LANES_BETWEEN = [
-  {
-    stage: 2,
-    laneId: 'wire-lb-backends',
-    wireIds: ['wire-lb-webserver', 'wire-lb-webserver-2'],
+  5: {
+    'wire-col-left': 'wire-browser-network',
+    'wire-col-right': 'wire-network-lb',
+    'wire-cache-db': 'wire-cache-db',
+    'wire-queue-worker': 'wire-queue-worker',
   },
+};
+const LANES_BETWEEN = [
+  { stage: 2, laneId: 'wire-lb-backends', wireIds: ['wire-lb-webserver', 'wire-lb-webserver-2'] },
   {
     stage: 3,
     laneId: 'wire-servers-cache',
@@ -51,6 +51,11 @@ const LANES_BETWEEN = [
   },
   {
     stage: 4,
+    laneId: 'wire-servers-cache',
+    wireIds: ['wire-webserver-cache', 'wire-webserver-2-cache'],
+  },
+  {
+    stage: 5,
     laneId: 'wire-servers-cache',
     wireIds: ['wire-webserver-cache', 'wire-webserver-2-cache'],
   },

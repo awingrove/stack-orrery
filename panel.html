@@ -33,7 +33,9 @@
           <button data-testid="stage-pill-4" data-stage="4" class="stage-pill" type="button">
             4 · DB + Replication
           </button>
-          <span class="stage-pill">5 · Worker Queue</span>
+          <button data-testid="stage-pill-5" data-stage="5" class="stage-pill" type="button">
+            5 · Worker Queue
+          </button>
           <span class="stage-pill">6 · Multi-Net / CDN</span>
         </div>
       </nav>
@@ -360,6 +362,62 @@ Send a request or step a hop to render a response.</pre>
               aria-label="Row versions"
             ></ul>
           </article>
+
+          <div id="wire-cache-queue" class="wire-column" aria-hidden="true" hidden>
+            <div id="packet-req-queue" class="wire-lane">enqueue =&gt;</div>
+            <div id="packet-res-queue" class="wire-lane reverse">&lt;- result</div>
+          </div>
+
+          <article
+            class="node-card"
+            id="node-queue"
+            data-testid="node-queue"
+            data-component="workerqueue"
+            hidden
+          >
+            <header class="node-head">
+              <div class="node-name">
+                <span class="role-name">Worker Queue</span>
+                <span class="node-subtitle">async background jobs</span>
+              </div>
+              <span class="ip-chip">10.40</span>
+              <span class="code-chip">&lt;/&gt; Code</span>
+            </header>
+            <p id="queue-stats" data-testid="queue-stats" class="mono last-frame">
+              Enqueued: 0 · Completed: 0 · Active: none
+            </p>
+            <ul
+              id="queue-jobs-list"
+              data-testid="queue-jobs-list"
+              class="route-list"
+              aria-label="Pending jobs"
+            ></ul>
+          </article>
+
+          <div id="wire-queue-worker" class="wire-column" aria-hidden="true" hidden>
+            <div id="packet-req-worker" class="wire-lane">process =&gt;</div>
+            <div id="packet-res-worker" class="wire-lane reverse">&lt;- commit</div>
+          </div>
+
+          <article
+            class="node-card"
+            id="node-worker"
+            data-testid="node-worker"
+            data-component="workerqueue"
+            hidden
+          >
+            <header class="node-head">
+              <div class="node-name">
+                <span class="role-name">Worker</span>
+                <span class="node-subtitle">background executor</span>
+              </div>
+              <span class="ip-chip">10.41</span>
+              <span class="code-chip">&lt;/&gt; Code</span>
+            </header>
+            <p id="worker-stats" data-testid="worker-stats" class="mono last-frame">
+              Worker 10.41 Idle
+            </p>
+          </article>
         </section>
       </div>
       <dl class="stats" aria-label="Live state">
@@ -396,6 +454,7 @@ Send a request or step a hop to render a response.</pre>
               <button class="comp-tab" type="button" data-select="webserver">webserver</button>
               <button class="comp-tab" type="button" data-select="cache">cache</button>
               <button class="comp-tab" type="button" data-select="database">database</button>
+              <button class="comp-tab" type="button" data-select="workerqueue">workerqueue</button>
             </div>
           </header>
           <div class="inspector-split">

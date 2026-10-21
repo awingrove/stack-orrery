@@ -43,6 +43,7 @@ slices:
       - unit: test/sim/cache.test.js::stage 3 engine shares cache-aside entries across 10.11 and 10.12
       - unit: test/sim/database.test.js::replicates primary writes to the read replica after replicationLagTicks and tracks stale reads
       - unit: test/sim/database.test.js::stage 4 engine writes to Primary 10.30, invalidates Cache 10.20, serves stale replica reads during lag, and catches up
+      - unit: test/sim/queue.test.js::worker queue sim component
     entry_point: n/a (engine logic; rendered by PANEL-1)
 
   - id: PANEL

@@ -4,7 +4,7 @@
 export const TICK_MS = 100;
 const QUEUE_BAR_SATURATION = 20; // bar reads full at 20 queued requests
 // Total hops per stage's trace shape (trace.js and engine.traceHop agree).
-const TOTAL_HOPS = { 1: 4, 2: 5, 3: 6, 4: 7 };
+const TOTAL_HOPS = { 1: 4, 2: 5, 3: 6, 4: 7, 5: 8 };
 
 const HOP_START_SENTENCE = 'Idle — type a path and click Go or Step 1 Hop ->';
 
@@ -19,6 +19,18 @@ function fillPercent(depth) {
 function hopSentences(stage, snapshot, from, serverAddress) {
   const t = snapshot.trace ?? {};
   const target = t.targetServer ?? '10.11';
+  if (stage === 5) {
+    return [
+      `Hop 1/8: Browser (${from}) emits "${t.request}"`,
+      `Hop 2/8: Network (10.x) routes to LoadBalancer (${serverAddress})`,
+      `Hop 3/8: LoadBalancer (${serverAddress}) -> ${target} queue`,
+      `Hop 4/8: WebServer (${target}) enqueues job to WorkerQueue (10.40)`,
+      `Hop 5/8: WebServer (${target}) -> "202 Accepted"`,
+      `Hop 6/8: Network delivers 202 response to ${from}`,
+      `Hop 7/8: Browser (${from}) received and displayed 202 Accepted`,
+      `Hop 8/8: Worker (10.41) processed job and committed to Database (10.30)`,
+    ];
+  }
   if (stage === 4) {
     const db = snapshot.database ?? null;
     const primary = db?.primaryAddress ?? '10.30';

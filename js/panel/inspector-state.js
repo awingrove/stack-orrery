@@ -28,7 +28,7 @@ const STATE_BUILDERS = {
     // CHECKS: mini-IP keys are quoted strings — a bare `10.20:` literal
     // collapses to the number 10.2 and collides with the browser's mini-IP.
     interfaces:
-      snapshot.stage === 4
+      snapshot.stage === 5
         ? {
             10.1: 'LoadBalancer',
             10.11: 'WebServer-1',
@@ -37,30 +37,43 @@ const STATE_BUILDERS = {
             '10.20': 'Cache',
             '10.30': 'Database (Primary)',
             10.31: 'Database (Replica)',
+            '10.40': 'WorkerQueue',
+            10.41: 'Worker',
             Crowd: `${snapshot.users} simulated browsers`,
           }
-        : snapshot.stage === 3
+        : snapshot.stage === 4
           ? {
               10.1: 'LoadBalancer',
               10.11: 'WebServer-1',
               10.12: 'WebServer-2',
               10.2: 'Browser (You)',
               '10.20': 'Cache',
+              '10.30': 'Database (Primary)',
+              10.31: 'Database (Replica)',
               Crowd: `${snapshot.users} simulated browsers`,
             }
-          : snapshot.stage === 2
+          : snapshot.stage === 3
             ? {
                 10.1: 'LoadBalancer',
                 10.11: 'WebServer-1',
                 10.12: 'WebServer-2',
                 10.2: 'Browser (You)',
+                '10.20': 'Cache',
                 Crowd: `${snapshot.users} simulated browsers`,
               }
-            : {
-                10.1: 'WebServer',
-                10.2: 'Browser (You)',
-                Crowd: `${snapshot.users} simulated browsers`,
-              },
+            : snapshot.stage === 2
+              ? {
+                  10.1: 'LoadBalancer',
+                  10.11: 'WebServer-1',
+                  10.12: 'WebServer-2',
+                  10.2: 'Browser (You)',
+                  Crowd: `${snapshot.users} simulated browsers`,
+                }
+              : {
+                  10.1: 'WebServer',
+                  10.2: 'Browser (You)',
+                  Crowd: `${snapshot.users} simulated browsers`,
+                },
     lastFrame: snapshot.lastFrame ?? null,
   }),
   loadbalancer: (snapshot) => ({
@@ -114,5 +127,15 @@ const STATE_BUILDERS = {
     lastOp: snapshot.database?.lastOp ?? null,
     pendingReplication: snapshot.database?.pendingReplication ?? 0,
     rows: snapshot.database?.rows ?? [],
+  }),
+  workerqueue: (snapshot) => ({
+    address: snapshot.workerQueue?.address ?? '10.40',
+    workerAddress: snapshot.workerQueue?.workerAddress ?? '10.41',
+    jobDurationTicks: snapshot.workerQueue?.jobDurationTicks ?? 2,
+    enqueued: snapshot.workerQueue?.enqueued ?? 0,
+    completed: snapshot.workerQueue?.completed ?? 0,
+    activeJob: snapshot.workerQueue?.activeJob ?? null,
+    pendingJobs: snapshot.workerQueue?.pendingJobs ?? [],
+    lastJobResult: snapshot.workerQueue?.lastJobResult ?? null,
   }),
 };

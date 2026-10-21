@@ -1,56 +1,54 @@
-// DOCUMENTS: pure concentric-ring orrery geometry — node world coordinates,
-// wire segments with midpoints, client-orbit satellite positions, and stage
-// bounding boxes. Zero DOM: viewport.js consumes this to place cards, lanes,
-// and SVG shapes.
 export const DEFAULT_RING_GAP = 400;
+
+const STAGE_RINGS = {
+  1: [
+    ['ring-compute', 'RING 1 · WEBSERVER'],
+    ['ring-network', 'RING 2 · NETWORK'],
+    ['ring-clients', 'RING 3 · BROWSERS'],
+  ],
+  2: [
+    ['ring-compute', 'RING 1 · WEBSERVERS'],
+    ['ring-lb', 'RING 2 · LOADBALANCER'],
+    ['ring-network', 'RING 3 · NETWORK'],
+    ['ring-clients', 'RING 4 · BROWSERS'],
+  ],
+  3: [
+    ['ring-cache', 'RING 1 · CACHE'],
+    ['ring-compute', 'RING 2 · WEBSERVERS'],
+    ['ring-lb', 'RING 3 · LOADBALANCER'],
+    ['ring-network', 'RING 4 · NETWORK'],
+    ['ring-clients', 'RING 5 · BROWSERS'],
+  ],
+  4: [
+    ['ring-db', 'RING 1 · DATABASE'],
+    ['ring-cache', 'RING 2 · CACHE'],
+    ['ring-compute', 'RING 3 · WEBSERVERS'],
+    ['ring-lb', 'RING 4 · LOADBALANCER'],
+    ['ring-network', 'RING 5 · NETWORK'],
+    ['ring-clients', 'RING 6 · BROWSERS'],
+  ],
+  5: [
+    ['ring-db', 'RING 1 · DATABASE'],
+    ['ring-workers', 'RING 2 · WORKERS'],
+    ['ring-cache', 'RING 3 · CACHE'],
+    ['ring-compute', 'RING 4 · WEBSERVERS'],
+    ['ring-lb', 'RING 5 · LOADBALANCER'],
+    ['ring-network', 'RING 6 · NETWORK'],
+    ['ring-clients', 'RING 7 · BROWSERS'],
+  ],
+};
 
 export const ORRERY_RINGS = buildOrreryRings(DEFAULT_RING_GAP, 1);
 
-// CHECKS: buildOrreryRings validates the ring gap rather than producing NaN
-// radii (which would degenerate the whole orrery into a single point).
-// DOCUMENTS: every architectural layer of a stage gets its own concentric
-// ring at r_k = k * ringGap — Stage 1 has 3 layers (3 rings), Stage 2 has 4
-// (4 rings), Stage 3 has 5 (cache-aside adds the innermost Cache ring), and
-// Stage 4 has 6 (the Database primary/replica takes the innermost ring in
-// front of the Cache ring).
 export function buildOrreryRings(ringGap = DEFAULT_RING_GAP, stage = 1) {
   if (!Number.isFinite(ringGap) || ringGap <= 0) {
     throw new Error('layout: ringGap must be a finite number > 0');
   }
-  if (stage !== 1 && stage !== 2 && stage !== 3 && stage !== 4) {
-    throw new Error(`layout: unknown stage ${stage} (expected 1, 2, 3, or 4)`);
+  const ringSpecs = STAGE_RINGS[stage];
+  if (!ringSpecs) {
+    throw new Error(`layout: unknown stage ${stage} (expected 1-5)`);
   }
   const gap = Math.round(ringGap);
-  const ringSpecs =
-    stage === 4
-      ? [
-          ['ring-db', 'RING 1 · DATABASE'],
-          ['ring-cache', 'RING 2 · CACHE'],
-          ['ring-compute', 'RING 3 · WEBSERVERS'],
-          ['ring-lb', 'RING 4 · LOADBALANCER'],
-          ['ring-network', 'RING 5 · NETWORK'],
-          ['ring-clients', 'RING 6 · BROWSERS'],
-        ]
-      : stage === 3
-        ? [
-            ['ring-cache', 'RING 1 · CACHE'],
-            ['ring-compute', 'RING 2 · WEBSERVERS'],
-            ['ring-lb', 'RING 3 · LOADBALANCER'],
-            ['ring-network', 'RING 4 · NETWORK'],
-            ['ring-clients', 'RING 5 · BROWSERS'],
-          ]
-        : stage === 2
-          ? [
-              ['ring-compute', 'RING 1 · WEBSERVERS'],
-              ['ring-lb', 'RING 2 · LOADBALANCER'],
-              ['ring-network', 'RING 3 · NETWORK'],
-              ['ring-clients', 'RING 4 · BROWSERS'],
-            ]
-          : [
-              ['ring-compute', 'RING 1 · WEBSERVER'],
-              ['ring-network', 'RING 2 · NETWORK'],
-              ['ring-clients', 'RING 3 · BROWSERS'],
-            ];
   return ringSpecs.map(([id, label], k) => ({ id, radius: (k + 1) * gap, label }));
 }
 
@@ -59,8 +57,6 @@ export function polarToWorld(radius, angleDeg) {
   return { x: Math.round(radius * Math.cos(rad)), y: Math.round(radius * Math.sin(rad)) };
 }
 
-// Satellites crowd the outer client ring on either side of the browser node's
-// 180° spot: arcs [135°, 172°] and [188°, 225°], evenly spaced per arc.
 function computeSatellites(users, outerRadius) {
   const count = Math.max(0, Math.round(users));
   const leftCount = Math.ceil(count / 2);
@@ -99,8 +95,8 @@ export function computeStageLayout(
   users = 5,
   { ringGap = DEFAULT_RING_GAP, activeBrowser = '10.2' } = {},
 ) {
-  if (stage !== 1 && stage !== 2 && stage !== 3 && stage !== 4) {
-    throw new Error(`layout: unknown stage ${stage} (expected 1, 2, 3, or 4)`);
+  if (stage < 1 || stage > 5) {
+    throw new Error(`layout: unknown stage ${stage} (expected 1-5)`);
   }
   const rings = buildOrreryRings(ringGap, stage);
   const gap = Math.round(ringGap);
@@ -246,9 +242,7 @@ export function computeStageLayout(
         ),
       );
     }
-    if (stage === 4) {
-      // Stage 4 adds the primary/replica Database on the innermost ring in
-      // front of the Cache, with one write/read wire from Cache to Database.
+    if (stage === 4 || stage === 5) {
       nodes['node-db'] = pos(
         'node-db',
         'ring-db',
@@ -259,20 +253,42 @@ export function computeStageLayout(
         makeWire('wire-cache-db', 'node-cache', 'node-db', nodes['node-cache'], nodes['node-db']),
       );
     }
+    if (stage === 5) {
+      const workersRing = rings.find((ring) => ring.id === 'ring-workers');
+      nodes['node-queue'] = pos('node-queue', 'ring-workers', workersRing.radius, 200);
+      nodes['node-worker'] = pos('node-worker', 'ring-workers', workersRing.radius, 160);
+      wires.push(
+        makeWire(
+          'wire-cache-queue',
+          'node-cache',
+          'node-queue',
+          nodes['node-cache'],
+          nodes['node-queue'],
+        ),
+        makeWire(
+          'wire-queue-worker',
+          'node-queue',
+          'node-worker',
+          nodes['node-queue'],
+          nodes['node-worker'],
+        ),
+        makeWire(
+          'wire-worker-db',
+          'node-worker',
+          'node-db',
+          nodes['node-worker'],
+          nodes['node-db'],
+        ),
+      );
+    }
   }
   return {
     stage,
     rings,
     nodes,
     wires,
-    // DOCUMENTS: the SVG anchor dots reuse the browserSlots coordinates 1:1 so
-    // each client-ring dot sits exactly under its browser node (not at
-    // users + 1 different angles from the old crowd arcs).
     satellites: browserSlots.map(({ index, x, y, angleDeg }) => ({ index, x, y, angleDeg })),
     browserSlots,
-    // DOCUMENTS: bounds frame all active nodes and the (0, 0) origin — the
-    // left edge clears the outermost ring's 180° seat, the verticals clear the
-    // outer ring's satellite arcs (±37° at the outer radius).
     bounds: {
       minX: -(outerRadius + 180),
       maxX: 120,

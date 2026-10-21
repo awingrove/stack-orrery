@@ -53,5 +53,5 @@ Execute mechanically from Step 2 and keep `npm run verify` green at every commit
 ## Execution steps
 
 - [x] Step 1 (Lead session): human design sign-off committed in `DESIGN.md` and `docs/plans/2026-10-21-stage5-worker-queue.md`.
-- [ ] Step 2 (Executor sub-agent): cold implementation from brief contracts, unit & e2e tests, manifest updates, and green `npm run verify`.
+- [x] Step 2 (Executor sub-agent): cold implementation from brief contracts, unit & e2e tests, manifest updates, and green `npm run verify`.
 - [ ] Step 3 (Lead session): run `npm run metrics:extract -- <subagentSessionID>`, append entry to `docs/factory/slice-metrics.yaml`, tick Step 3, and commit.
