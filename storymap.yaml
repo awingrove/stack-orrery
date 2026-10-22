@@ -185,4 +185,5 @@ activities:
             status: done
             priority: high
             tests:
-              - unit: test/panel/model.test.js::snapshot exposes queue depth and latency as UI state
+              - unit: test/panel/model-stage5.test.js::describes Stage 5 8-hop async queue trace labels and workerqueue inspector state
+              - e2e: panel::should switch to Stage 5, process an async POST /jobs job through worker 10.41, and inspect queue state

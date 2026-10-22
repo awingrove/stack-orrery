@@ -215,7 +215,7 @@ export function computeStageLayout(
         nodes['node-webserver-2'],
       ),
     ];
-    if (stage === 3 || stage === 4) {
+    if (stage >= 3) {
       // Cache-aside: the shared Cache sits behind both backends, each with
       // its own lookup wire down the ring stack (Ring 1 in Stage 3, Ring 2
       // in Stage 4).

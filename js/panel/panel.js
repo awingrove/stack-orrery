@@ -19,7 +19,7 @@ let currentSnapshot = null;
 // every other browser renders as a compact clickable node in its slot.
 let activeBrowserAddress = '10.2';
 // Total hops per stage; trace.js's machine and model.js's labels agree.
-const TOTAL_HOPS = { 1: 4, 2: 5, 3: 6, 4: 7 };
+const TOTAL_HOPS = { 1: 4, 2: 5, 3: 6, 4: 7, 5: 8 };
 
 const totalHopsFor = (stage) => TOTAL_HOPS[stage] ?? TOTAL_HOPS[1];
 

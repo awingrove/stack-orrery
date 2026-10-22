@@ -310,3 +310,71 @@ test('should expand Ring 3 browsers by clicking their compact nodes and return t
   await expect(page.getByTestId('browser-ip-chip')).toHaveText('10.2');
   await expect(page.getByTestId('browser-role-name')).toHaveText('Browser (You)');
 });
+
+// Stage 5 adds the Worker Queue (10.40) and Worker (10.41) on Ring 2 behind
+// the database stack: the orrery redraws to 7 rings, POST /jobs answers an
+// immediate 202 over an 8-hop async trace, and the FIFO job lands in the
+// database once the worker finishes it (jobDurationTicks).
+test('should switch to Stage 5, process an async POST /jobs job through worker 10.41, and inspect queue state', async ({
+  page,
+}) => {
+  await page.goto('/panel.html');
+
+  await page.getByTestId('stage-pill-5').click();
+  await expect(page.getByTestId('node-queue')).toBeVisible();
+  await expect(page.getByTestId('node-worker')).toBeVisible();
+  await expect(page.getByTestId('node-db')).toBeVisible();
+  await expect(page.getByTestId('node-cache')).toBeVisible();
+  await expect(page.locator('.orrery-ring')).toHaveCount(7);
+  await expect(page.locator('.orrery-ring').first()).toHaveAttribute('r', '400');
+  await expect(page.locator('.orrery-ring').last()).toHaveAttribute('r', '2800');
+  await expect(page.getByTestId('queue-stats')).toHaveText(
+    'Enqueued: 0 · Completed: 0 · Active: none',
+  );
+  await expect(page.getByTestId('worker-stats')).toHaveText('Worker 10.41 Idle');
+
+  // Hops 1-4/8: POST /jobs routes through the LB and enqueues job #1 at the
+  // WorkerQueue; the queue card counts it and lists the pending FIFO read.
+  await page.getByTestId('req-method').selectOption('POST');
+  await page.getByTestId('url-input').fill('/jobs');
+  for (let hop = 0; hop < 4; hop++) await page.getByTestId('btn-next-hop').click();
+  await expect(page.getByTestId('hop-status')).toContainText(
+    'Hop 4/8: WebServer (10.11) enqueues job to WorkerQueue (10.40)',
+  );
+  await expect(page.getByTestId('queue-stats')).toHaveText(
+    'Enqueued: 1 · Completed: 0 · Active: none',
+  );
+  await expect(page.getByTestId('queue-jobs-list')).toContainText('#1 · /jobs · queued @ tick 1');
+
+  // Hops 5-7/8: the immediate 202 Accepted reaches the browser while the
+  // worker is still running — the async point of the whole stage.
+  for (let hop = 0; hop < 3; hop++) await page.getByTestId('btn-next-hop').click();
+  await expect(page.getByTestId('hop-status')).toContainText('Hop 7/8');
+  await expect(page.getByTestId('browser-status-badge')).toContainText('202');
+  await expect(page.getByTestId('browser-rendered-body')).toHaveText(
+    '{"jobId": 1, "status": "queued"}',
+  );
+
+  // Hop 8/8: the worker finishes the job and commits to Primary 10.30.
+  await page.getByTestId('btn-next-hop').click();
+  await expect(page.getByTestId('hop-status')).toContainText(
+    'Hop 8/8: Worker (10.41) processed job and committed to Database (10.30)',
+  );
+
+  // Ticks run the worker FIFO: the job completes across jobDurationTicks and
+  // writes its result into the database.
+  await page.getByTestId('start-button').click();
+  await expect(page.getByTestId('queue-stats')).toHaveText(
+    'Enqueued: 1 · Completed: 1 · Active: none',
+  );
+  await expect(page.getByTestId('worker-stats')).toHaveText('Worker 10.41 Idle');
+  await expect(page.getByTestId('db-stats')).toContainText('Writes: 1');
+  await expect(page.getByTestId('db-rows-list')).toContainText('/jobs · P v1');
+  await page.getByTestId('start-button').click(); // pause, determinism done
+
+  // The workerqueue inspector mirrors the counters and the completed job.
+  await page.getByTestId('node-queue').click();
+  await expect(page.getByTestId('inspector-code')).toContainText('createWorkerQueue');
+  await expect(page.getByTestId('inspector-state')).toContainText('"completed": 1');
+  await expect(page.getByTestId('inspector-state')).toContainText('"enqueued": 1');
+});

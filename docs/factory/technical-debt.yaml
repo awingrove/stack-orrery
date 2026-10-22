@@ -67,3 +67,38 @@ defects:
       lead-to-subagent cold execution on opencode-go/glm-5.3-flash and
       human-intervention defect logging; factory-kit#2 adds project model
       selection and intervention capture to the kit contract.
+  - id: DL-3
+    title: >-
+      Stage 5 shipped without its brief-mandated Stage 5 e2e and hop-label tests, so the
+      panel's ring topology never updated when switching to the Worker Queue stage
+    found: 2026-10-21
+    injection_stage: >-
+      Step 2 executor cold-implementation of docs/plans/2026-10-21-stage5-worker-queue.md
+      (commit b12ba6b)
+    detection_stage: >-
+      Human interactive exploratory check on panel.html — the executor's own
+      verify run was green
+    what: >-
+      computeStageLayout(5) threw at makeWire: the cache-aside node block
+      guarded `stage === 3 || stage === 4` while the Stage 5 block wired
+      cache -> queue -> worker -> db, so stage-pill-5's switchStage() died
+      before renderStageTopology/viewport.syncLayout() and the orrery kept
+      the previous stage's ring count. queue-stats, worker-stats, db-stats,
+      and db-rows-list also stayed at their HTML defaults, and panel.js's
+      TOTAL_HOPS lacked the 5: 8 key.
+    systemic_gap: >-
+      The brief's section-4 contract (model.test.js 8-hop labels, e2e switch
+      to Stage 5) was never written, yet Step 2 closed green — and the
+      storymap marked PANEL-5 done with a test reference to a stale
+      Stage-1-era label test that never checked Stage 5. Story refs were
+      resolvable without pinning the story's own behavior, and nothing
+      checked brief-contract test existence at Step-3 review; a suite with
+      no Stage 5 pinning could not detect the escape.
+    closed_in: >-
+      The Stage 5 ring-regression fix in this change: layout.js cache node
+      creation opens to stage >= 3, panel.js TOTAL_HOPS gains 5: 8,
+      render.js writes queue/worker stats and the stage >= 3 / stage >= 4
+      cache/db cards from live snapshots, model.test.js gains Stage 5
+      labels (extracted to test/panel/model-stage5.test.js for
+      guard-file-size), and e2e/panel.spec.js pins the Stage 5 switch
+      (7 rings, 202 Accepted, worker commit, inspector state).

@@ -123,6 +123,19 @@ export function describeSnapshot(snapshot) {
     cacheEntries: snapshot.cache?.entries ?? [],
     dbStatsLabel: `Reads: ${snapshot.database?.reads ?? 0} · Writes: ${snapshot.database?.writes ?? 0} · Lag: ${snapshot.database?.replicationLagTicks ?? 3}t`,
     dbRows: snapshot.database?.rows ?? [],
+    queueStatsLabel: snapshot.workerQueue
+      ? `Enqueued: ${snapshot.workerQueue.enqueued} · Completed: ${snapshot.workerQueue.completed} · Active: ${
+          snapshot.workerQueue.activeJob
+            ? `#${snapshot.workerQueue.activeJob.jobId} ${snapshot.workerQueue.activeJob.path}`
+            : 'none'
+        }`
+      : 'Enqueued: 0 · Completed: 0 · Active: none',
+    workerStatsLabel: snapshot.workerQueue
+      ? snapshot.workerQueue.activeJob
+        ? `Worker ${snapshot.workerQueue.workerAddress} processing #${snapshot.workerQueue.activeJob.jobId} (${snapshot.workerQueue.activeJob.path})`
+        : `Worker ${snapshot.workerQueue.workerAddress} Idle`
+      : 'Worker 10.41 Idle',
+    queueJobs: snapshot.workerQueue?.pendingJobs ?? [],
     exchangeSummary: last
       ? `${last.from} -> ${last.to} ${last.request} => ${last.response}`
       : 'No requests served yet',

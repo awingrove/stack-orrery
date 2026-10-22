@@ -76,6 +76,7 @@ slices:
       - unit: test/panel/camera.test.js::maps every simulated browser to an addressable Ring 3 slot around the expanded one
       - unit: test/panel/model.test.js::describes Stage 3 6-hop cache-aside trace labels and cache inspector state
       - unit: test/panel/model.test.js::describes Stage 4 7-hop database trace labels and database inspector state
+      - unit: test/panel/model-stage5.test.js::describes Stage 5 8-hop async queue trace labels and workerqueue inspector state
       - e2e: panel::should show queue depth climbing as simulated users increase
       - e2e: panel::should step a single tick and display the slim HTTP exchange over mini-IP 10.1
       - e2e: panel::should trace a custom URL hop-by-hop into the browser viewport and inspect component code

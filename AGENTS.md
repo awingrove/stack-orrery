@@ -78,7 +78,10 @@ Fragments fine. Technical terms stay exact; code blocks unchanged.
        `npm run metrics:extract -- <subagentSessionID>`, append the entry
        (including true in-session `guardrail_failures`) to
        `docs/factory/slice-metrics.yaml`, tick `- [x] Step 3` in the brief,
-       and commit with `npm run verify` green.
+       and commit with `npm run verify` green. The lead review also checks
+       brief-contract tests exist (brief §Tests) and that storymap/slices
+       test refs pin the story's own behavior — a story marked done whose
+       refs name stale or unrelated tests is a defect (DL-3).
 3. **Debug hygiene:** temporary probes are tracked as todos and removed
    before commit — never ride along in a feature diff.
 4. **Post-mortem, human-intervention & metrics capture:** a fix — or an
