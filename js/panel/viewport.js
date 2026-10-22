@@ -46,12 +46,12 @@ const LANE_WIRES = {
   },
 };
 // Lanes anchored between parallel wires: the two LB wires share the one
-// lb-backends lane, the two backend cache-lookup wires share servers-cache
-// across stages 3-5.
+// lb-backends lane across stages 2-5, and the two backend cache-lookup
+// wires share servers-cache across stages 3-5.
 const LANES_BETWEEN = [
   {
     laneId: 'wire-lb-backends',
-    stages: [2],
+    stages: [2, 3, 4, 5],
     wireIds: ['wire-lb-webserver', 'wire-lb-webserver-2'],
   },
   {

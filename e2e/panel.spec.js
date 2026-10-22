@@ -342,6 +342,11 @@ test('should switch to Stage 5, process an async POST /jobs job through worker 1
   );
   expect(Number.isFinite(dbLane.x) && Number.isFinite(queueLane.x)).toBe(true);
   expect(Math.hypot(dbLane.x - workerLane.x, dbLane.y - workerLane.y)).toBeGreaterThanOrEqual(90);
+  // The lb-backends lane must sit between the two LB wires on every stage
+  // >= 2 (gap 400: the two lb->backend wire midpoints average to
+  // (-1752, 1)) — straight-to-Stage-5 loads and stage round-trips alike
+  // used to leave it unpositioned or stuck at its Stage-2 spot.
+  expect(await lanePos('wire-lb-backends')).toEqual({ x: -1752, y: 1 });
   await expect(page.getByTestId('queue-stats')).toHaveText(
     'Enqueued: 0 · Completed: 0 · Active: none',
   );
@@ -391,4 +396,10 @@ test('should switch to Stage 5, process an async POST /jobs job through worker 1
   await expect(page.getByTestId('inspector-code')).toContainText('createWorkerQueue');
   await expect(page.getByTestId('inspector-state')).toContainText('"completed": 1');
   await expect(page.getByTestId('inspector-state')).toContainText('"enqueued": 1');
+
+  // Stage round-trips must leave every lane anchored too (5 -> 2 -> 5 used
+  // to strand the lb-backends lane at its Stage-2 spot).
+  await page.getByTestId('stage-pill-2').click();
+  await page.getByTestId('stage-pill-5').click();
+  expect(await lanePos('wire-lb-backends')).toEqual({ x: -1752, y: 1 });
 });
