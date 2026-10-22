@@ -187,19 +187,37 @@ entries:
     agent: cheap
     lead_model: Gemini 3.8 Flash (Medium)
     agent_model: flash_lite
-    session_id: 433cff5a-d8b4-4ef7-ac14-558974b8fe6e
+    session_id: >-
+      433cff5a-d8b4-4ef7-ac14-558974b8fe6e (executor build, Antigravity),
+      lead fix tour across interrupted Antigravity + opencode sessions
+      (telemetry extraction unavailable)
     tokens_input: 0
     tokens_output: 0
     tokens_reasoning: 0
     tokens_cache_read: 0
     cost_usd: 0
-    human_interventions: 0
+    human_interventions: 4
     agent_review_rounds: 0
-    guardrail_failures: 0
-    fix_commits: 0
-    defects_escaped: 0
+    guardrail_failures: 5
+    fix_commits: 4
+    defects_escaped: 2
     notes: >-
-      Executed cold from the Stage 5 brief by Antigravity sub-agent on flash_lite
-      (433cff5a-d8b4-4ef7-ac14-558974b8fe6e) in commit b12ba6b; implemented
-      WorkerQueue (10.40), Worker (10.41), async HTTP 202 route, 7-ring orrery layout,
-      8-hop trace, unit & e2e tests with 0 red gate runs before green.
+      Executed cold from the Stage 5 brief by an Antigravity sub-agent on
+      flash_lite (433cff5a-d8b4-4ef7-ac14-558974b8fe6e) in commit b12ba6b;
+      implemented WorkerQueue (10.40), Worker (10.41), async HTTP 202 route,
+      7-ring orrery layout, 8-hop trace, unit & e2e tests with 0 red gate
+      runs before green. AMENDED 2026-10-22 to reflect the post-merge fix
+      tour: 4 human defect reports (switch crash, centre chip stacking,
+      stale forward lane, GET narrated as async 202), 5 in-session red
+      verify runs (2 e2e hop-count/backend mismatches, 1 served-record
+      asyncPropagation gap, 1 backend round-robin pin, 1 guard-claims), and
+      4 fix commits (6b9eaea, 6856c52, a57522d, 63aa7f6) closing 2 escaped
+      defects (DL-3, DL-4). Process deviations in the original build,
+      recorded under those defect ids: the brief specified the trace
+      narrative as a fixed hop table rather than a branch on the served
+      record, only the POST /jobs path had pins, Step 3 lacked a
+      brief-contract test review and acceptance probe, and the executor
+      model flash_lite did not match the .opencode/agents/executor.md pin
+      (opencode-go/glm-5.3-flash). The original entry's zeros understated
+      the slice's true rework; metric corrections applied here rather than
+      as a separate slice.
