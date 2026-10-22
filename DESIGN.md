@@ -189,6 +189,17 @@ Every stage diagram panel (`panel.html`) is organized into four vertical zones:
 
 ## Components
 
+### Wire Lanes (`.wire-column`)
+
+- Each wire carries one wire column labeling its two directions (`request =>`,
+  `<- response`, `write =>`, `enqueue =>`, …), positioned in world coordinates
+  on the wire by `viewport.js` (`LANE_WIRES`): default on the wire's midpoint;
+  parallel wires share a centered lane (`wire-lb-backends`, `wire-servers-cache`).
+- One pinned exception (Stage 5): the `wire-cache-db` lane anchors at `t = 0.3`
+  down the cache→db radial instead of the midpoint, because the queue→worker
+  chord crosses that radial at its own midpoint and both chips would collide
+  (DL-3 follow-up; human design sign-off 2026-10-22).
+
 ### Component Nodes (`.node-card`)
 
 - Every component on the canvas carries a header with its role name, a subtitle,

@@ -328,6 +328,20 @@ test('should switch to Stage 5, process an async POST /jobs job through worker 1
   await expect(page.locator('.orrery-ring')).toHaveCount(7);
   await expect(page.locator('.orrery-ring').first()).toHaveAttribute('r', '400');
   await expect(page.locator('.orrery-ring').last()).toHaveAttribute('r', '2800');
+  // Wire lanes: every projected wire carries its lane chips anchored on the
+  // wire in world space, and the two lanes near the centre crossing sit on
+  // distinct anchors — the cache→db lane at t=0.3 vs the queue→worker lane
+  // at its own midpoint (both were colliding at the crossing before DL-3).
+  const lanePos = (id) =>
+    page.locator(`#${id}`).evaluate((el) => ({
+      x: Number.parseFloat(el.style.left),
+      y: Number.parseFloat(el.style.top),
+    }));
+  const [dbLane, queueLane, workerLane] = await Promise.all(
+    ['wire-cache-db', 'wire-cache-queue', 'wire-queue-worker'].map(lanePos),
+  );
+  expect(Number.isFinite(dbLane.x) && Number.isFinite(queueLane.x)).toBe(true);
+  expect(Math.hypot(dbLane.x - workerLane.x, dbLane.y - workerLane.y)).toBeGreaterThanOrEqual(90);
   await expect(page.getByTestId('queue-stats')).toHaveText(
     'Enqueued: 0 · Completed: 0 · Active: none',
   );
