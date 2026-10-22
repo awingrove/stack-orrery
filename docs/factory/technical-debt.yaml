@@ -102,3 +102,33 @@ defects:
       labels (extracted to test/panel/model-stage5.test.js for
       guard-file-size), and e2e/panel.spec.js pins the Stage 5 switch
       (7 rings, 202 Accepted, worker commit, inspector state).
+  - id: DL-4
+    title: >-
+      The Stage 5 trace machine hardcoded the async-job narrative for every request, so GET traces
+      rendered 202 Accepted and enqueued-job frames although the queue saw nothing
+    found: 2026-10-22
+    injection_stage: >-
+      Step 2 executor cold-implementation of docs/plans/2026-10-21-stage5-worker-queue.md
+      (commit b12ba6b)
+    detection_stage: >-
+      Human screenshot review of panel.html at Hop 5/8 — control strip read
+      "202 Accepted" while the journey log read "GET /about => 200"
+    what: >-
+      trace.js Stage 5 hops emitted the enqueue/202/worker-commit frames
+      regardless of the request, and model.js's hop sentences hardcoded
+      "202 Accepted"; a GET /about was narrated as an enqueued async job that
+      the WorkerQueue had not received, contradicting the actual served
+      200 response recorded on the sim itself.
+    systemic_gap: >-
+      The trace narrative was authored independently of the served record:
+      only the POST /jobs path had pinning tests, and no pin checked that UI
+      hop text and sim frames describe the same exchange — a violation of
+      the executable conceptual model that showed up in every Stage 5 trace
+      except the single method the brief pinned.
+    closed_in: >-
+      The Stage 5 trace-truth fix in this change: trace.js branches the
+      Stage 5 hops on the actual served record (async enqueue / Stage 4
+      cache/db narrative / idle worker tail), model.js sentences read the
+      trace fields they describe, render-stage.js hop highlighting follows
+      the same branch, and unit + e2e pins cover both the async POST /jobs
+      and a plain GET with the worker idle.

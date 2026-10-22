@@ -248,6 +248,7 @@ export function createWebServer({
           record.dbTarget = matched.dbTarget ?? null;
           record.dbStale = Boolean(matched.dbStale);
         }
+        record.asyncJob = Boolean(matched.asyncJob);
         responses.push(record);
       }
       pushLatency(responses);

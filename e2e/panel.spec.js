@@ -347,6 +347,13 @@ test('should switch to Stage 5, process an async POST /jobs job through worker 1
   // (-1752, 1)) — straight-to-Stage-5 loads and stage round-trips alike
   // used to leave it unpositioned or stuck at its Stage-2 spot.
   expect(await lanePos('wire-lb-backends')).toEqual({ x: -1752, y: 1 });
+  // The servers-cache lane is capped 175px left of the Cache card centre so
+  // the 15.5rem card does not clip the chip's right half.
+  const [cacheLaneX, cacheCardX] = await Promise.all([
+    page.locator('#wire-servers-cache').evaluate((el) => Number.parseFloat(el.style.left)),
+    page.getByTestId('node-cache').evaluate((el) => Number.parseFloat(el.style.left)),
+  ]);
+  expect(cacheLaneX).toBeLessThanOrEqual(cacheCardX - 164);
   await expect(page.getByTestId('queue-stats')).toHaveText(
     'Enqueued: 0 · Completed: 0 · Active: none',
   );
@@ -379,6 +386,25 @@ test('should switch to Stage 5, process an async POST /jobs job through worker 1
   await expect(page.getByTestId('hop-status')).toContainText(
     'Hop 8/8: Worker (10.41) processed job and committed to Database (10.30)',
   );
+
+  // A plain GET keeps the Stage 4 cache/db narrative — no phantom async job,
+  // no fake 202, and the tail hop reads the worker idle (DL-4).
+  await page.getByTestId('req-method').selectOption('GET');
+  await page.getByTestId('url-input').fill('/about');
+  for (let hop = 0; hop < 4; hop++) await page.getByTestId('btn-next-hop').click();
+  await expect(page.getByTestId('hop-status')).toContainText('Hop 4/8: Database SELECT');
+  await expect(page.getByTestId('hop-status')).toContainText('— fresh');
+  for (let hop = 0; hop < 1; hop++) await page.getByTestId('btn-next-hop').click();
+  // The LB round-robins backends, so the pin does not hardcode 10.11 vs 10.12.
+  await expect(page.getByTestId('hop-status')).toContainText('Hop 5/8: WebServer (10.1');
+  await expect(page.getByTestId('hop-status')).toContainText(
+    '-> "200 This is the about page" (cache ',
+  );
+  for (let hop = 0; hop < 3; hop++) await page.getByTestId('btn-next-hop').click();
+  await expect(page.getByTestId('hop-status')).toContainText(
+    'Hop 8/8: Worker (10.41) idle — no async jobs in this trace',
+  );
+  await expect(page.getByTestId('browser-rendered-body')).toHaveText('This is the about page');
 
   // Ticks run the worker FIFO: the job completes across jobDurationTicks and
   // writes its result into the database.

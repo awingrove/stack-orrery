@@ -40,7 +40,10 @@ Fragments fine. Technical terms stay exact; code blocks unchanged.
   responsibility, exchanging recognisable messages through the tick loop.
   Never fake a component's mechanism with probabilities (e.g. a cache hit
   must be an actual `Map` lookup on the request path with tick-based TTL,
-  never `rng() < hitRate`).
+  never `rng() < hitRate`). Trace and UI narratives are part of that
+  contract: hop text and frames must consume the components' actual
+  messages (the served record, queue state), not a hardcoded story
+  (DL-1, DL-3, DL-4).
 - **Slimmed-down protocols.** Every token on the wire must earn its
   teaching place. HTTP requests are `"GET /path"` (no `HTTP/1.1` or `\r\n`
   header boilerplate unless a stage specifically teaches headers);

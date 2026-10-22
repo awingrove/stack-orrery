@@ -74,6 +74,7 @@ describe('describeSnapshot', () => {
         path: '/jobs',
         request: 'POST /jobs',
         targetServer: '10.11',
+        asyncJob: true,
         cacheStatus: 'ASYNC',
         dbOp: null,
         dbStale: false,
@@ -130,5 +131,67 @@ describe('describeSnapshot', () => {
     const networkState = JSON.parse(formatComponentState(snap, 'network'));
     expect(networkState.interfaces['10.40']).toBe('WorkerQueue');
     expect(networkState.interfaces['10.41']).toBe('Worker');
+  });
+
+  it('describes a Stage 5 sync GET trace with the Stage 4 cache/db story and an idle worker', () => {
+    const snap = {
+      stage: 5,
+      tick: 1,
+      users: 5,
+      serverAddress: '10.1',
+      queueDepth: 0,
+      served: 1,
+      avgLatencyTicks: 1,
+      workerQueue: {
+        address: '10.40',
+        workerAddress: '10.41',
+        jobDurationTicks: 2,
+        enqueued: 0,
+        completed: 0,
+        activeJob: null,
+        pendingJobs: [],
+        lastJobResult: null,
+      },
+      trace: {
+        hop: 4,
+        method: 'GET',
+        path: '/about',
+        request: 'GET /about',
+        targetServer: '10.11',
+        asyncJob: false,
+        cacheStatus: 'MISS',
+        dbOp: 'SELECT',
+        dbStale: true,
+        response: '200 This is the about page',
+        status: 200,
+        body: 'This is the about page',
+        routeId: 'about',
+      },
+    };
+    const labels = describeSnapshot(snap);
+    expect(labels.hopStatus).toBe('Hop 4/8: Database SELECT @ Replica (10.31) — STALE (lag 3t)');
+
+    const hopLabels = (hop, over = {}) =>
+      describeSnapshot({ ...snap, trace: { ...snap.trace, hop, ...over } }).hopStatus;
+    expect(hopLabels(5)).toBe(
+      'Hop 5/8: WebServer (10.11) -> "200 This is the about page" (cache MISS)',
+    );
+    expect(hopLabels(6)).toBe('Hop 6/8: Network delivers 200 response to 10.2');
+    expect(hopLabels(7)).toBe('Hop 7/8: Browser (10.2) received and displayed 200');
+    expect(hopLabels(8)).toBe('Hop 8/8: Worker (10.41) idle — no async jobs in this trace');
+
+    // The other Stage 4 database narratives carry over at their new hop.
+    expect(
+      describeSnapshot({ ...snap, trace: { ...snap.trace, dbOp: 'WRITE', dbStale: false } })
+        .hopStatus,
+    ).toBe('Hop 4/8: Database WRITE @ Primary (10.30) — replica lags 3t');
+    expect(
+      describeSnapshot({ ...snap, trace: { ...snap.trace, dbOp: 'SELECT', dbStale: false } })
+        .hopStatus,
+    ).toBe('Hop 4/8: Database SELECT @ Replica (10.31) — fresh');
+    expect(
+      describeSnapshot({ ...snap, trace: { ...snap.trace, dbOp: null, cacheStatus: 'HIT' } })
+        .hopStatus,
+    ).toBe('Hop 4/8: Database SKIP — warm cache HIT (10.20)');
   });
 });

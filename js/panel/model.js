@@ -20,15 +20,42 @@ function hopSentences(stage, snapshot, from, serverAddress) {
   const t = snapshot.trace ?? {};
   const target = t.targetServer ?? '10.11';
   if (stage === 5) {
+    const worker = snapshot.workerQueue?.workerAddress ?? '10.41';
+    if (t.asyncJob) {
+      return [
+        `Hop 1/8: Browser (${from}) emits "${t.request}"`,
+        `Hop 2/8: Network (10.x) routes to LoadBalancer (${serverAddress})`,
+        `Hop 3/8: LoadBalancer (${serverAddress}) -> ${target} queue`,
+        `Hop 4/8: WebServer (${target}) enqueues job to WorkerQueue (10.40)`,
+        `Hop 5/8: WebServer (${target}) -> "202 Accepted"`,
+        `Hop 6/8: Network delivers 202 response to ${from}`,
+        `Hop 7/8: Browser (${from}) received and displayed 202 Accepted`,
+        `Hop 8/8: Worker (${worker}) processed job and committed to Database (10.30)`,
+      ];
+    }
+    // Requests served synchronously keep the Stage 4 cache/database story;
+    // the worker does not see them, so the tail hop reads idle.
+    const db = snapshot.database ?? {};
+    const primary = db.primaryAddress ?? '10.30';
+    const replica = db.replicaAddress ?? '10.31';
+    const lag = db.replicationLagTicks ?? 3;
+    const dbOp =
+      t.dbOp === 'WRITE'
+        ? `Database WRITE @ Primary (${primary}) — replica lags ${lag}t`
+        : t.dbOp === 'SELECT' && t.dbStale
+          ? `Database SELECT @ Replica (${replica}) — STALE (lag ${lag}t)`
+          : t.dbOp === 'SELECT'
+            ? `Database SELECT @ Replica (${replica}) — fresh`
+            : `Database SKIP — warm cache HIT (${snapshot.cache?.address ?? '10.20'})`;
     return [
       `Hop 1/8: Browser (${from}) emits "${t.request}"`,
       `Hop 2/8: Network (10.x) routes to LoadBalancer (${serverAddress})`,
       `Hop 3/8: LoadBalancer (${serverAddress}) -> ${target} queue`,
-      `Hop 4/8: WebServer (${target}) enqueues job to WorkerQueue (10.40)`,
-      `Hop 5/8: WebServer (${target}) -> "202 Accepted"`,
-      `Hop 6/8: Network delivers 202 response to ${from}`,
-      `Hop 7/8: Browser (${from}) received and displayed 202 Accepted`,
-      `Hop 8/8: Worker (10.41) processed job and committed to Database (10.30)`,
+      `Hop 4/8: ${dbOp}`,
+      `Hop 5/8: WebServer (${target}) -> "${t.response}" (cache ${t.cacheStatus})`,
+      `Hop 6/8: Network delivers ${t.status} response to ${from}`,
+      `Hop 7/8: Browser (${from}) received and displayed ${t.status}`,
+      `Hop 8/8: Worker (${worker}) idle — no async jobs in this trace`,
     ];
   }
   if (stage === 4) {

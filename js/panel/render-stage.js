@@ -64,26 +64,54 @@ export function renderStageTopology(stage) {
 function activeHopTarget(snapshot) {
   const hop = snapshot.trace?.hop ?? 0;
   if (snapshot.stage === 5) {
-    const owners = {
-      1: 'node-browser',
-      2: 'node-network',
-      3: 'node-lb',
-      4: 'node-queue',
-      5: 'node-webserver',
-      6: 'node-network',
-      7: 'node-browser',
-      8: 'node-worker',
-    };
-    const lanes = {
-      1: 'packet-req-left',
-      2: 'packet-req-right',
-      3: 'packet-req-lb',
-      4: 'packet-req-queue',
-      5: 'packet-res-cache',
-      6: 'packet-res-right',
-      7: 'packet-res-left',
-      8: 'packet-res-db',
-    };
+    // Async POST /jobs walks browser -> lb -> enqueue -> 202 -> worker
+    // commit; every other request keeps the Stage 4 cache/db story and the
+    // worker reads idle on the tail hop.
+    const backendCard =
+      snapshot.trace?.targetServer === '10.12' ? 'node-webserver-2' : 'node-webserver';
+    const dbLane = snapshot.trace?.dbOp === 'WRITE' ? 'packet-req-db' : 'packet-res-db';
+    const owners = snapshot.trace?.asyncJob
+      ? {
+          1: 'node-browser',
+          2: 'node-network',
+          3: 'node-lb',
+          4: 'node-queue',
+          5: 'node-webserver',
+          6: 'node-network',
+          7: 'node-browser',
+          8: 'node-worker',
+        }
+      : {
+          1: 'node-browser',
+          2: 'node-network',
+          3: 'node-lb',
+          4: 'node-db',
+          5: backendCard,
+          6: 'node-network',
+          7: 'node-browser',
+          8: 'node-worker',
+        };
+    const lanes = snapshot.trace?.asyncJob
+      ? {
+          1: 'packet-req-left',
+          2: 'packet-req-right',
+          3: 'packet-req-lb',
+          4: 'packet-req-queue',
+          5: 'packet-res-cache',
+          6: 'packet-res-right',
+          7: 'packet-res-left',
+          8: 'packet-res-db',
+        }
+      : {
+          1: 'packet-req-left',
+          2: 'packet-req-right',
+          3: 'packet-req-lb',
+          4: dbLane,
+          5: 'packet-res-cache',
+          6: 'packet-res-right',
+          7: 'packet-res-left',
+          8: 'packet-res-worker',
+        };
     return { cardId: owners[hop] ?? 'node-browser', laneId: lanes[hop] ?? 'packet-req-left' };
   }
   if (snapshot.stage === 4) {
