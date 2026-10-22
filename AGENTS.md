@@ -40,7 +40,10 @@ Fragments fine. Technical terms stay exact; code blocks unchanged.
   responsibility, exchanging recognisable messages through the tick loop.
   Never fake a component's mechanism with probabilities (e.g. a cache hit
   must be an actual `Map` lookup on the request path with tick-based TTL,
-  never `rng() < hitRate`).
+  never `rng() < hitRate`). Trace and UI narratives are part of that
+  contract: hop text and frames must consume the components' actual
+  messages (the served record, queue state), not a hardcoded story
+  (DL-1, DL-3, DL-4).
 - **Slimmed-down protocols.** Every token on the wire must earn its
   teaching place. HTTP requests are `"GET /path"` (no `HTTP/1.1` or `\r\n`
   header boilerplate unless a stage specifically teaches headers);
@@ -57,15 +60,31 @@ Fragments fine. Technical terms stay exact; code blocks unchanged.
 
 1. **Understand context** before modifying a file: pages → `js/panel` →
    `js/sim`; a change ripples outward, not downward.
-2. **Resumable plans & sub-agent execution:** work beyond ~3 tasks gets a
-   committed brief at `docs/plans/<feature>.md` with checkbox steps; a tick
-   means the step's commit exists (kit PLAN-FORMAT). Session context lives in
-   the plan file, not chat history. Once the human design gate passes and
-   Step 1 (the brief + `DESIGN.md` amendment) is committed, the lead session
-   (`opencode-go/gemini-4-argon-contributor`) dispatches a fresh `subagent`
-   (`agent: "general"`, `model: "opencode-go/glm-5.3-flash"`) to execute the
-   implementation steps cold from the committed brief — do not implement the
-   brief inline in the lead session.
+2. **Resumable boundary briefs (≤ 120 lines) & sub-agent execution:** work
+   beyond ~3 tasks gets a committed brief at `docs/plans/<feature>.md` with
+   checkbox steps; a tick means the step's commit exists (kit PLAN-FORMAT).
+   - **No ghost-coding in briefs:** keep briefs **≤ 120 lines** (enforced by
+     `scripts/guard-plan-ticks.mjs`). The lead session reads only the files
+     needed to frame the design gate and specifies **boundary contracts only**
+     (module exports, option/snapshot shapes, ring/node IDs, DOM
+     `data-testid`s, and test titles) — never line-by-line helper code.
+   - **3-step brief lifecycle:**
+     - **Step 1 (Lead session):** after human design sign-off, commit
+       `DESIGN.md` + `docs/plans/<feature>.md` (with Step 1 ticked `- [x]`,
+       Steps 2–3 unticked `- [ ]`).
+     - **Step 2 (`executor` sub-agent):** dispatch `subagent` with
+       `agent: "executor"` (`.opencode/agents/executor.md`, pinned to
+       `opencode-go/glm-5.3-flash`) to implement the code, tests, and
+       `slices.yaml` / `storymap.yaml` updates cold from the brief, tick
+       `- [x] Step 2`, and commit with `npm run verify` green.
+     - **Step 3 (Lead session):** run
+       `npm run metrics:extract -- <subagentSessionID>`, append the entry
+       (including true in-session `guardrail_failures`) to
+       `docs/factory/slice-metrics.yaml`, tick `- [x] Step 3` in the brief,
+       and commit with `npm run verify` green. The lead review also checks
+       brief-contract tests exist (brief §Tests) and that storymap/slices
+       test refs pin the story's own behavior — a story marked done whose
+       refs name stale or unrelated tests is a defect (DL-3).
 3. **Debug hygiene:** temporary probes are tracked as todos and removed
    before commit — never ride along in a feature diff.
 4. **Post-mortem, human-intervention & metrics capture:** a fix — or an

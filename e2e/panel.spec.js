@@ -310,3 +310,122 @@ test('should expand Ring 3 browsers by clicking their compact nodes and return t
   await expect(page.getByTestId('browser-ip-chip')).toHaveText('10.2');
   await expect(page.getByTestId('browser-role-name')).toHaveText('Browser (You)');
 });
+
+// Stage 5 adds the Worker Queue (10.40) and Worker (10.41) on Ring 2 behind
+// the database stack: the orrery redraws to 7 rings, POST /jobs answers an
+// immediate 202 over an 8-hop async trace, and the FIFO job lands in the
+// database once the worker finishes it (jobDurationTicks).
+test('should switch to Stage 5, process an async POST /jobs job through worker 10.41, and inspect queue state', async ({
+  page,
+}) => {
+  await page.goto('/panel.html');
+
+  await page.getByTestId('stage-pill-5').click();
+  await expect(page.getByTestId('node-queue')).toBeVisible();
+  await expect(page.getByTestId('node-worker')).toBeVisible();
+  await expect(page.getByTestId('node-db')).toBeVisible();
+  await expect(page.getByTestId('node-cache')).toBeVisible();
+  await expect(page.locator('.orrery-ring')).toHaveCount(7);
+  await expect(page.locator('.orrery-ring').first()).toHaveAttribute('r', '400');
+  await expect(page.locator('.orrery-ring').last()).toHaveAttribute('r', '2800');
+  // Wire lanes: every projected wire carries its lane chips anchored on the
+  // wire in world space, and the two lanes near the centre crossing sit on
+  // distinct anchors — the cache→db lane at t=0.3 vs the queue→worker lane
+  // at its own midpoint (both were colliding at the crossing before DL-3).
+  const lanePos = (id) =>
+    page.locator(`#${id}`).evaluate((el) => ({
+      x: Number.parseFloat(el.style.left),
+      y: Number.parseFloat(el.style.top),
+    }));
+  const [dbLane, queueLane, workerLane] = await Promise.all(
+    ['wire-cache-db', 'wire-cache-queue', 'wire-queue-worker'].map(lanePos),
+  );
+  expect(Number.isFinite(dbLane.x) && Number.isFinite(queueLane.x)).toBe(true);
+  expect(Math.hypot(dbLane.x - workerLane.x, dbLane.y - workerLane.y)).toBeGreaterThanOrEqual(90);
+  // The lb-backends lane must sit between the two LB wires on every stage
+  // >= 2 (gap 400: the two lb->backend wire midpoints average to
+  // (-1752, 1)) — straight-to-Stage-5 loads and stage round-trips alike
+  // used to leave it unpositioned or stuck at its Stage-2 spot.
+  expect(await lanePos('wire-lb-backends')).toEqual({ x: -1752, y: 1 });
+  // The servers-cache lane is capped 175px left of the Cache card centre so
+  // the 15.5rem card does not clip the chip's right half.
+  const [cacheLaneX, cacheCardX] = await Promise.all([
+    page.locator('#wire-servers-cache').evaluate((el) => Number.parseFloat(el.style.left)),
+    page.getByTestId('node-cache').evaluate((el) => Number.parseFloat(el.style.left)),
+  ]);
+  expect(cacheLaneX).toBeLessThanOrEqual(cacheCardX - 164);
+  await expect(page.getByTestId('queue-stats')).toHaveText(
+    'Enqueued: 0 · Completed: 0 · Active: none',
+  );
+  await expect(page.getByTestId('worker-stats')).toHaveText('Worker 10.41 Idle');
+
+  // Hops 1-4/8: POST /jobs routes through the LB and enqueues job #1 at the
+  // WorkerQueue; the queue card counts it and lists the pending FIFO read.
+  await page.getByTestId('req-method').selectOption('POST');
+  await page.getByTestId('url-input').fill('/jobs');
+  for (let hop = 0; hop < 4; hop++) await page.getByTestId('btn-next-hop').click();
+  await expect(page.getByTestId('hop-status')).toContainText(
+    'Hop 4/8: WebServer (10.11) enqueues job to WorkerQueue (10.40)',
+  );
+  await expect(page.getByTestId('queue-stats')).toHaveText(
+    'Enqueued: 1 · Completed: 0 · Active: none',
+  );
+  await expect(page.getByTestId('queue-jobs-list')).toContainText('#1 · /jobs · queued @ tick 1');
+
+  // Hops 5-7/8: the immediate 202 Accepted reaches the browser while the
+  // worker is still running — the async point of the whole stage.
+  for (let hop = 0; hop < 3; hop++) await page.getByTestId('btn-next-hop').click();
+  await expect(page.getByTestId('hop-status')).toContainText('Hop 7/8');
+  await expect(page.getByTestId('browser-status-badge')).toContainText('202');
+  await expect(page.getByTestId('browser-rendered-body')).toHaveText(
+    '{"jobId": 1, "status": "queued"}',
+  );
+
+  // Hop 8/8: the worker finishes the job and commits to Primary 10.30.
+  await page.getByTestId('btn-next-hop').click();
+  await expect(page.getByTestId('hop-status')).toContainText(
+    'Hop 8/8: Worker (10.41) processed job and committed to Database (10.30)',
+  );
+
+  // A plain GET keeps the Stage 4 cache/db narrative — no phantom async job,
+  // no fake 202, and the tail hop reads the worker idle (DL-4).
+  await page.getByTestId('req-method').selectOption('GET');
+  await page.getByTestId('url-input').fill('/about');
+  for (let hop = 0; hop < 4; hop++) await page.getByTestId('btn-next-hop').click();
+  await expect(page.getByTestId('hop-status')).toContainText('Hop 4/8: Database SELECT');
+  await expect(page.getByTestId('hop-status')).toContainText('— fresh');
+  for (let hop = 0; hop < 1; hop++) await page.getByTestId('btn-next-hop').click();
+  // The LB round-robins backends, so the pin does not hardcode 10.11 vs 10.12.
+  await expect(page.getByTestId('hop-status')).toContainText('Hop 5/8: WebServer (10.1');
+  await expect(page.getByTestId('hop-status')).toContainText(
+    '-> "200 This is the about page" (cache ',
+  );
+  for (let hop = 0; hop < 3; hop++) await page.getByTestId('btn-next-hop').click();
+  await expect(page.getByTestId('hop-status')).toContainText(
+    'Hop 8/8: Worker (10.41) idle — no async jobs in this trace',
+  );
+  await expect(page.getByTestId('browser-rendered-body')).toHaveText('This is the about page');
+
+  // Ticks run the worker FIFO: the job completes across jobDurationTicks and
+  // writes its result into the database.
+  await page.getByTestId('start-button').click();
+  await expect(page.getByTestId('queue-stats')).toHaveText(
+    'Enqueued: 1 · Completed: 1 · Active: none',
+  );
+  await expect(page.getByTestId('worker-stats')).toHaveText('Worker 10.41 Idle');
+  await expect(page.getByTestId('db-stats')).toContainText('Writes: 1');
+  await expect(page.getByTestId('db-rows-list')).toContainText('/jobs · P v1');
+  await page.getByTestId('start-button').click(); // pause, determinism done
+
+  // The workerqueue inspector mirrors the counters and the completed job.
+  await page.getByTestId('node-queue').click();
+  await expect(page.getByTestId('inspector-code')).toContainText('createWorkerQueue');
+  await expect(page.getByTestId('inspector-state')).toContainText('"completed": 1');
+  await expect(page.getByTestId('inspector-state')).toContainText('"enqueued": 1');
+
+  // Stage round-trips must leave every lane anchored too (5 -> 2 -> 5 used
+  // to strand the lb-backends lane at its Stage-2 spot).
+  await page.getByTestId('stage-pill-2').click();
+  await page.getByTestId('stage-pill-5').click();
+  expect(await lanePos('wire-lb-backends')).toEqual({ x: -1752, y: 1 });
+});

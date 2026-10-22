@@ -23,13 +23,14 @@ export function createTraceMachine({
   network,
   cache = null,
   database = null,
+  workerQueue = null,
   bumpTick,
   getTick,
   onServe,
   onFinish,
 }) {
-  if (stage !== 1 && stage !== 2 && stage !== 3 && stage !== 4) {
-    throw new Error(`trace: stage must be 1, 2, 3, or 4, got ${stage}`);
+  if (stage !== 1 && stage !== 2 && stage !== 3 && stage !== 4 && stage !== 5) {
+    throw new Error(`trace: stage must be 1, 2, 3, 4, or 5, got ${stage}`);
   }
   let trace = freshTrace();
   let served = null; // the drained response record, held between hops 4/6 and 5/6
@@ -89,7 +90,7 @@ export function createTraceMachine({
     // One hop per call. Returns the hop's lastFrame string, or null when
     // nothing moved (the engine keeps its previous frame then).
     step({ method = 'GET', path = '/about', from = '10.2' } = {}) {
-      const finalHop = stage === 4 ? 7 : stage === 3 ? 6 : stage === 2 ? 5 : 4;
+      const finalHop = stage === 5 ? 8 : stage === 4 ? 7 : stage === 3 ? 6 : stage === 2 ? 5 : 4;
       let frame = null;
       if (trace.hop === 0 || trace.hop >= finalHop) {
         const request = `${method} ${path}`;
@@ -217,6 +218,56 @@ export function createTraceMachine({
       } else if (stage === 4 && trace.hop === 6) {
         trace.hop = 7;
         finish(trace.targetServer ?? serverAddress);
+      } else if (stage === 5 && trace.hop === 3) {
+        // Hop 4/8: an async POST /jobs enqueues to WorkerQueue 10.40; other
+        // requests narrate the cache/database hop they actually took (the
+        // Stage 4 story) — no phantom async jobs on GET traces (DL-4).
+        trace.hop = 4;
+        const backend = backendFor(trace.targetServer);
+        served = drainUntilYou(backend);
+        if (served) {
+          trace.cacheStatus = served.cacheStatus ?? null;
+          trace.dbOp = served.dbOp ?? null;
+          trace.dbStale = Boolean(served.dbStale);
+          trace.asyncJob = Boolean(served.asyncJob);
+          if (served.asyncJob) {
+            frame = `${backend.address} -> ${workerQueue ? workerQueue.address : '10.40'} | enqueued async job (${trace.path})`;
+          } else if (trace.dbOp === 'WRITE') {
+            frame = `Database WRITE ${trace.path} @ ${database.primaryAddress} (replica ${database.replicaAddress} lags ${database.replicationLagTicks}t)`;
+          } else if (trace.dbOp === 'SELECT') {
+            frame = `Database SELECT ${trace.path} @ ${database.replicaAddress} (${trace.dbStale ? 'STALE' : 'fresh'})`;
+          } else {
+            frame = `Database SKIP ${trace.path} (warm cache HIT @ ${cache.address})`;
+          }
+        }
+      } else if (stage === 5 && trace.hop === 4) {
+        // Hop 5/8: the webserver answers — an immediate 202 for async jobs,
+        // the actually-served response for everything else.
+        trace.hop = 5;
+        if (served) {
+          serve(served);
+          frame = served.asyncJob
+            ? `${trace.targetServer} -> ${trace.from} | ${served.response}`
+            : `${trace.targetServer} -> ${trace.from} | ${served.response} (cache ${trace.cacheStatus})`;
+        }
+      } else if (stage === 5 && trace.hop === 5) {
+        // Hop 6/8: WebServer returns its response via Network
+        trace.hop = 6;
+        frame = `Network delivered ${trace.status} response to ${trace.from}`;
+      } else if (stage === 5 && trace.hop === 6) {
+        // Hop 7/8: Browser receives and displays the response
+        trace.hop = 7;
+        finish(trace.targetServer ?? serverAddress);
+        frame = `Browser ${trace.from} received and displayed ${trace.status}`;
+      } else if (stage === 5 && trace.hop === 7) {
+        // Hop 8/8: async job tails with the worker's commit; a request that
+        // was served synchronously finds the worker idle.
+        trace.hop = 8;
+        const dbTarget = database ? database.primaryAddress : '10.30';
+        const workerAddr = workerQueue ? workerQueue.workerAddress : '10.41';
+        frame = trace.asyncJob
+          ? `Worker ${workerAddr} finished job and committed to Database ${dbTarget}`
+          : `Worker ${workerAddr} idle — no async jobs in this trace`;
       }
       return frame;
     },

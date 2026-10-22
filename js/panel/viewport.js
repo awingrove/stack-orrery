@@ -22,10 +22,12 @@ const KEY_PANS = {
   ArrowDown: [0, PAN_PX],
 };
 
-// PINS: each wire lane sits on the midpoint of its wire in
-// world coordinates (col-left on browser↔network, col-right on
-// network↔webserver/lb, lb-backends centered between the two backend wires,
-// servers-cache centered between the two cache wires).
+// PINS: each wire lane sits on its wire in world coordinates (col-left on
+// browser↔network, col-right on network↔webserver/lb, lb-backends centered
+// between the two backend wires, servers-cache centered between the two
+// cache wires). A value may pin a lane at a fraction t down its wire:
+// Stage 5 anchors the cache→db lane at t=0.3 so it clears the queue→worker
+// crossing.
 const LANE_WIRES = {
   1: { 'wire-col-left': 'wire-browser-network', 'wire-col-right': 'wire-network-webserver' },
   2: { 'wire-col-left': 'wire-browser-network', 'wire-col-right': 'wire-network-lb' },
@@ -35,30 +37,36 @@ const LANE_WIRES = {
     'wire-col-right': 'wire-network-lb',
     'wire-cache-db': 'wire-cache-db',
   },
+  5: {
+    'wire-col-left': 'wire-browser-network',
+    'wire-col-right': 'wire-network-lb',
+    'wire-cache-db': ['wire-cache-db', 0.3],
+    'wire-cache-queue': 'wire-cache-queue',
+    'wire-queue-worker': 'wire-queue-worker',
+  },
 };
-// Lanes parked between two wires (Stage 2: LB→backends; Stages 3–4:
-// backends→Cache).
+// Lanes anchored between parallel wires — lb-backends shared across stages
+// 2-5; servers-cache capped left of the Cache card it would otherwise clip.
 const LANES_BETWEEN = [
   {
-    stage: 2,
     laneId: 'wire-lb-backends',
+    stages: [2, 3, 4, 5],
     wireIds: ['wire-lb-webserver', 'wire-lb-webserver-2'],
   },
   {
-    stage: 3,
     laneId: 'wire-servers-cache',
+    stages: [3, 4, 5],
     wireIds: ['wire-webserver-cache', 'wire-webserver-2-cache'],
-  },
-  {
-    stage: 4,
-    laneId: 'wire-servers-cache',
-    wireIds: ['wire-webserver-cache', 'wire-webserver-2-cache'],
+    capTo: 'node-cache',
+    capDx: -175, // 15.5rem card half + chip half + margin, in world px
   },
 ];
 
 function byId(id) {
   return document.getElementById(id);
 }
+
+const at = (a, b, t) => Math.round(a + (b - a) * t);
 
 function setWorldPos(el, x, y) {
   el.style.left = `${x}px`;
@@ -132,18 +140,19 @@ export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers, g
       if (card) setWorldPos(card, node.x, node.y);
     }
     const wireById = new Map(layout.wires.map((wire) => [wire.id, wire]));
-    for (const [laneId, wireId] of Object.entries(LANE_WIRES[layout.stage])) {
-      const lane = byId(laneId);
+    for (const [laneId, anchor] of Object.entries(LANE_WIRES[layout.stage])) {
+      const [wireId, t = 0.5] = Array.isArray(anchor) ? anchor : [anchor];
       const wire = wireById.get(wireId);
-      if (lane && wire) setWorldPos(lane, wire.midX, wire.midY);
+      const lane = byId(laneId);
+      if (lane && wire) setWorldPos(lane, at(wire.x1, wire.x2, t), at(wire.y1, wire.y2, t));
     }
-    for (const { stage, laneId, wireIds } of LANES_BETWEEN) {
-      if (layout.stage !== stage) continue;
+    for (const { laneId, stages, wireIds, capTo, capDx } of LANES_BETWEEN) {
+      if (!stages.includes(layout.stage)) continue;
       const lane = byId(laneId);
       const [w1, w2] = wireIds.map((id) => wireById.get(id));
-      if (lane && w1 && w2) {
-        setWorldPos(lane, Math.round((w1.midX + w2.midX) / 2), Math.round((w1.midY + w2.midY) / 2));
-      }
+      if (!lane || !w1 || !w2) continue;
+      const [nx, ny] = capTo ? [layout.nodes[capTo].x + capDx, layout.nodes[capTo].y] : [];
+      setWorldPos(lane, nx ?? at(w1.midX, w2.midX, 0.5), ny ?? at(w1.midY, w2.midY, 0.5));
     }
     for (const slot of layout.browserSlots ?? []) {
       // CHECKS: compact Ring-3 nodes track layout.browserSlots so they move in

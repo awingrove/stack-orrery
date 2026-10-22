@@ -16,6 +16,10 @@ const LANES = {
   'packet-res-cache': $('packet-res-cache'),
   'packet-req-db': $('packet-req-db'),
   'packet-res-db': $('packet-res-db'),
+  'packet-req-queue': $('packet-req-queue'),
+  'packet-res-queue': $('packet-res-queue'),
+  'packet-req-worker': $('packet-req-worker'),
+  'packet-res-worker': $('packet-res-worker'),
 };
 
 // Stage-switch hook: viewport.js registers a callback so camera + world
@@ -27,9 +31,10 @@ export function onStageRendered(fn) {
 }
 
 export function renderStageTopology(stage) {
-  const hasLb = stage === 2 || stage === 3 || stage === 4;
-  const hasCache = stage === 3 || stage === 4;
-  const hasDb = stage === 4;
+  const hasLb = stage >= 2;
+  const hasCache = stage >= 3;
+  const hasDb = stage >= 4;
+  const hasWorkers = stage === 5;
   $('node-lb').hidden = !hasLb;
   $('wire-lb-backends').hidden = !hasLb;
   $('node-webserver-2').hidden = !hasLb;
@@ -37,6 +42,10 @@ export function renderStageTopology(stage) {
   $('wire-servers-cache').hidden = !hasCache;
   $('node-db').hidden = !hasDb;
   $('wire-cache-db').hidden = !hasDb;
+  $('node-queue').hidden = !hasWorkers;
+  $('wire-cache-queue').hidden = !hasWorkers;
+  $('node-worker').hidden = !hasWorkers;
+  $('wire-queue-worker').hidden = !hasWorkers;
   $('network-role-10-1').textContent = hasLb ? 'LoadBalancer -> 10.11, 10.12' : 'WebServer';
   for (const pill of document.querySelectorAll('.stage-pill[data-stage]')) {
     const active = Number(pill.dataset.stage) === stage;
@@ -51,10 +60,60 @@ export function renderStageTopology(stage) {
 // Stage 1 is emit / route / serve / render; Stage 2 inserts the LB's
 // round-robin pick; Stage 3 splits the backend serve into the cache
 // lookup (Cache 10.20 answers) and the response emission; Stage 4 adds
-// the database hop (WRITE @ Primary 10.30, SELECT @ Replica 10.31, or the
-// SKIP a warm cache HIT earns) between cache check and response emission.
+// the database hop; Stage 5 adds async worker queue processing.
 function activeHopTarget(snapshot) {
   const hop = snapshot.trace?.hop ?? 0;
+  if (snapshot.stage === 5) {
+    // Async POST /jobs walks browser -> lb -> enqueue -> 202 -> worker
+    // commit; every other request keeps the Stage 4 cache/db story and the
+    // worker reads idle on the tail hop.
+    const backendCard =
+      snapshot.trace?.targetServer === '10.12' ? 'node-webserver-2' : 'node-webserver';
+    const dbLane = snapshot.trace?.dbOp === 'WRITE' ? 'packet-req-db' : 'packet-res-db';
+    const owners = snapshot.trace?.asyncJob
+      ? {
+          1: 'node-browser',
+          2: 'node-network',
+          3: 'node-lb',
+          4: 'node-queue',
+          5: 'node-webserver',
+          6: 'node-network',
+          7: 'node-browser',
+          8: 'node-worker',
+        }
+      : {
+          1: 'node-browser',
+          2: 'node-network',
+          3: 'node-lb',
+          4: 'node-db',
+          5: backendCard,
+          6: 'node-network',
+          7: 'node-browser',
+          8: 'node-worker',
+        };
+    const lanes = snapshot.trace?.asyncJob
+      ? {
+          1: 'packet-req-left',
+          2: 'packet-req-right',
+          3: 'packet-req-lb',
+          4: 'packet-req-queue',
+          5: 'packet-res-cache',
+          6: 'packet-res-right',
+          7: 'packet-res-left',
+          8: 'packet-res-db',
+        }
+      : {
+          1: 'packet-req-left',
+          2: 'packet-req-right',
+          3: 'packet-req-lb',
+          4: dbLane,
+          5: 'packet-res-cache',
+          6: 'packet-res-right',
+          7: 'packet-res-left',
+          8: 'packet-res-worker',
+        };
+    return { cardId: owners[hop] ?? 'node-browser', laneId: lanes[hop] ?? 'packet-req-left' };
+  }
   if (snapshot.stage === 4) {
     const backendCard =
       snapshot.trace?.targetServer === '10.12' ? 'node-webserver-2' : 'node-webserver';

@@ -83,7 +83,7 @@ describe('orrery layout', () => {
     expect(buildOrreryRings(400).map((r) => r.radius)).toEqual([400, 800, 1200]);
     expect(() => buildOrreryRings(0)).toThrow(/ringGap/);
     expect(() => buildOrreryRings(Number.NaN)).toThrow(/ringGap/);
-    expect(() => buildOrreryRings(400, 5)).toThrow(/stage/);
+    expect(() => buildOrreryRings(400, 6)).toThrow(/stage/);
     expect(polarToWorld(1200, 180)).toEqual({ x: -1200, y: 0 });
     expect(polarToWorld(400, 210)).toEqual({ x: -346, y: -200 });
     expect(polarToWorld(400, 150)).toEqual({ x: -346, y: 200 });
@@ -131,7 +131,7 @@ describe('orrery layout', () => {
       expect(node.radius).toBeGreaterThan(0);
       expect(node.x !== 0 || node.y !== 0).toBe(true);
     }
-    expect(() => computeStageLayout(5)).toThrow(/stage/);
+    expect(() => computeStageLayout(6)).toThrow(/stage/);
 
     // Stage 2: 4 layers -> 4 rings, both backends on Ring 1's left arc.
     const stage2 = computeStageLayout(2, 5);

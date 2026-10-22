@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "prepare": "node scripts/install-hooks.mjs",
     "serve": "node scripts/static-server.mjs --port 4173",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -10,7 +11,8 @@
     "unit": "vitest run",
     "guard": "node scripts/guard-all.mjs",
     "test:e2e": "playwright test",
-    "verify": "npm run format:check && npm run lint && npm run unit && npm run guard && npm run test:e2e"
+    "verify": "npm run format:check && npm run lint && npm run unit && npm run guard && npm run test:e2e",
+    "metrics:extract": "node scripts/extract-session-metrics.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

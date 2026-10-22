@@ -164,3 +164,26 @@ activities:
             tests:
               - unit: test/panel/model.test.js::describes Stage 4 7-hop database trace labels and database inspector state
               - e2e: panel::should switch to Stage 4, write to Primary 10.30 on POST, observe replica lag on GET, and inspect database code
+
+  - name: 'Stage 5 — Worker Queue & Async Background Processing'
+    tasks:
+      - id: SIM-5
+        name: Enqueue asynchronous jobs and execute via worker 10.41
+        entry_point: n/a (engine behavior, not navigable)
+        stories:
+          - title: Enqueue background jobs, step FIFO execution across job duration ticks, and write results to database
+            status: done
+            priority: high
+            tests:
+              - unit: test/sim/queue.test.js::worker queue sim component
+
+      - id: PANEL-5
+        name: Switch to Stage 5 and trace asynchronous job requests
+        entry_point: index.html -> Diagram Panel link -> 5 · Worker Queue pill
+        stories:
+          - title: Switch to Stage 5, send asynchronous requests, trace hop-by-hop into worker queue, and inspect worker state
+            status: done
+            priority: high
+            tests:
+              - unit: test/panel/model-stage5.test.js::describes Stage 5 8-hop async queue trace labels and workerqueue inspector state
+              - e2e: panel::should switch to Stage 5, process an async POST /jobs job through worker 10.41, and inspect queue state

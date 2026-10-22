@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Fast pre-commit gate (~1.2s): format:check -> lint -> unit -> guard.
+set -euo pipefail
+
+npm run format:check
+npm run lint
+npm run unit
+npm run guard

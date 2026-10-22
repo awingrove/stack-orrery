@@ -35,6 +35,9 @@ export const els = {
   cacheEntries: $('cache-entries-list'),
   dbStats: $('db-stats'),
   dbRows: $('db-rows-list'),
+  queueStats: $('queue-stats'),
+  queueJobs: $('queue-jobs-list'),
+  workerStats: $('worker-stats'),
   inspectorTitle: $('inspector-title'),
   inspectorCode: $('inspector-code'),
   inspectorState: $('inspector-state'),
@@ -115,6 +118,20 @@ function renderDbRows(rows) {
   );
 }
 
+// DOCUMENTS: Stage 5 worker-queue jobs render one row per pending job with
+// its enqueue tick; the queue stats and worker HUD mirror the counters and
+// the active job (DESIGN.md queue-jobs-list).
+function renderJobsInto(container, jobs) {
+  container.replaceChildren(
+    ...jobs.map((job) => {
+      const item = document.createElement('li');
+      item.className = 'route-item';
+      item.textContent = `#${job.jobId} · ${job.path} · queued @ tick ${job.queuedAtTick}`;
+      return item;
+    }),
+  );
+}
+
 function activeBrowserDisplay(snapshot, activeAddress) {
   const browsers = Array.isArray(snapshot.browsers) ? snapshot.browsers : [];
   const slot = browsers.find((b) => b.address === activeAddress) ?? browsers[0] ?? null;
@@ -183,13 +200,18 @@ export function render(snapshot, selectedComponent, { layout, activeAddress = '1
     els.lbBackend1.classList.toggle('matched-route', lastTarget === '10.11');
     els.lbBackend2.classList.toggle('matched-route', lastTarget === '10.12');
   }
-  if ((snapshot.stage === 3 || snapshot.stage === 4) && snapshot.cache) {
+  if (snapshot.stage >= 3 && snapshot.cache) {
     els.cacheStats.textContent = labels.cacheStatsLabel;
     renderCacheEntries(labels.cacheEntries);
   }
-  if (snapshot.stage === 4 && snapshot.database) {
+  if (snapshot.stage >= 4 && snapshot.database) {
     els.dbStats.textContent = labels.dbStatsLabel;
     renderDbRows(labels.dbRows);
+  }
+  if (snapshot.stage === 5 && snapshot.workerQueue) {
+    els.queueStats.textContent = labels.queueStatsLabel;
+    els.workerStats.textContent = labels.workerStatsLabel;
+    renderJobsInto(els.queueJobs, labels.queueJobs);
   }
   renderHopHighlights(snapshot, selectedComponent);
   renderDots(snapshot.users);

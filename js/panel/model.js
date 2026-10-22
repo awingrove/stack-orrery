@@ -4,7 +4,7 @@
 export const TICK_MS = 100;
 const QUEUE_BAR_SATURATION = 20; // bar reads full at 20 queued requests
 // Total hops per stage's trace shape (trace.js and engine.traceHop agree).
-const TOTAL_HOPS = { 1: 4, 2: 5, 3: 6, 4: 7 };
+const TOTAL_HOPS = { 1: 4, 2: 5, 3: 6, 4: 7, 5: 8 };
 
 const HOP_START_SENTENCE = 'Idle — type a path and click Go or Step 1 Hop ->';
 
@@ -19,6 +19,45 @@ function fillPercent(depth) {
 function hopSentences(stage, snapshot, from, serverAddress) {
   const t = snapshot.trace ?? {};
   const target = t.targetServer ?? '10.11';
+  if (stage === 5) {
+    const worker = snapshot.workerQueue?.workerAddress ?? '10.41';
+    if (t.asyncJob) {
+      return [
+        `Hop 1/8: Browser (${from}) emits "${t.request}"`,
+        `Hop 2/8: Network (10.x) routes to LoadBalancer (${serverAddress})`,
+        `Hop 3/8: LoadBalancer (${serverAddress}) -> ${target} queue`,
+        `Hop 4/8: WebServer (${target}) enqueues job to WorkerQueue (10.40)`,
+        `Hop 5/8: WebServer (${target}) -> "202 Accepted"`,
+        `Hop 6/8: Network delivers 202 response to ${from}`,
+        `Hop 7/8: Browser (${from}) received and displayed 202 Accepted`,
+        `Hop 8/8: Worker (${worker}) processed job and committed to Database (10.30)`,
+      ];
+    }
+    // Requests served synchronously keep the Stage 4 cache/database story;
+    // the worker does not see them, so the tail hop reads idle.
+    const db = snapshot.database ?? {};
+    const primary = db.primaryAddress ?? '10.30';
+    const replica = db.replicaAddress ?? '10.31';
+    const lag = db.replicationLagTicks ?? 3;
+    const dbOp =
+      t.dbOp === 'WRITE'
+        ? `Database WRITE @ Primary (${primary}) — replica lags ${lag}t`
+        : t.dbOp === 'SELECT' && t.dbStale
+          ? `Database SELECT @ Replica (${replica}) — STALE (lag ${lag}t)`
+          : t.dbOp === 'SELECT'
+            ? `Database SELECT @ Replica (${replica}) — fresh`
+            : `Database SKIP — warm cache HIT (${snapshot.cache?.address ?? '10.20'})`;
+    return [
+      `Hop 1/8: Browser (${from}) emits "${t.request}"`,
+      `Hop 2/8: Network (10.x) routes to LoadBalancer (${serverAddress})`,
+      `Hop 3/8: LoadBalancer (${serverAddress}) -> ${target} queue`,
+      `Hop 4/8: ${dbOp}`,
+      `Hop 5/8: WebServer (${target}) -> "${t.response}" (cache ${t.cacheStatus})`,
+      `Hop 6/8: Network delivers ${t.status} response to ${from}`,
+      `Hop 7/8: Browser (${from}) received and displayed ${t.status}`,
+      `Hop 8/8: Worker (${worker}) idle — no async jobs in this trace`,
+    ];
+  }
   if (stage === 4) {
     const db = snapshot.database ?? null;
     const primary = db?.primaryAddress ?? '10.30';
@@ -111,6 +150,19 @@ export function describeSnapshot(snapshot) {
     cacheEntries: snapshot.cache?.entries ?? [],
     dbStatsLabel: `Reads: ${snapshot.database?.reads ?? 0} · Writes: ${snapshot.database?.writes ?? 0} · Lag: ${snapshot.database?.replicationLagTicks ?? 3}t`,
     dbRows: snapshot.database?.rows ?? [],
+    queueStatsLabel: snapshot.workerQueue
+      ? `Enqueued: ${snapshot.workerQueue.enqueued} · Completed: ${snapshot.workerQueue.completed} · Active: ${
+          snapshot.workerQueue.activeJob
+            ? `#${snapshot.workerQueue.activeJob.jobId} ${snapshot.workerQueue.activeJob.path}`
+            : 'none'
+        }`
+      : 'Enqueued: 0 · Completed: 0 · Active: none',
+    workerStatsLabel: snapshot.workerQueue
+      ? snapshot.workerQueue.activeJob
+        ? `Worker ${snapshot.workerQueue.workerAddress} processing #${snapshot.workerQueue.activeJob.jobId} (${snapshot.workerQueue.activeJob.path})`
+        : `Worker ${snapshot.workerQueue.workerAddress} Idle`
+      : 'Worker 10.41 Idle',
+    queueJobs: snapshot.workerQueue?.pendingJobs ?? [],
     exchangeSummary: last
       ? `${last.from} -> ${last.to} ${last.request} => ${last.response}`
       : 'No requests served yet',

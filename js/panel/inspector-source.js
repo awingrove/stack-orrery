@@ -238,4 +238,33 @@ export const COMPONENT_SOURCE = {
   return { stepReplication, read, write, snapshot };
 }`,
   },
+  workerqueue: {
+    file: 'js/sim/queue.js',
+    title: 'Worker Queue — Queue 10.40 / Worker 10.41',
+    code: `createWorkerQueue({ address = '10.40', workerAddress = '10.41', jobDurationTicks = 2 } = {}) {
+  let jobs = [];
+  let enqueued = 0;
+  let completed = 0;
+  let activeJob = null;
+  function enqueue(path, payload, currentTick = 0) {
+    const jobId = nextJobId++;
+    enqueued += 1;
+    const job = { jobId, path, payload, status: 'queued', queuedAtTick: currentTick };
+    jobs.push(job);
+    return job;
+  }
+  function step(database, currentTick = 0) {
+    if (activeJob && currentTick >= activeJob.finishesAtTick) {
+      database?.write(activeJob.path, activeJob.payload, currentTick);
+      completed += 1;
+      activeJob = null;
+    }
+    if (!activeJob && jobs.length > 0) {
+      const job = jobs.shift();
+      activeJob = { ...job, status: 'active', startedAtTick: currentTick, finishesAtTick: currentTick + jobDurationTicks };
+    }
+  }
+  return { enqueue, step, snapshot };
+}`,
+  },
 };

@@ -22,6 +22,7 @@ import { createWebServer } from './webserver.js';
 import { createLoadBalancer } from './loadbalancer.js';
 import { createCache } from './cache.js';
 import { createDatabase } from './database.js';
+import { createWorkerQueue } from './queue.js';
 import { createUsers } from './users.js';
 import { createTraceMachine } from './trace.js';
 
@@ -38,22 +39,33 @@ export function createEngine({
   replicationLagTicks = 3,
   dbPrimaryAddress = '10.30',
   dbReplicaAddress = '10.31',
+  workerQueueAddress = '10.40',
+  workerAddress = '10.41',
+  jobDurationTicks = 2,
 } = {}) {
   if (typeof arrivalProb !== 'number' || arrivalProb < 0 || arrivalProb > 1) {
     throw new Error(`engine: arrivalProb must be within [0, 1], got ${arrivalProb}`);
   }
-  if (stage !== 1 && stage !== 2 && stage !== 3 && stage !== 4) {
-    throw new Error(`engine: stage must be 1, 2, 3, or 4, got ${stage}`);
+  if (stage !== 1 && stage !== 2 && stage !== 3 && stage !== 4 && stage !== 5) {
+    throw new Error(`engine: stage must be 1, 2, 3, 4, or 5, got ${stage}`);
   }
   const rng = createRng(seed);
   const network = createNetwork();
   const cache = stage >= 3 ? createCache({ address: cacheAddress, ttlTicks }) : null;
   const database =
-    stage === 4
+    stage >= 4
       ? createDatabase({
           primaryAddress: dbPrimaryAddress,
           replicaAddress: dbReplicaAddress,
           replicationLagTicks,
+        })
+      : null;
+  const workerQueue =
+    stage === 5
+      ? createWorkerQueue({
+          address: workerQueueAddress,
+          workerAddress,
+          jobDurationTicks,
         })
       : null;
   let servers;
@@ -64,11 +76,10 @@ export function createEngine({
     servers = [server];
   } else {
     // Stage 2 wires the LB in front of two duplicated backends; Stage 3
-    // attaches the shared cache-aside Cache to both backends, so a fill
-    // through one backend serves warm hits through the other; Stage 4 adds
-    // the primary/replica Database behind the cache tier.
+    // attaches the shared cache-aside Cache to both backends; Stage 4 adds
+    // the primary/replica Database; Stage 5 adds the WorkerQueue & Worker.
     servers = backendAddresses.map((addr) =>
-      createWebServer({ address: addr, serviceRate, cache, database }),
+      createWebServer({ address: addr, serviceRate, cache, database, workerQueue }),
     );
     for (const s of servers) network.registerServer(s.address, s);
     lb = createLoadBalancer({ address: serverAddress, backends: backendAddresses, network });
@@ -95,6 +106,7 @@ export function createEngine({
     network,
     cache,
     database,
+    workerQueue,
     bumpTick: () => {
       tick += 1;
       return tick;
@@ -116,9 +128,10 @@ export function createEngine({
       // TTL eviction happens once per tick, before anything is served:
       // expired entries are gone before this tick's work is priced.
       if (cache) cache.evictExpired(tick);
-      // Stage 4: replication advances one tick at a time, so queued primary
-      // writes reach the read replica once their applyAtTick arrives.
+      // Stage 4+: replication advances one tick at a time.
       if (database) database.stepReplication(tick);
+      // Stage 5: worker queue advances jobs and writes to database.
+      if (workerQueue) workerQueue.step(database, tick);
       const arrivals = userPool.step(rng, arrivalProb);
       for (const r of arrivals) {
         network.deliverToQueue({
@@ -190,6 +203,7 @@ export function createEngine({
         loadBalancer: lb ? lb.snapshot() : null,
         cache: cache ? cache.snapshot(tick) : null,
         database: database ? database.snapshot(tick) : null,
+        workerQueue: workerQueue ? workerQueue.snapshot(tick) : null,
         lastMatchedRoute,
         lastFrame,
         browserDisplay: clientBrowser.last(),
