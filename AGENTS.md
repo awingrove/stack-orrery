@@ -68,23 +68,37 @@ Fragments fine. Technical terms stay exact; code blocks unchanged.
      needed to frame the design gate and specifies **boundary contracts only**
      (module exports, option/snapshot shapes, ring/node IDs, DOM
      `data-testid`s, and test titles) — never line-by-line helper code.
+   - **Negative-case contracts (DL-3/DL-4):** any boundary contract whose
+     behavior conditions on input — trace narratives, component responses,
+     lane geometry, routing — must state the mechanism's branch conditions
+     with one named counter-example ("a GET trace keeps the Stage 4 story;
+     no async 202"), and §Tests must pin it. A contract written only as the
+     happy-path script is a Step-1 defect: the executor cannot read intent
+     the brief does not encode.
    - **3-step brief lifecycle:**
      - **Step 1 (Lead session):** after human design sign-off, commit
        `DESIGN.md` + `docs/plans/<feature>.md` (with Step 1 ticked `- [x]`,
        Steps 2–3 unticked `- [ ]`).
      - **Step 2 (`executor` sub-agent):** dispatch `subagent` with
-       `agent: "executor"` (`.opencode/agents/executor.md`, pinned to
-       `opencode-go/glm-5.3-flash`) to implement the code, tests, and
-       `slices.yaml` / `storymap.yaml` updates cold from the brief, tick
-       `- [x] Step 2`, and commit with `npm run verify` green.
+       `agent: "executor"` on the model pinned in `.opencode/agents/executor.md`
+       (executing on any other model is a process deviation to record) to
+       implement the code, tests, and `slices.yaml` / `storymap.yaml` updates
+       cold from the brief, tick `- [x] Step 2`, and commit with
+       `npm run verify` green.
      - **Step 3 (Lead session):** run
        `npm run metrics:extract -- <subagentSessionID>`, append the entry
        (including true in-session `guardrail_failures`) to
        `docs/factory/slice-metrics.yaml`, tick `- [x] Step 3` in the brief,
        and commit with `npm run verify` green. The lead review also checks
-       brief-contract tests exist (brief §Tests) and that storymap/slices
-       test refs pin the story's own behavior — a story marked done whose
-       refs name stale or unrelated tests is a defect (DL-3).
+       brief-contract tests exist (brief §Tests, including the negative-case
+       pins) and that storymap/slices test refs pin the story's own behavior —
+       a story marked done whose refs name stale or unrelated tests is a
+       defect (DL-3). **Acceptance probe:** before opening the PR, the lead
+       demos the slice end to end from the brief's contracts — scripted e2e
+       counts — walking each boundary contract including its named counter-
+       example; the probe reopens Step 2 on failure. Human screenshot rounds
+       found DL-1 and DL-3 because this probe did not exist (DL-2 rule: what
+       you do not demo, the human discovers).
 3. **Debug hygiene:** temporary probes are tracked as todos and removed
    before commit — never ride along in a feature diff.
 4. **Post-mortem, human-intervention & metrics capture:** a fix — or an
