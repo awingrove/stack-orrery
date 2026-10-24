@@ -118,6 +118,43 @@
   accent-color: var(--accent);
 }
 
+/* Legend drawer: screen-space HUD overlay below the camera HUD, explaining
+   the tick clock, the cache stats trio, the Ring 3 site chips, and the
+   wire-lane direction labels. Surface/accent tokens only (DESIGN.md camera
+   HUD drawers; no new colors). */
+.legend-panel {
+  position: absolute;
+  top: 3.4rem;
+  right: 0.65rem;
+  z-index: 5;
+  width: 21rem;
+  max-width: min(80%, 21rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 0.7rem;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.legend-panel[hidden] {
+  display: none;
+}
+
+.legend-row {
+  margin: 0;
+}
+
+.legend-row .mono,
+.legend-panel code {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--accent);
+}
 .backend-stack {
   display: contents;
 }

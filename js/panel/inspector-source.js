@@ -2,11 +2,12 @@
 // mirror of each sim component's real implementation (js/sim/* is the
 // executable truth; this module renders the same logic for learners).
 // The live-state builders and their JSON formatting live in
-// inspector-state.js (split by responsibility, guard-file-size).
+// inspector-state.js (split by responsibility, guard-file-size), which also
+// builds the per-snapshot inspector headline in componentTitle — this file
+// keeps only the static file/code entries, no per-stage address pins.
 export const COMPONENT_SOURCE = {
   browser: {
     file: 'js/sim/browser.js',
-    title: 'Browser (You) — mini-IP 10.2',
     code: `createBrowser({ name, address, network }) {
   // address must be "<net>.<host>" — a two-number mini-IP
   let lastDisplay = null;
@@ -55,7 +56,6 @@ export const COMPONENT_SOURCE = {
   },
   loadbalancer: {
     file: 'js/sim/loadbalancer.js',
-    title: 'LoadBalancer — mini-IP 10.1',
     code: `createLoadBalancer({ address = '10.1', backends = ['10.11', '10.12'], network }) {
   const pool = [...backends];
   const perBackend = Object.fromEntries(pool.map((b) => [b, 0]));
@@ -85,7 +85,6 @@ export const COMPONENT_SOURCE = {
   },
   webserver: {
     file: 'js/sim/webserver.js',
-    title: 'WebServer — mini-IP 10.11 / 10.12',
     code: `createWebServer({ address = '10.1', serviceRate = 4, files = DEFAULT_FILES,
   cache = null, database = null } = {}) {
   const fs = new Map(Object.entries(files)); // '/' and '/about' on disk
@@ -142,7 +141,6 @@ export const COMPONENT_SOURCE = {
   },
   cache: {
     file: 'js/sim/cache.js',
-    title: 'Cache — mini-IP 10.20',
     code: `createCache({ address = '10.20', ttlTicks = 10 } = {}) {
   // address must be "<net>.<host>" — a two-number mini-IP
   const entries = new Map(); // path -> { value, cachedAtTick, expiresAtTick }
@@ -190,7 +188,6 @@ export const COMPONENT_SOURCE = {
   },
   database: {
     file: 'js/sim/database.js',
-    title: 'Database — Primary 10.30 / Replica 10.31',
     code: `createDatabase({ primaryAddress = '10.30', replicaAddress = '10.31',
   replicationLagTicks = 3, rows = DEFAULT_ROWS } = {}) {
   // addresses must be "<net>.<host>" — two-number mini-IPs
@@ -240,7 +237,6 @@ export const COMPONENT_SOURCE = {
   },
   workerqueue: {
     file: 'js/sim/queue.js',
-    title: 'Worker Queue — Queue 10.40 / Worker 10.41',
     code: `createWorkerQueue({ address = '10.40', workerAddress = '10.41', jobDurationTicks = 2 } = {}) {
   let jobs = [];
   let enqueued = 0;

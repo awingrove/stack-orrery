@@ -118,6 +118,26 @@ function formatHopStatus(snapshot, serverAddress) {
   return HOP_START_SENTENCE;
 }
 
+// PINS: journey-log chronology, as consumed by render.js's #journey-log.
+// Entries carry the run key (run, hop): top-down, a run completed later
+// floats wholly above a run completed earlier, and inside a run the entries
+// sort hop-ascending whatever emission order the trace engine produces —
+// a 4-hop trace must never read "hop 2/4" above "hop 1/4" (named
+// counter-example, pinned in test/panel/render.test.js).
+export function journeyEntryIsBefore(entry, existing) {
+  return entry.run > existing.run || (entry.run === existing.run && entry.hop < existing.hop);
+}
+
+// Pure insertion into a sorted journey list (no DOM here): returns the
+// ordered array with the new entry placed so the run key order holds.
+export function orderJourneyEntries(entries, entry) {
+  const ordered = [...entries];
+  const index = ordered.findIndex((existing) => journeyEntryIsBefore(entry, existing));
+  if (index === -1) ordered.push(entry);
+  else ordered.splice(index, 0, entry);
+  return ordered;
+}
+
 export function describeSnapshot(snapshot) {
   const stage = snapshot.stage ?? 1;
   const latencyMs = Math.round(snapshot.avgLatencyTicks * TICK_MS);

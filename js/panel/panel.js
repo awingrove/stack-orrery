@@ -57,7 +57,9 @@ function start() {
   timer = setInterval(() => {
     const snapshot = engine.step();
     if (snapshot.lastFrame) {
-      addToJourney(`tick ${snapshot.tick}`, snapshot.lastFrame);
+      // Each tick's frame is its own journey run: newer ticks float above
+      // older ones in #journey-log (render.js sorts by run key).
+      addToJourney(`tick ${snapshot.tick}`, snapshot.lastFrame, { run: nextJourneyRun() });
     }
     updateView(snapshot);
   }, TICK_MS);
@@ -86,7 +88,9 @@ $('start-button').addEventListener('click', () => {
 $('step-button').addEventListener('click', () => {
   if (timer) pause();
   const snapshot = engine.step();
-  if (snapshot.lastFrame) addToJourney(`tick ${snapshot.tick}`, snapshot.lastFrame);
+  if (snapshot.lastFrame) {
+    addToJourney(`tick ${snapshot.tick}`, snapshot.lastFrame, { run: nextJourneyRun() });
+  }
   updateView(snapshot);
 });
 
@@ -101,6 +105,18 @@ $('users-slider').addEventListener('input', () => {
   updateView(engine.snapshot());
 });
 
+// Journey run keys: each trace run (a hop 1 emission) and each crowd tick
+// gets the next run id, so render.js can sort #journey-log newest-run-first
+// with hop-ascending entries inside every run. A trace run keeps its id for
+// its whole life (hops must group together); crowd ticks each take a fresh
+// id.
+let journeyRunId = 0;
+let traceRunId = 0;
+const nextJourneyRun = () => {
+  journeyRunId += 1;
+  return journeyRunId;
+};
+
 // Single hop of the trace; the engine moves the request one stage per call,
 // originating from whichever browser is currently expanded on Ring 3.
 function stepOneHop() {
@@ -110,7 +126,13 @@ function stepOneHop() {
     from: activeBrowserAddress,
   });
   const totalHops = totalHopsFor(snapshot.stage);
-  addToJourney(`hop ${snapshot.trace.hop}/${totalHops}`, snapshot.lastFrame);
+  // PINS: hop 1 emission starts a new trace run — that run (whole, hops
+  // ascending) floats above the previous run in #journey-log.
+  if (snapshot.trace.hop === 1) traceRunId = nextJourneyRun();
+  addToJourney(`hop ${snapshot.trace.hop}/${totalHops}`, snapshot.lastFrame, {
+    run: traceRunId,
+    hop: snapshot.trace.hop,
+  });
   updateView(snapshot);
   return snapshot;
 }
@@ -160,6 +182,16 @@ document.querySelectorAll('.node-card').forEach((card) => {
 
 document.querySelectorAll('.comp-tab').forEach((tab) => {
   tab.addEventListener('click', () => selectComponent(tab.dataset.select));
+});
+
+// CHECKS: the legend drawer toggles closed by default and reveals the app's
+// own glossary (tick clock, cache stats trio, Ring 3 site chips, wire-lane
+// direction labels); aria-expanded tracks visibility for assistive tech.
+$('legend-toggle').addEventListener('click', () => {
+  const panel = document.getElementById('legend-panel');
+  const open = panel.hidden;
+  panel.hidden = !open;
+  $('legend-toggle').setAttribute('aria-expanded', String(open));
 });
 
 // Boot: Stage 1 is active by default so existing Stage 1 tests run unchanged.
