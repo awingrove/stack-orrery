@@ -7,9 +7,9 @@ import { STAGE_TEACHING, describeStageTeaching } from '../../js/panel/teaching.j
 const PRIMER = 'https://github.com/donnemartin/system-design-primer#';
 
 describe('per-stage teaching entries', () => {
-  it('describes all five stages with a headline, three lists, a tradeoff, and a primerLink', () => {
-    expect(Object.keys(STAGE_TEACHING).map(Number).sort()).toEqual([1, 2, 3, 4, 5]);
-    for (const stage of [1, 2, 3, 4, 5]) {
+  it('describes all shipped stages with a headline, three lists, a tradeoff, and a primerLink', () => {
+    expect(Object.keys(STAGE_TEACHING).map(Number).sort()).toEqual([1, 2, 3, 4, 5, 6]);
+    for (const stage of [1, 2, 3, 4, 5, 6]) {
       const entry = describeStageTeaching(stage);
       expect(entry.headline.trim().length, `stage ${stage} headline`).toBeGreaterThan(0);
       expect(Array.isArray(entry.teaches) && entry.teaches.length > 0).toBe(true);
@@ -39,7 +39,7 @@ describe('per-stage teaching entries', () => {
   // minimal pending placeholder — real headline with a pending marker, no
   // entry lists, no throw — not a blank panel or a crash.
   it('unknown stages degrade to a pending-entries placeholder, not a crash', () => {
-    for (const stage of [0, 6, 9, 42, '9', 'bogus']) {
+    for (const stage of [0, 7, 9, 42, '9', 'bogus']) {
       const entry = () => describeStageTeaching(stage);
       expect(() => entry()).not.toThrow();
       expect(entry().headline.toLowerCase()).toContain('pending');

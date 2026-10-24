@@ -40,6 +40,18 @@ export function createBrowser({ name = 'Browser-1', address = '10.2', network = 
       return lastDisplay;
     },
 
+    // Stage 6: an NX DNS answer is the "page" the browser renders — no GET
+    // was ever emitted, so this is a resolver refusal card, not a response.
+    receiveDnsFailure(request = 'GET /') {
+      lastDisplay = {
+        request,
+        response: 'NX no record',
+        status: 'NX',
+        body: 'NX no record — no GET emitted',
+      };
+      return lastDisplay;
+    },
+
     get(targetAddress, path = '/', method = 'GET') {
       if (!network) throw new Error('browser: no network attached');
       const request = this.createRequest(path, method);

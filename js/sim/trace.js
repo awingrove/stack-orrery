@@ -3,16 +3,17 @@
 // network/LB/queue/cache machinery the crowd uses (it does not fake a
 // shortcut). 4 hops in Stage 1 (emit, route, serve, render); 5 in Stage 2
 // (the LB's round-robin pick becomes its own hop); 6 in Stage 3 (the
-// backend's cache-aside lookup and the HTTP response emission split into
-// two hops so the learner can watch Cache 10.20 answer, then the backend
-// emit); 7 in Stage 4 (the Database hop inserted after the cache check —
-// the WRITE to Primary 10.30, the fresh or stale SELECT from Replica
-// 10.31, or the SKIP a warm cache HIT earns).
+// backend's cache-aside lookup and the HTTP response emission split in two);
+// 7 in Stage 4 (the Database hop after the cache check — WRITE to Primary
+// 10.30, fresh/stale SELECT from Replica 10.31, or SKIP on a warm HIT).
 //
-// The machine owns the trace state and hop transitions; the engine owns
-// the clock, the served-exchange record, and browser delivery, handed in
-// as the four callbacks below.
-//
+// The machine owns the trace state and hop transitions; the engine owns the
+// clock, the served-exchange record, and browser delivery, handed in as the
+// callbacks below. Stage 6 is delegated to its own machine in
+// trace-stage6.js (a DNS ask/answer prelude in front of the byte-identical
+// stage-5 chain), so the stage-1-to-5 conditions below are untouched.
+import { createStage6Trace } from './trace-stage6.js';
+
 // CHECKS: an out-of-range stage fails loud at construction instead of
 // building a trace that can never advance.
 export function createTraceMachine({
@@ -24,13 +25,32 @@ export function createTraceMachine({
   cache = null,
   database = null,
   workerQueue = null,
+  dns = null,
   bumpTick,
   getTick,
   onServe,
   onFinish,
+  onDnsFail = null,
 }) {
-  if (stage !== 1 && stage !== 2 && stage !== 3 && stage !== 4 && stage !== 5) {
-    throw new Error(`trace: stage must be 1, 2, 3, 4, or 5, got ${stage}`);
+  if (stage !== 1 && stage !== 2 && stage !== 3 && stage !== 4 && stage !== 5 && stage !== 6) {
+    throw new Error(`trace: stage must be 1, 2, 3, 4, 5, or 6, got ${stage}`);
+  }
+  if (stage === 6) {
+    return createStage6Trace({
+      serverAddress,
+      servers,
+      lb,
+      network,
+      dns,
+      cache,
+      database,
+      workerQueue,
+      bumpTick,
+      getTick,
+      onServe,
+      onFinish,
+      onDnsFail,
+    });
   }
   let trace = freshTrace();
   let served = null; // the drained response record, held between hops 4/6 and 5/6

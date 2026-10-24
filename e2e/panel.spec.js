@@ -424,7 +424,7 @@ test('should deep-link ?stage=5&users=30 to stage 5 with 30 browsers', async ({ 
 });
 
 // Negative-case pin: unknown ?stage=9 falls back to Stage 1 — no crash, no
-// console error, and the disabled 6 pill stays untouched.
+// console error, and no pill is half-selected (stage 9 is not shipped).
 test('should fall back to stage 1 on unknown ?stage=9 without errors', async ({ page }) => {
   const errors = [];
   page.on('pageerror', (error) => errors.push(error));

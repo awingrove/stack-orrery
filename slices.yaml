@@ -44,6 +44,15 @@ slices:
       - unit: test/sim/database.test.js::replicates primary writes to the read replica after replicationLagTicks and tracks stale reads
       - unit: test/sim/database.test.js::stage 4 engine writes to Primary 10.30, invalidates Cache 10.20, serves stale replica reads during lag, and catches up
       - unit: test/sim/queue.test.js::worker queue sim component
+      - unit: test/sim/dns.test.js::answers the authoritative table on a miss, the ledger inside ttlTicks, and evicts on expiry
+      - unit: test/sim/dns.test.js::stage 6 engine exposes DNS 10.60 and resolves example.com through the trace
+      - unit: test/sim/router.test.js::rejects invalid mini-IPs and missing networks at construction
+      - unit: test/sim/router.test.js::passes same-subnet frames through untouched and takes exactly one hop across subnets
+      - unit: test/sim/router.test.js::stage 6 engine exposes the router; stages 1-5 do not
+      - unit: test/sim/engine.test.js::rejects a stage outside 1..6
+      - unit: test/sim/engine.test.js::traces example.com/about through the DNS ask/answer prelude into the stage-5 chain
+      - unit: test/sim/engine.test.js::keeps a host-less /about trace at the stage-5 hop story on stage 6
+      - unit: test/sim/engine.test.js::ends an NX trace at the DNS answer hop without ever emitting a GET
     entry_point: n/a (engine logic; rendered by PANEL-1)
 
   - id: PANEL
@@ -59,6 +68,7 @@ slices:
         - test/panel/**
       e2e_specs:
         - e2e/panel.spec.js
+        - e2e/panel-stage6.spec.js
         - e2e/orrery-plane.spec.js
         - e2e/teaching.spec.js
     owns:
@@ -94,9 +104,14 @@ slices:
       - e2e: panel::should switch to Stage 3, warm Cache 10.20 on a miss from 10.11, serve a hit from 10.12, and inspect cache code
       - e2e: panel::should switch to Stage 4, write to Primary 10.30 on POST, observe replica lag on GET, and inspect database code
       - e2e: panel::should switch to Stage 5, process an async POST /jobs job through worker 10.41, and inspect queue state
-      - unit: test/panel/teaching.test.js::describes all five stages with a headline, three lists, a tradeoff, and a primerLink
+      - unit: test/panel/teaching.test.js::describes all shipped stages with a headline, three lists, a tradeoff, and a primerLink
       - unit: test/panel/teaching.test.js::stage 1 content never mentions cache TTL names
       - unit: test/panel/teaching.test.js::unknown stages degrade to a pending-entries placeholder, not a crash
+      - unit: test/panel/model-stage6.test.js::describes the hosted 9-hop trace with the DNS ask/answer prelude and ledger labels
+      - unit: test/panel/model-stage6.test.js::keeps a host-less /about trace at the byte-identical stage-5 sentences
+      - unit: test/panel/model-stage6.test.js::ends the NX narrative at the answer hop with no GET emitted
+      - unit: test/panel/layout-stage6.test.js::inherits the stage-5 ring stack and seats the DNS and Router nodes on new spokes
+      - unit: test/panel/layout-stage6.test.js::buildStage6Extras derives the router/browser-reach bound and lane wires from real geometry
       - e2e: teaching::should open the teaching drawer, trace it across stage switches, and show stage-1 content only on stage 1
       - e2e: teaching::should link to the system-design-primer section for the active stage
       - e2e: orrery-plane::should pan and zoom the concentric orrery plane and reset with Fit to view
@@ -108,6 +123,11 @@ slices:
       - e2e: panel::should deep-link ?stage=5&users=30 to stage 5 with 30 browsers
       - e2e: panel::should fall back to stage 1 on unknown ?stage=9 without errors
       - e2e: panel::should show the SERVED card tallying per tick without NaN at tick 0
+      - e2e: panel-stage6::should switch to Stage 6, resolve example.com through DNS 10.60, and inspect DNS code + TTL ledger
+      - e2e: panel-stage6::should trace example.com/about with DNS ask + answer hops
+      - e2e: panel-stage6::should keep GET /about on Stage 6 at the Stage 5 hop story
+      - e2e: panel-stage6::should render the NX card on Stage 6 for a missing host without emitting a GET
+      - e2e: panel-stage6::should deep-link ?stage=6 into the DNS topology
     entry_point: index.html -> Diagram Panel link
 
 allowlist:

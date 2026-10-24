@@ -179,7 +179,8 @@ describe('stage 4 database wiring', () => {
     expect(createEngine({ stage: 2, arrivalProb: 0 }).snapshot().database).toBe(null);
     expect(createEngine({ stage: 3, arrivalProb: 0 }).snapshot().database).toBe(null);
 
-    // CHECKS: an out-of-range stage fails loud at construction.
-    expect(() => createEngine({ stage: 6 })).toThrow(/stage/);
+    // CHECKS: an out-of-range stage fails loud at construction (6 became
+    // valid with Stage 6a; 7 is not a shipped stage).
+    expect(() => createEngine({ stage: 7 })).toThrow(/stage/);
   });
 });

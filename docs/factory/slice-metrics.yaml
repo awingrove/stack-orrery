@@ -10,6 +10,54 @@
 # tokens_reasoning, tokens_cache_read, cost_usd, notes.
 
 entries:
+  - id: STAGE6A-DNS-CROSSNET
+    slice:
+      - SIM
+      - PANEL
+    name: 'Stage 6a — DNS 10.60 with tick-TTL resolver ledger + cross-subnet Router (10.x and 20.x)'
+    brief: docs/plans/2026-10-24-stage6a-dns-crossnet.md
+    agent: cheap
+    lead_model: opencode/glm-5.3-flash-free
+    agent_model: opencode/glm-5.3-flash-free
+    session_id: ses_e92fa7325ffeI0tf90Kic3t2I2 (build), ses_e92d61b5effem2GBxRKm5Pkp4O (reopened Step 2)
+    tokens_input: 493037, 102099
+    tokens_output: 60069, 12210
+    tokens_reasoning: 75707, 11568
+    tokens_cache_read: 25313408, 2726528
+    cost_usd: 0
+    human_interventions: 1
+    agent_review_rounds: 0
+    guardrail_failures: 8
+    fix_commits: 2
+    defects_escaped: 0
+    notes: >-
+      Executed by a general sub-agent on opencode/glm-5.3-flash-free — the
+      standing, per-slice, human-approved deviation (pinned executor model
+      over usage limit; the retry that hit the limit was re-dispatched once
+      before falling back). 8 in-session red runs on the build session, all
+      convergence failures on newly written tests (wrong expected values for
+      the deterministic seed and an ESM import-order hazard where render
+      elements resolved before the stage-6 DOM registered — fixed with the
+      same lazy-lookup pattern render-stage.js already used; not a contract
+      change). Step-3 review REOPENED Step 2 once, before PR: the reopened
+      probe caught the hosted trace narrating a pre-resolution GET frame
+      toward a hostname (`10.2 -> nope.example | GET ...`), a DL-4-family
+      fabricated wire message; fixed in 3f9a7e4 (hosted = 9 hops starting at
+      the DNS ask, NX = 2 hops, host-less = 8 byte-identical; the brief's
+      Unknown-name contract gained the explicit 'no addressing hop'
+      clarification in the same change). One further lead fix (48cf921):
+      NX run log entries relabel to the final denominator once the answer
+      lands (the baked `hop 1/9` estimate otherwise survived into the log —
+      caught by the lead's own strict probe, my brief had not pinned the
+      label invariant, recorded as a brief-authoring gap rather than an
+      escaped defect). executor pin edits during build moved the
+      shipped-stage frontier (invalid-stage pins 6 -> 7, teaching.six-stage
+      title rename to 'shipped'), all assertions-compatible and manifest
+      refs updated; panel.html at the 550 line cap dropped its unpinned
+      data-testid on #orrery-svg (id intact, DESIGN.md registration intact).
+      Step-3 strict probe green: ask-first hops 1/9, no hostname GET frame,
+      host-less byte-identical to stage 5, NX render + no-GET, TTL ledger
+      (Authoritative: 1, Cached: 2) and deep-links.
   - id: STAGE-TEACHING-DRAWER
     slice:
       - PANEL
