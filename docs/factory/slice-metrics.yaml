@@ -10,6 +10,42 @@
 # tokens_reasoning, tokens_cache_read, cost_usd, notes.
 
 entries:
+  - id: STAGE-TEACHING-DRAWER
+    slice:
+      - PANEL
+    name: Stage teaching drawer — per-stage teaches/try/watch-for narrative with primer links
+    brief: docs/plans/2026-10-24-stage-teaching-drawer.md
+    agent: cheap
+    lead_model: opencode/glm-5.3-flash-free
+    agent_model: opencode/glm-5.3-flash-free
+    session_id: ses_e932d1459ffeSw5DrBDtIt0ECf
+    tokens_input: 123262
+    tokens_output: 13981
+    tokens_reasoning: 14706
+    tokens_cache_read: 3388032
+    cost_usd: 0
+    human_interventions: 1
+    agent_review_rounds: 0
+    guardrail_failures: 2
+    fix_commits: 0
+    defects_escaped: 0
+    notes: >-
+      Executed by a general sub-agent on opencode/glm-5.3-flash-free — same
+      human-approved model deviation as TEACHING-CORRECTNESS and
+      USABILITY-STATE (pinned executor model over usage limit). Two in-session
+      reds: one guard run (file-size cap) and one false-positive e2e failure
+      where the assertion regex matched 'bottleneck' for /cache|TTL/i — the
+      assertion was tightened (\\bcache\\b|\\bTTL\\b), i.e. strengthened rather
+      than weakened. Two brief-authoring defects caught by DL-3 discipline:
+      the brief pinned the teaching-drawer e2e into e2e/panel.spec.js, which
+      sat at the 450-line guard cap, so per repo precedent the tests landed in
+      new e2e/teaching.spec.js with the pinned titles unchanged; and the brief's
+      own counter-example called the cache headline 'stage 2' (cache is stage 3)
+      — resolved by pinning per-stage updates through 1->2->3->1. Step-3
+      acceptance probe green: stage-1 drawer shows no cache/TTL vocabulary,
+      stage 3 carries it and stage 1 drops it after the round-trip, drawer
+      open-state persists across switches, primer anchor resolves live
+      (#performance-vs-scalability for stage 1).
   - id: USABILITY-STATE
     slice:
       - SHELL
