@@ -63,6 +63,24 @@ export function addToJourney(label, text, { run = 0, hop = 0 } = {}) {
     0,
     JOURNEY_CAP,
   );
+  renderJourney();
+}
+
+// CHECKS: a trace run's stored hop denominators must be the run's FINAL hop
+// count. An NX run's estimate (`host ? 9 : 8`) bakes `hop 1/9` before the
+// answer proves the run ends at 2; once the final hop lands, relabelRun()
+// rewrites every entry of that run so the log never advertises hops the
+// run did not take (render() re-reads journeyEntries only).
+export function relabelJourneyRun(run, totalHops) {
+  journeyEntries = journeyEntries.map((entry) =>
+    entry.run === run && entry.hop > 0
+      ? { ...entry, label: `hop ${entry.hop}/${totalHops}` }
+      : entry,
+  );
+  renderJourney();
+}
+
+function renderJourney() {
   els.journeyLog.replaceChildren(
     ...journeyEntries.map((entry) => {
       const item = document.createElement('li');
@@ -148,6 +166,28 @@ function renderJobsInto(container, jobs) {
   );
 }
 
+// DOCUMENTS: DNS ledger rows (Stage 6) render one row per live ledger entry —
+// name, resolved target, ticks left — the Map on screen, not an aggregate.
+// The stage-6 nodes are JS-injected by stage6-registry.js, so their lookups
+// stay lazy (same rule as render-stage.js's lane elements).
+function renderDnsHud(snapshot) {
+  const dnsStats = $('dns-stats');
+  const dnsEntries = $('dns-entries-list');
+  const routerStats = $('router-stats');
+  if (dnsStats) dnsStats.textContent = describeSnapshot(snapshot).dnsStatsLabel;
+  if (dnsEntries) {
+    dnsEntries.replaceChildren(
+      ...describeSnapshot(snapshot).dnsEntries.map((entry) => {
+        const item = document.createElement('li');
+        item.className = 'route-item';
+        item.textContent = `${entry.name} · ${entry.target} · ttl ${entry.ttlRemaining}t`;
+        return item;
+      }),
+    );
+  }
+  if (routerStats) routerStats.textContent = describeSnapshot(snapshot).routerStatsLabel;
+}
+
 function activeBrowserDisplay(snapshot, activeAddress) {
   const browsers = Array.isArray(snapshot.browsers) ? snapshot.browsers : [];
   const slot = browsers.find((b) => b.address === activeAddress) ?? browsers[0] ?? null;
@@ -228,10 +268,13 @@ export function render(snapshot, selectedComponent, { layout, activeAddress = '1
     els.dbStats.textContent = labels.dbStatsLabel;
     renderDbRows(labels.dbRows);
   }
-  if (snapshot.stage === 5 && snapshot.workerQueue) {
+  if (snapshot.stage >= 5 && snapshot.workerQueue) {
     els.queueStats.textContent = labels.queueStatsLabel;
     els.workerStats.textContent = labels.workerStatsLabel;
     renderJobsInto(els.queueJobs, labels.queueJobs);
+  }
+  if (snapshot.stage >= 6 && snapshot.dns) {
+    renderDnsHud(snapshot);
   }
   renderHopHighlights(snapshot, selectedComponent);
   renderDots(snapshot.users);

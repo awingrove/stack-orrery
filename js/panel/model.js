@@ -3,8 +3,11 @@
 // render.js own all DOM writes.
 export const TICK_MS = 100;
 const QUEUE_BAR_SATURATION = 20; // bar reads full at 20 queued requests
-// Total hops per stage's trace shape (trace.js and engine.traceHop agree).
-const TOTAL_HOPS = { 1: 4, 2: 5, 3: 6, 4: 7, 5: 8 };
+// Total hops per stage's trace shape (trace.js, trace-stage6.js and
+// engine.traceHop agree). Stage 6's hosted shape is 9: the DNS ask + answer
+// plus the stage-5 chain's wire hops (its emit hop is the browser's
+// composition, not a wire frame).
+const TOTAL_HOPS = { 1: 4, 2: 5, 3: 6, 4: 7, 5: 8, 6: 9 };
 
 const HOP_START_SENTENCE = 'Idle — type a path and click Go or Step 1 Hop ->';
 
@@ -12,51 +15,93 @@ function fillPercent(depth) {
   return `${Math.min(100, Math.round((depth / QUEUE_BAR_SATURATION) * 100))}%`;
 }
 
+// One hop-sentence set per Stage 5 trace shape — async POST /jobs vs the
+// synchronous cache/database story. Eight bare sentences with no "Hop n/8: "
+// prefix: stage 5 and stage 6's host-less trace wrap them identically (the
+// host-less counter-example renders byte-identically), and stage 6's hosted
+// shape renumbers the tail behind its DNS prelude.
+function stage5ChainParts(snapshot, from, serverAddress) {
+  const t = snapshot.trace ?? {};
+  const target = t.targetServer ?? '10.11';
+  if (t.asyncJob) {
+    const worker = snapshot.workerQueue?.workerAddress ?? '10.41';
+    return [
+      `Browser (${from}) emits "${t.request}"`,
+      `Network (10.x) routes to LoadBalancer (${serverAddress})`,
+      `LoadBalancer (${serverAddress}) -> ${target} queue`,
+      `WebServer (${target}) enqueues job to WorkerQueue (10.40)`,
+      `WebServer (${target}) -> "202 Accepted"`,
+      `Network delivers 202 response to ${from}`,
+      `Browser (${from}) received and displayed 202 Accepted`,
+      `Worker (${worker}) processed job and committed to Database (10.30)`,
+    ];
+  }
+  // Requests served synchronously keep the Stage 4 cache/database story;
+  // the worker does not see them, so the tail hop reads idle.
+  const db = snapshot.database ?? {};
+  const primary = db.primaryAddress ?? '10.30';
+  const replica = db.replicaAddress ?? '10.31';
+  const lag = db.replicationLagTicks ?? 3;
+  const dbOp =
+    t.dbOp === 'WRITE'
+      ? `Database WRITE @ Primary (${primary}) — replica lags ${lag}t`
+      : t.dbOp === 'SELECT' && t.dbStale
+        ? `Database SELECT @ Replica (${replica}) — STALE (lag ${lag}t)`
+        : t.dbOp === 'SELECT'
+          ? `Database SELECT @ Replica (${replica}) — fresh`
+          : `Database SKIP — warm cache HIT (${snapshot.cache?.address ?? '10.20'})`;
+  return [
+    `Browser (${from}) emits "${t.request}"`,
+    `Network (10.x) routes to LoadBalancer (${serverAddress})`,
+    `LoadBalancer (${serverAddress}) -> ${target} queue`,
+    dbOp,
+    `WebServer (${target}) -> "${t.response}" (cache ${t.cacheStatus})`,
+    `Network delivers ${t.status} response to ${from}`,
+    `Browser (${from}) received and displayed ${t.status}`,
+    `Worker (${workerAddressOf(snapshot)}) idle — no async jobs in this trace`,
+  ];
+}
+
+const workerAddressOf = (snapshot) => snapshot.workerQueue?.workerAddress ?? '10.41';
+
+const withHopPrefix = (parts, total) => parts.map((p, i) => `Hop ${i + 1}/${total}: ${p}`);
+
+// Stage 6 composes two DNS sentences onto the stage-5 chain. The ledger
+// address comes from the live snapshot; an NX answer ends the trace at
+// hop 2 — the browser renders the refusal card and no GET appears anywhere
+// downstream (pinned counter-example in test/panel/model-stage6.test.js).
+// The stage-5 emit sentence is still the host-less hop 1; on a hosted path
+// the browser's composure is not a wire hop, so hop 1 is the DNS ask and
+// the 9-hop shape is ask + answer + the stage-5 chain minus emit.
+function stage6Sentences(snapshot, from, serverAddress) {
+  const t = snapshot.trace ?? {};
+  const parts = stage5ChainParts(snapshot, from, serverAddress);
+  if (!t.host) {
+    // Host-less counter-example: GET /about keeps the stage-5 story whole.
+    return withHopPrefix(parts, 8);
+  }
+  const dnsAddress = snapshot.dns?.address ?? '10.60';
+  const ask = `Browser (${from}) -> DNS (${dnsAddress}): who is ${t.host}?`;
+  if (t.nx) {
+    const answer = `DNS (${dnsAddress}) -> Browser (${from}): NX no record — no GET emitted`;
+    return withHopPrefix([ask, answer], 2);
+  }
+  const answer = `DNS (${dnsAddress}) -> Browser (${from}) answers ${t.dnsTarget ?? '10.1'}`;
+  // Hosted = 9 hops: ask + answer, then the stage-5 wire chain renumbered.
+  return withHopPrefix([ask, answer, ...parts.slice(1)], 9);
+}
+
 // One hop-status sentence per hop, in hop order, for each stage's trace
 // shape: 4 hops in Stage 1 (emit, route, serve, render), 5 in Stage 2 (LB
 // round-robin pick), 6 in Stage 3 (cache check, then response emit), 7 in
-// Stage 4 (the database hop after the cache check).
+// Stage 4 (the database hop after the cache check), 8 in Stage 5, and the
+// stage-6 shapes above.
 function hopSentences(stage, snapshot, from, serverAddress) {
   const t = snapshot.trace ?? {};
   const target = t.targetServer ?? '10.11';
+  if (stage === 6) return stage6Sentences(snapshot, from, serverAddress);
   if (stage === 5) {
-    const worker = snapshot.workerQueue?.workerAddress ?? '10.41';
-    if (t.asyncJob) {
-      return [
-        `Hop 1/8: Browser (${from}) emits "${t.request}"`,
-        `Hop 2/8: Network (10.x) routes to LoadBalancer (${serverAddress})`,
-        `Hop 3/8: LoadBalancer (${serverAddress}) -> ${target} queue`,
-        `Hop 4/8: WebServer (${target}) enqueues job to WorkerQueue (10.40)`,
-        `Hop 5/8: WebServer (${target}) -> "202 Accepted"`,
-        `Hop 6/8: Network delivers 202 response to ${from}`,
-        `Hop 7/8: Browser (${from}) received and displayed 202 Accepted`,
-        `Hop 8/8: Worker (${worker}) processed job and committed to Database (10.30)`,
-      ];
-    }
-    // Requests served synchronously keep the Stage 4 cache/database story;
-    // the worker does not see them, so the tail hop reads idle.
-    const db = snapshot.database ?? {};
-    const primary = db.primaryAddress ?? '10.30';
-    const replica = db.replicaAddress ?? '10.31';
-    const lag = db.replicationLagTicks ?? 3;
-    const dbOp =
-      t.dbOp === 'WRITE'
-        ? `Database WRITE @ Primary (${primary}) — replica lags ${lag}t`
-        : t.dbOp === 'SELECT' && t.dbStale
-          ? `Database SELECT @ Replica (${replica}) — STALE (lag ${lag}t)`
-          : t.dbOp === 'SELECT'
-            ? `Database SELECT @ Replica (${replica}) — fresh`
-            : `Database SKIP — warm cache HIT (${snapshot.cache?.address ?? '10.20'})`;
-    return [
-      `Hop 1/8: Browser (${from}) emits "${t.request}"`,
-      `Hop 2/8: Network (10.x) routes to LoadBalancer (${serverAddress})`,
-      `Hop 3/8: LoadBalancer (${serverAddress}) -> ${target} queue`,
-      `Hop 4/8: ${dbOp}`,
-      `Hop 5/8: WebServer (${target}) -> "${t.response}" (cache ${t.cacheStatus})`,
-      `Hop 6/8: Network delivers ${t.status} response to ${from}`,
-      `Hop 7/8: Browser (${from}) received and displayed ${t.status}`,
-      `Hop 8/8: Worker (${worker}) idle — no async jobs in this trace`,
-    ];
+    return withHopPrefix(stage5ChainParts(snapshot, from, serverAddress), 8);
   }
   if (stage === 4) {
     const db = snapshot.database ?? null;
@@ -188,6 +233,15 @@ export function describeSnapshot(snapshot) {
         : `Worker ${snapshot.workerQueue.workerAddress} Idle`
       : 'Worker 10.41 Idle',
     queueJobs: snapshot.workerQueue?.pendingJobs ?? [],
+    dnsStatsLabel: `Lookups: ${snapshot.dns?.lookups ?? 0} · Cached: ${
+      snapshot.dns?.cachedHits ?? 0
+    } · Authoritative: ${snapshot.dns?.authoritative ?? 0} · TTL: ${snapshot.dns?.ttlTicks ?? 300}t`,
+    // PINS: the DNS ledger renders one row per live cache entry — name,
+    // resolved target, ticks left — the Map on screen, not an aggregate.
+    dnsEntries: snapshot.dns?.cache ?? [],
+    routerStatsLabel: snapshot.router
+      ? `Router ${snapshot.router.address} ⇄ ${snapshot.router.rightAddress} · Routed: ${snapshot.router.routed}`
+      : '',
     exchangeSummary: last
       ? `${last.from} -> ${last.to} ${last.request} => ${last.response}`
       : 'No requests served yet',

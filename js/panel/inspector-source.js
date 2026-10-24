@@ -4,8 +4,12 @@
 // The live-state builders and their JSON formatting live in
 // inspector-state.js (split by responsibility, guard-file-size), which also
 // builds the per-snapshot inspector headline in componentTitle — this file
-// keeps only the static file/code entries, no per-stage address pins.
+// keeps only the static file/code entries, no per-stage address pins. The
+// stage-6 mirrors live in inspector-source-stage6.js (same split).
+import { STAGE6_SOURCE } from './inspector-source-stage6.js';
+
 export const COMPONENT_SOURCE = {
+  ...STAGE6_SOURCE,
   browser: {
     file: 'js/sim/browser.js',
     code: `createBrowser({ name, address, network }) {

@@ -108,7 +108,8 @@ describe('createLoadBalancer', () => {
     expect(() => detached.handleRequest('GET /')).toThrow(/no network attached/);
     expect(() => detached.enqueue({ id: '1:0', atTick: 1 })).toThrow(/no network attached/);
     // CHECKS: an out-of-range stage fails loud (3 became valid with Stage 3;
-    // 4 became valid with Stage 4; 5 is not a shipped stage and still rejects).
-    expect(() => createEngine({ stage: 6 })).toThrow(/stage must be/);
+    // 4 became valid with Stage 4; 6 became valid with Stage 6a; 7 is not a
+    // shipped stage and still rejects).
+    expect(() => createEngine({ stage: 7 })).toThrow(/stage must be/);
   });
 });

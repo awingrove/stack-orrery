@@ -1,3 +1,9 @@
+import { polarToWorld, computeSatellites, makeWire } from './layout-geo.js';
+import { STAGE6_RINGS, buildStage6Extras } from './layout-stage6.js';
+
+// Re-exports (camera-pillar consumers import the geometry from layout.js).
+export { polarToWorld };
+
 export const DEFAULT_RING_GAP = 400;
 
 const STAGE_RINGS = {
@@ -36,56 +42,23 @@ const STAGE_RINGS = {
     ['ring-network', 'RING 6 · NETWORK'],
     ['ring-clients', 'RING 7 · BROWSERS'],
   ],
+  6: STAGE6_RINGS,
 };
 
 export const ORRERY_RINGS = buildOrreryRings(DEFAULT_RING_GAP, 1);
 
 export function buildOrreryRings(ringGap = DEFAULT_RING_GAP, stage = 1) {
   if (!Number.isFinite(ringGap) || ringGap <= 0) {
-    throw new Error('layout: ringGap must be a finite number > 0');
+    throw new Error(`layout: ringGap must be a finite number > 0`);
   }
   const ringSpecs = STAGE_RINGS[stage];
   if (!ringSpecs) {
-    throw new Error(`layout: unknown stage ${stage} (expected 1-5)`);
+    // CHECKS: stage 6 became a shipped stage with Stage 6a (8 rings); 7 is
+    // not a built stage yet, and the guard names the live range 1-6.
+    throw new Error(`layout: unknown stage ${stage} (expected 1-6)`);
   }
   const gap = Math.round(ringGap);
   return ringSpecs.map(([id, label], k) => ({ id, radius: (k + 1) * gap, label }));
-}
-
-export function polarToWorld(radius, angleDeg) {
-  const rad = (angleDeg * Math.PI) / 180;
-  return { x: Math.round(radius * Math.cos(rad)), y: Math.round(radius * Math.sin(rad)) };
-}
-
-function computeSatellites(users, outerRadius) {
-  const count = Math.max(0, Math.round(users));
-  const leftCount = Math.ceil(count / 2);
-  const rightCount = count - leftCount;
-  const satellites = [];
-  const place = (arcCount, startAngle) => {
-    for (let j = 0; j < arcCount; j += 1) {
-      const angleDeg = startAngle + ((j + 1) / (arcCount + 1)) * 37;
-      const { x, y } = polarToWorld(outerRadius, angleDeg);
-      satellites.push({ index: satellites.length, x, y, angleDeg });
-    }
-  };
-  place(leftCount, 135);
-  place(rightCount, 188);
-  return satellites;
-}
-
-function makeWire(id, fromId, toId, from, to) {
-  return {
-    id,
-    fromId,
-    toId,
-    x1: from.x,
-    y1: from.y,
-    x2: to.x,
-    y2: to.y,
-    midX: Math.round((from.x + to.x) / 2),
-    midY: Math.round((from.y + to.y) / 2),
-  };
 }
 
 // CHECKS: computeStageLayout validates the stage range rather than silently
@@ -95,8 +68,10 @@ export function computeStageLayout(
   users = 5,
   { ringGap = DEFAULT_RING_GAP, activeBrowser = '10.2' } = {},
 ) {
-  if (stage < 1 || stage > 5) {
-    throw new Error(`layout: unknown stage ${stage} (expected 1-5)`);
+  // CHECKS: stage 6 became a shipped stage with Stage 6a; an unknown stage
+  // fails loud instead of silently rendering an empty topology.
+  if (stage < 1 || stage > 6) {
+    throw new Error(`layout: unknown stage ${stage} (expected 1-6)`);
   }
   const rings = buildOrreryRings(ringGap, stage);
   const gap = Math.round(ringGap);
@@ -242,7 +217,7 @@ export function computeStageLayout(
         ),
       );
     }
-    if (stage === 4 || stage === 5) {
+    if (stage >= 4) {
       nodes['node-db'] = pos(
         'node-db',
         'ring-db',
@@ -253,7 +228,7 @@ export function computeStageLayout(
         makeWire('wire-cache-db', 'node-cache', 'node-db', nodes['node-cache'], nodes['node-db']),
       );
     }
-    if (stage === 5) {
+    if (stage >= 5) {
       const workersRing = rings.find((ring) => ring.id === 'ring-workers');
       nodes['node-queue'] = pos('node-queue', 'ring-workers', workersRing.radius, 200);
       nodes['node-worker'] = pos('node-worker', 'ring-workers', workersRing.radius, 160);
@@ -282,6 +257,19 @@ export function computeStageLayout(
       );
     }
   }
+  // CHECKS: Stage 6 seats the DNS ledger (ring-dns) and the cross-subnet
+  // router (beside the 10.x hub) from layout-stage6.js; their wires re-use
+  // the same spoke picture as the stage-5 chain's.
+  let boundY = gap + 140;
+  if (stage >= 6) {
+    const extras = buildStage6Extras(gap, {
+      network: nodes['node-network'],
+      browser: nodes['node-browser'],
+    });
+    Object.assign(nodes, extras.nodes);
+    wires.push(...extras.wires);
+    boundY = extras.boundY;
+  }
   return {
     stage,
     rings,
@@ -292,8 +280,8 @@ export function computeStageLayout(
     bounds: {
       minX: -(outerRadius + 180),
       maxX: 120,
-      minY: -(gap + 140),
-      maxY: gap + 140,
+      minY: -boundY,
+      maxY: boundY,
     },
   };
 }
