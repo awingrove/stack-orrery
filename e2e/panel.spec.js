@@ -411,3 +411,40 @@ test('should give every trace, camera, and load control a non-empty title', asyn
     expect(title.trim().length, `${id} title`).toBeGreaterThan(0);
   }
 });
+
+// URL deep-links restore the panel state on load; stage/slider commits then
+// rewrite the URL in place (history.replaceState — no history spam).
+test('should deep-link ?stage=5&users=30 to stage 5 with 30 browsers', async ({ page }) => {
+  await page.goto('/panel.html?stage=5&users=30');
+  await expect(page.getByTestId('stage-pill-5')).toHaveAttribute('aria-current', 'true');
+  await expect(page.getByTestId('node-queue')).toBeVisible();
+  await expect(page.getByTestId('user-dots').locator('> *')).toHaveCount(30);
+  await page.getByTestId('stage-pill-2').click(); // URL tracks: stage=2&users=30
+  await expect(page).toHaveURL(/stage=2&users=30/);
+});
+
+// Negative-case pin: unknown ?stage=9 falls back to Stage 1 — no crash, no
+// console error, and the disabled 6 pill stays untouched.
+test('should fall back to stage 1 on unknown ?stage=9 without errors', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(error));
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') errors.push(msg.text());
+  });
+  await page.goto('/panel.html?stage=9');
+  await expect(page.getByTestId('stage-pill-1')).toHaveAttribute('aria-current', 'true');
+  await expect(page.getByTestId('server-address')).toHaveText('10.1');
+  expect(errors).toEqual([]);
+});
+
+// Throughput per tick on the SERVED card: clean 0.00/t at tick 0 (no NaN),
+// served/tick after the deterministic first tick.
+test('should show the SERVED card tallying per tick without NaN at tick 0', async ({ page }) => {
+  await page.goto('/panel.html');
+  await expect(page.getByTestId('served')).toHaveText('0');
+  await expect(page.getByTestId('served-rate')).toHaveText('0.00/t');
+  await page.getByTestId('step-button').click(); // fixed seed: tick 1 serves 2
+  await expect(page.getByTestId('tick')).toHaveText('1');
+  await expect(page.getByTestId('served')).toHaveText('2');
+  await expect(page.getByTestId('served-rate')).toHaveText('2.00/t');
+});

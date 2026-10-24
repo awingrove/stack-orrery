@@ -8,6 +8,8 @@ import {
   zoomCameraAt,
   fitCameraToBounds,
   formatWorldTransform,
+  worldExceedsViewport,
+  createAutoRefit,
 } from '../../js/panel/camera.js';
 import {
   ORRERY_RINGS,
@@ -70,6 +72,38 @@ describe('camera math', () => {
       return tx + worldX * scale;
     };
     expect(screenOf(after)).toBeCloseTo(screenOf(before), 6);
+  });
+});
+
+describe('auto-refit contract', () => {
+  it('refits when the world grows past the viewport and auto-refit cancels on manual zoom', () => {
+    const refit = createAutoRefit();
+    // Stage 5's seven-ring world outgrows a ~960x440 viewport at street zoom.
+    const grown = computeStageLayout(5, 5).bounds;
+    expect(worldExceedsViewport(grown, 1, 960, 440)).toBe(true);
+    expect(refit.shouldRefit(grown, 1, 960, 440)).toBe(true);
+    // The trigger runs the same fit routine as btn-zoom-fit: bounds centered.
+    const fit = fitCameraToBounds(grown, 960, 448, 48);
+    expect(fit.x).toBe((grown.minX + grown.maxX) / 2);
+    expect(fit.zoom).toBeGreaterThanOrEqual(MIN_ZOOM);
+
+    // Named counter-example: after a manual camera action (e.g. btn-zoom-in)
+    // cancels the pending refit, a silent tick — no stage or user-count
+    // change — must NOT re-fit, even though the world still overflows.
+    refit.cancel();
+    expect(refit.armed).toBe(false);
+    expect(refit.shouldRefit(grown, 1, 960, 440)).toBe(false);
+
+    // Only the next stage or user-count change re-arms the refit.
+    refit.rearm();
+    expect(refit.shouldRefit(grown, 1, 960, 440)).toBe(true);
+
+    // A camera that already frames the world triggers no refit: the fit
+    // zoom keeps both spans inside the viewport, so armed-but-fitting
+    // stays put instead of fighting the learner's camera.
+    const framed = fitCameraToBounds(grown, 960, 448, 48);
+    expect(worldExceedsViewport(grown, framed.zoom, 960, 448)).toBe(false);
+    expect(refit.shouldRefit(grown, framed.zoom, 960, 448)).toBe(false);
   });
 });
 

@@ -147,6 +147,10 @@ export function describeSnapshot(snapshot) {
   const s1Depth = snapshot.servers?.[0]?.queueDepth ?? snapshot.queueDepth;
   const s2Depth = snapshot.servers?.[1]?.queueDepth ?? 0;
   const perBackend = snapshot.loadBalancer?.perBackend ?? {};
+  // CHECKS: per-tick throughput is served/tick while the clock runs and
+  // exactly 0 at tick 0 — the SERVED card renders "0.00/t", never NaN or
+  // Infinity (named counter-example: a fresh Stage-1 panel at tick 0).
+  const servedPerTick = snapshot.tick > 0 ? (snapshot.served ?? 0) / snapshot.tick : 0;
   return {
     stage,
     totalHops: TOTAL_HOPS[stage] ?? 4,
@@ -154,6 +158,7 @@ export function describeSnapshot(snapshot) {
     users: String(snapshot.users),
     queueDepth: String(snapshot.queueDepth),
     served: String(snapshot.served),
+    servedRate: `${servedPerTick.toFixed(2)}/t`,
     latency: `${latencyMs} ms`,
     queueFill: fillPercent(snapshot.queueDepth),
     queueFill1: fillPercent(s1Depth),

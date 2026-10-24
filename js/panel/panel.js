@@ -77,7 +77,34 @@ function switchStage(stage) {
   currentStage = stage;
   renderStageTopology(currentStage);
   engine = createEngineFromControls();
+  syncUrlState();
   updateView(engine.snapshot());
+}
+
+// CHECKS: deep-linked state reads exactly once at load — ?stage=N selects a
+// live stage 1-5 and ?users=U clamps into the slider's 1-50 range; anything
+// unknown, out of range, or non-numeric falls back to the fresh-load
+// defaults (Stage 1, five users) without a console error. Named
+// counter-example (pinned in e2e/panel.spec.js): ?stage=9 renders Stage 1 —
+// it must never select the disabled 6 · Multi-Net / CDN pill or crash.
+function readDeepLink() {
+  const params = new URLSearchParams(window.location.search);
+  const stage = Number.parseInt(params.get('stage') ?? '', 10);
+  const users = Number.parseFloat(params.get('users') ?? '');
+  return {
+    stage: stage >= 1 && stage <= 5 ? stage : 1,
+    users: Number.isFinite(users) ? Math.min(50, Math.max(1, Math.round(users))) : 5,
+  };
+}
+
+// CHECKS: stage-pill clicks and user-slider commits rewrite the URL in place
+// via history.replaceState — the shareable state tracks the panel without
+// pushing history entries (no history spam). Existing params are preserved.
+function syncUrlState() {
+  const params = new URLSearchParams(window.location.search);
+  params.set('stage', String(currentStage));
+  params.set('users', $('users-slider').value);
+  window.history.replaceState(null, '', `${window.location.pathname}?${params}`);
 }
 
 $('start-button').addEventListener('click', () => {
@@ -102,6 +129,7 @@ $('users-slider').addEventListener('input', () => {
   const host = Number(String(activeBrowserAddress).split('.')[1]);
   if (host > users + 1) activeBrowserAddress = '10.2';
   viewport.syncLayout(); // browser slots + crowd satellites re-space on Ring 3
+  syncUrlState(); // user-count changes stay shareable
   updateView(engine.snapshot());
 });
 
@@ -194,9 +222,14 @@ $('legend-toggle').addEventListener('click', () => {
   $('legend-toggle').setAttribute('aria-expanded', String(open));
 });
 
-// Boot: Stage 1 is active by default so existing Stage 1 tests run unchanged.
-// The viewport fits the active stage bounds at init and on every stage switch
-// (via the onStageRendered hook), so every node card is on-screen from load.
+// Boot: Stage 1 is active by default so existing Stage 1 tests run unchanged,
+// except where the URL deep-links a live stage and user count (?stage=N&
+// users=U) — those restore shared states on load. The viewport fits the
+// active stage bounds at init and on every stage switch (via the
+// onStageRendered hook), so every node card is on-screen from load.
+const deepLink = readDeepLink();
+currentStage = deepLink.stage;
+$('users-slider').value = String(deepLink.users);
 engine = createEngineFromControls();
 renderStageTopology(currentStage);
 const viewport = initViewport({

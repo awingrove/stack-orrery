@@ -67,6 +67,9 @@ slices:
       - SIM
     tests:
       - unit: test/panel/model.test.js::snapshot exposes queue depth and latency as UI state
+      - unit: test/panel/model.test.js::snapshot exposes throughput per tick alongside served total
+      - unit: test/panel/model.test.js::tick 0 renders 0.00/t without NaN
+      - unit: test/panel/camera.test.js::refits when the world grows past the viewport and auto-refit cancels on manual zoom
       - unit: test/panel/model.test.js::formats the latest HTTP exchange across mini-IPs for the inspector
       - unit: test/panel/model.test.js::describes hop-by-hop trace labels and component inspector state
       - unit: test/panel/model.test.js::maps a live snapshot to the webserver inspector state as JSON
@@ -96,6 +99,9 @@ slices:
       - e2e: panel::should render a full-trace journey log with hop 1/4 to 4/4 in ascending order
       - e2e: panel::should open the legend drawer and read the tick = 100 ms mapping and lane labels
       - e2e: panel::should give every trace, camera, and load control a non-empty title
+      - e2e: panel::should deep-link ?stage=5&users=30 to stage 5 with 30 browsers
+      - e2e: panel::should fall back to stage 1 on unknown ?stage=9 without errors
+      - e2e: panel::should show the SERVED card tallying per tick without NaN at tick 0
     entry_point: index.html -> Diagram Panel link
 
 allowlist:

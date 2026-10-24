@@ -108,6 +108,24 @@ activities:
             tests:
               - e2e: panel::should open the legend drawer and read the tick = 100 ms mapping and lane labels
               - e2e: panel::should give every trace, camera, and load control a non-empty title
+          - title: Read served throughput per tick on the SERVED card — 0.00/t at tick 0, never NaN
+            status: done
+            priority: medium
+            tests:
+              - unit: test/panel/model.test.js::snapshot exposes throughput per tick alongside served total
+              - unit: test/panel/model.test.js::tick 0 renders 0.00/t without NaN
+              - e2e: panel::should show the SERVED card tallying per tick without NaN at tick 0
+          - title: Auto-refit the camera when the world grows past the viewport after a stage or user-count change, cancelled by any manual camera action
+            status: done
+            priority: medium
+            tests:
+              - unit: test/panel/camera.test.js::refits when the world grows past the viewport and auto-refit cancels on manual zoom
+          - title: Deep-link the panel state — ?stage=N and ?users=U restore the view on load, stage/slider changes rewrite the URL, unknown values fall back to the defaults
+            status: done
+            priority: high
+            tests:
+              - e2e: panel::should deep-link ?stage=5&users=30 to stage 5 with 30 browsers
+              - e2e: panel::should fall back to stage 1 on unknown ?stage=9 without errors
 
   - name: 'Stage 2 — Load balancer and duplicated servers'
     tasks:

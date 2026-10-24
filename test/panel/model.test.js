@@ -18,6 +18,34 @@ describe('describeSnapshot', () => {
     expect(labels.served).toBe('12');
   });
 
+  it('snapshot exposes throughput per tick alongside served total', () => {
+    const labels = describeSnapshot({
+      tick: 4,
+      users: 5,
+      queueDepth: 0,
+      served: 9,
+      avgLatencyTicks: 0,
+    });
+    // The cumulative total keeps its integer reading; the per-tick rate
+    // builds on it at 2 decimals.
+    expect(labels.served).toBe('9');
+    expect(labels.servedRate).toBe('2.25/t');
+  });
+
+  it('tick 0 renders 0.00/t without NaN', () => {
+    // CHECKS: the tick-0 branch is exactly 0 — never served/0 (NaN).
+    const labels = describeSnapshot({
+      tick: 0,
+      users: 5,
+      queueDepth: 0,
+      served: 0,
+      avgLatencyTicks: 0,
+    });
+    expect(labels.servedRate).toBe('0.00/t');
+    expect(Number.parseFloat(labels.servedRate)).not.toBeNaN();
+    expect(Number.isFinite(Number.parseFloat(labels.servedRate))).toBe(true);
+  });
+
   it('queue bar saturates at the configured depth instead of overflowing', () => {
     const base = { tick: 1, users: 5, served: 0, avgLatencyTicks: 0 };
     expect(describeSnapshot({ ...base, queueDepth: 0 }).queueFill).toBe('0%');

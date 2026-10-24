@@ -58,6 +58,40 @@ export function fitCameraToBounds(bounds, viewportWidth, viewportHeight, padding
   });
 }
 
+// CHECKS: auto-refit fires only when the world bounds, scaled by the current
+// zoom, overflow the viewport screen box — a camera that already frames the
+// world never triggers a refit.
+export function worldExceedsViewport(bounds, zoom, viewportWidth, viewportHeight) {
+  return (
+    (bounds.maxX - bounds.minX) * zoom > viewportWidth ||
+    (bounds.maxY - bounds.minY) * zoom > viewportHeight
+  );
+}
+
+// CHECKS: the auto-refit boundary contract as an armed/cancelled machine —
+// a manual camera action (pointer drag, wheel, +/- or Fit buttons) cancels
+// the pending refit, and only a stage/topology or user-count change re-arms
+// it. Named counter-example (pinned in test/panel/camera.test.js): after a
+// manual btn-zoom-in, the next silent tick must NOT refit.
+export function createAutoRefit() {
+  let armed = true;
+  return {
+    get armed() {
+      return armed;
+    },
+    cancel() {
+      armed = false;
+    },
+    rearm() {
+      armed = true;
+    },
+    // Whether the same fit routine as btn-zoom-fit must run right now.
+    shouldRefit(bounds, zoom, viewportWidth, viewportHeight) {
+      return armed && worldExceedsViewport(bounds, zoom, viewportWidth, viewportHeight);
+    },
+  };
+}
+
 // CHECKS: the CSS transform maps world (wx, wy) to
 // (w/2 + (wx - cam.x) * zoom, h/2 + (wy - cam.y) * zoom).
 export function formatWorldTransform(cam, viewportWidth, viewportHeight) {
