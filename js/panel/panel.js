@@ -9,6 +9,7 @@ import { COMPONENT_SOURCE } from './inspector-source.js';
 import { $, els, addToJourney, render, renderInspector } from './render.js';
 import { renderStageTopology, onStageRendered } from './render-stage.js';
 import { initViewport } from './viewport.js';
+import { initTeachingDrawer, renderTeaching } from './teaching-drawer.js';
 
 let currentStage = 1;
 let engine = null;
@@ -78,6 +79,7 @@ function switchStage(stage) {
   renderStageTopology(currentStage);
   engine = createEngineFromControls();
   syncUrlState();
+  renderTeaching(currentStage);
   updateView(engine.snapshot());
 }
 
@@ -222,6 +224,11 @@ $('legend-toggle').addEventListener('click', () => {
   $('legend-toggle').setAttribute('aria-expanded', String(open));
 });
 
+// CHECKS: the teaching drawer lives in js/panel/teaching-drawer.js; panel.js
+// hands it the current stage at boot and on every switch (see also the
+// legend drawer above for the toggle pattern).
+initTeachingDrawer();
+
 // Boot: Stage 1 is active by default so existing Stage 1 tests run unchanged,
 // except where the URL deep-links a live stage and user count (?stage=N&
 // users=U) — those restore shared states on load. The viewport fits the
@@ -242,4 +249,5 @@ const viewport = initViewport({
 });
 onStageRendered(() => viewport.syncLayout());
 selectComponent('browser');
+renderTeaching(currentStage);
 updateView(engine.snapshot());

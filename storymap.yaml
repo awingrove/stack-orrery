@@ -126,6 +126,15 @@ activities:
             tests:
               - e2e: panel::should deep-link ?stage=5&users=30 to stage 5 with 30 browsers
               - e2e: panel::should fall back to stage 1 on unknown ?stage=9 without errors
+          - title: Open a per-stage teaching drawer naming the ladder concept and framing tradeoffs
+            status: done
+            priority: medium
+            tests:
+              - unit: test/panel/teaching.test.js::describes all five stages with a headline, three lists, a tradeoff, and a primerLink
+              - unit: test/panel/teaching.test.js::stage 1 content never mentions cache TTL names
+              - unit: test/panel/teaching.test.js::unknown stages degrade to a pending-entries placeholder, not a crash
+              - e2e: teaching::should open the teaching drawer, trace it across stage switches, and show stage-1 content only on stage 1
+              - e2e: teaching::should link to the system-design-primer section for the active stage
 
   - name: 'Stage 2 — Load balancer and duplicated servers'
     tasks:

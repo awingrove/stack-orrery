@@ -1,0 +1,72 @@
+/* Teaching drawer (Camera HUD drawer, bottom-right so it stacks below the
+   legend drawer's top-right slot): the per-stage narrative from
+   js/panel/teaching.js — heading-section headline, teaches / try /
+   watch-for lists, the trade-off line, and one outbound primer link.
+   Palette + spacing tokens only (DESIGN.md camera HUD drawers). */
+
+.teaching-panel {
+  position: absolute;
+  bottom: 0.65rem;
+  right: 0.65rem;
+  z-index: 5;
+  width: 22rem;
+  max-width: min(85%, 22rem);
+  max-height: 27rem;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 0.7rem;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.teaching-panel[hidden] {
+  display: none;
+}
+
+/* heading-section token (DESIGN.md typography). */
+.teaching-panel .heading-section {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.teaching-list-title {
+  margin: 0.3rem 0 0;
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.teaching-list {
+  margin: 0.15rem 0 0;
+  padding-left: 1.05rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.teaching-tradeoff {
+  margin: 0.35rem 0 0;
+  padding: 0.4rem 0.55rem;
+  border-radius: 0.3rem;
+  background: var(--accent-soft);
+}
+
+.teaching-pending {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.teaching-primer-link {
+  color: var(--accent);
+  text-decoration: underline;
+}
