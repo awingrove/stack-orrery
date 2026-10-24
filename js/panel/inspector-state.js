@@ -8,6 +8,44 @@ export function formatComponentState(snapshot, component, browserAddress = '10.2
   return JSON.stringify(build(snapshot, browserAddress), null, 2);
 }
 
+// PINS: the rendered #inspector-title derives every per-stage address from
+// the live snapshot, not from the static source entry — the named
+// counter-example: on stage 1 the webserver headline reads
+// "WebServer — mini-IP 10.1" while #inspector-state shows "address": "10.1",
+// and reading "10.11 / 10.12" there would contradict the state side. Every
+// inspector tab title follows the same derive-from-snapshot rule.
+export function componentTitle(snapshot = null, component, browserAddress = '10.2') {
+  switch (component) {
+    case 'browser':
+      return browserAddress === '10.2'
+        ? 'Browser (You) — mini-IP 10.2'
+        : `Browser-${Number(browserAddress.split('.')[1]) - 1} — mini-IP ${browserAddress}`;
+    case 'network':
+      return 'Network — routing fabric';
+    case 'loadbalancer':
+      return `LoadBalancer — mini-IP ${snapshot?.loadBalancer?.address ?? '10.1'}`;
+    case 'webserver': {
+      const addresses =
+        snapshot?.stage >= 2 && Array.isArray(snapshot.servers)
+          ? snapshot.servers.map((s) => s.address)
+          : [snapshot?.serverAddress ?? '10.1'];
+      return `WebServer — mini-IP ${addresses.join(' / ')}`;
+    }
+    case 'cache':
+      return `Cache — mini-IP ${snapshot?.cache?.address ?? '10.20'}`;
+    case 'database':
+      return `Database — Primary ${snapshot?.database?.primaryAddress ?? '10.30'} / Replica ${
+        snapshot?.database?.replicaAddress ?? '10.31'
+      }`;
+    case 'workerqueue':
+      return `Worker Queue — Queue ${snapshot?.workerQueue?.address ?? '10.40'} / Worker ${
+        snapshot?.workerQueue?.workerAddress ?? '10.41'
+      }`;
+    default:
+      throw new Error(`inspector-source: unknown component ${component}`);
+  }
+}
+
 const STATE_BUILDERS = {
   browser: (snapshot, browserAddress = '10.2') => {
     const browsers = Array.isArray(snapshot.browsers) ? snapshot.browsers : [];

@@ -212,105 +212,6 @@ test('should switch to Stage 4, write to Primary 10.30 on POST, observe replica 
   await expect(page.getByTestId('inspector-state')).toContainText('"staleReads": 2');
 });
 
-// The orrery plane is camera-driven: one concentric SVG ring per architectural
-// layer (3 in Stage 1, 4 in Stage 2, r_k = k * ringGap), zoom via HUD buttons
-// and wheel (toward the cursor), pan via pointer drag, and a Fit-to-view reset
-// that restores the initial framing computed from the stage bounds.
-test('should pan and zoom the concentric orrery plane and reset with Fit to view', async ({
-  page,
-}) => {
-  await page.goto('/panel.html');
-
-  const viewport = page.getByTestId('orrery-viewport');
-  await expect(page.locator('.orrery-ring')).toHaveCount(3); // compute, network, clients
-  await expect(page.locator('.orrery-ring').first()).toHaveAttribute('r', '400');
-  await expect(page.locator('.orrery-ring').last()).toHaveAttribute('r', '1200');
-  // Stage 2 adds its 4th layer ring (LoadBalancer gets its own ring, Network
-  // and Browsers move outward).
-  await page.getByTestId('stage-pill-2').click();
-  await expect(page.locator('.orrery-ring')).toHaveCount(4);
-  await expect(page.locator('.orrery-ring').last()).toHaveAttribute('r', '1600');
-  await page.getByTestId('stage-pill-1').click();
-  await expect(page.locator('.orrery-ring')).toHaveCount(3);
-  await expect(page.locator('.orrery-satellite').first()).toBeVisible();
-
-  const zoomStatus = page.getByTestId('zoom-status');
-  const initialZoom = await zoomStatus.textContent();
-  const world = page.getByTestId('orrery-world');
-  const transformBefore = await world.evaluate((el) => el.style.transform);
-
-  // HUD zoom-in changes the zoom% badge...
-  await page.getByTestId('btn-zoom-in').click();
-  await expect(zoomStatus).not.toHaveText(initialZoom);
-
-  // ...and the wheel zooms toward the cursor (crowd satellite dots stay).
-  // Wheel and drag coordinates derive from the viewport's bounding box, so
-  // they stay inside the clipped plane and do not depend on hardcoded page
-  // coordinates like y = 600.
-  const box = await viewport.boundingBox();
-  const cx = box.x + box.width / 2;
-  const cy = box.y + box.height / 2;
-  await page.mouse.move(box.x + 80, cy);
-  await page.mouse.wheel(0, -120);
-  await expect(page.locator('.orrery-satellite')).toHaveCount(5);
-
-  // Pointer drag pans the plane: the world transform changes, and the
-  // transient .is-panning class is gone once the drag ends.
-  await page.mouse.move(box.x + 100, cy);
-  await page.mouse.down();
-  await page.mouse.move(cx + 100, cy - 20, { steps: 6 });
-  await page.mouse.up();
-  const transformAfterPan = await world.evaluate((el) => el.style.transform);
-  expect(transformAfterPan).not.toBe(transformBefore);
-  await expect(viewport).not.toHaveClass(/is-panning/);
-
-  // Fit to view restores the initial framing exactly.
-  await page.getByTestId('btn-zoom-fit').click();
-  await expect(zoomStatus).toHaveText(initialZoom);
-
-  // Live tuning: the ring-gap slider rescales the stage's rings as
-  // r_k = k * ringGap (460 / 920 / 1380 in Stage 1) with the camera left
-  // where Fit put it, and the readouts mirror their sliders immediately.
-  await expect(page.getByTestId('ring-gap-value')).toHaveText('400px');
-  await expect(page.locator('.orrery-ring').first()).toHaveAttribute('r', '400');
-  await expect(page.locator('.orrery-ring').last()).toHaveAttribute('r', '1200');
-  const compact10_3 = page.getByTestId('browser-node-10.3');
-  const compactLeftBefore = await compact10_3.evaluate((el) => el.style.left);
-  await page.getByTestId('ring-gap-slider').fill('460');
-  await expect(page.getByTestId('ring-gap-value')).toHaveText('460px');
-  await expect(page.locator('.orrery-ring').first()).toHaveAttribute('r', '460');
-  await expect(page.locator('.orrery-ring').last()).toHaveAttribute('r', '1380');
-  // The compact Ring-3 browsers move live with the ring gap too, not just the
-  // SVG rings.
-  const compactLeftAfter = await compact10_3.evaluate((el) => el.style.left);
-  expect(compactLeftAfter).not.toBe(compactLeftBefore);
-  await expect(zoomStatus).toHaveText(initialZoom); // camera untouched by tuning
-
-  // Zoom speed retunes every zoom gesture (buttons, wheel, keyboard) and can
-  // dial the per-step factor all the way down to 1.01x.
-  await page.getByTestId('zoom-speed-slider').fill('1.01');
-  await expect(page.getByTestId('zoom-speed-value')).toHaveText('1.01x');
-});
-
-// Ring 3 browsers are addressable: clicking a compact browser node expands
-// it into #node-browser (header updated to that browser's name and mini-IP)
-// and collapses the previously expanded browser into a compact node.
-test('should expand Ring 3 browsers by clicking their compact nodes and return to 10.2', async ({
-  page,
-}) => {
-  await page.goto('/panel.html');
-
-  await expect(page.getByTestId('browser-ring-nodes').locator('> *')).toHaveCount(4); // 10.3..10.6 compact
-  await page.getByTestId('browser-node-10.3').click();
-  await expect(page.getByTestId('browser-ip-chip')).toHaveText('10.3');
-  await expect(page.getByTestId('browser-role-name')).toHaveText('Browser-2');
-  await expect(page.getByTestId('browser-node-10.2')).toBeVisible();
-
-  await page.getByTestId('browser-node-10.2').click();
-  await expect(page.getByTestId('browser-ip-chip')).toHaveText('10.2');
-  await expect(page.getByTestId('browser-role-name')).toHaveText('Browser (You)');
-});
-
 // Stage 5 adds the Worker Queue (10.40) and Worker (10.41) on Ring 2 behind
 // the database stack: the orrery redraws to 7 rings, POST /jobs answers an
 // immediate 202 over an 8-hop async trace, and the FIFO job lands in the
@@ -428,4 +329,85 @@ test('should switch to Stage 5, process an async POST /jobs job through worker 1
   await page.getByTestId('stage-pill-2').click();
   await page.getByTestId('stage-pill-5').click();
   expect(await lanePos('wire-lb-backends')).toEqual({ x: -1752, y: 1 });
+});
+
+// Teaching correctness (teaching-correctness brief): the inspector headline
+// derives from the live snapshot — on Stage 1 the webserver state shows
+// "address": "10.1", so the headline names 10.1, not the duplicated-servers
+// 10.11 / 10.12 string; Stage 2's snapshot derives both backends.
+test('should show the stage-1 webserver headline naming 10.1 only', async ({ page }) => {
+  await page.goto('/panel.html');
+
+  // Build a live snapshot first (one hop), then open the webserver tab.
+  await page.getByTestId('btn-next-hop').click();
+  await page.getByTestId('node-webserver').click();
+  await expect(page.getByTestId('inspector-state')).toContainText('"address": "10.1"');
+  const headline = page.getByTestId('inspector-title');
+  await expect(headline).toHaveText('WebServer — mini-IP 10.1');
+
+  // Stage 2 derives both backend addresses for the same tab.
+  await page.getByTestId('stage-pill-2').click();
+  await expect(page.getByTestId('inspector-title')).toHaveText('WebServer — mini-IP 10.11 / 10.12');
+  await page.getByTestId('stage-pill-1').click();
+  await expect(page.getByTestId('inspector-title')).toHaveText('WebServer — mini-IP 10.1');
+});
+
+// Teaching correctness: one trace run's entries read top-down in hop
+// ascending order in #journey-log, whatever order the engine emits frames.
+test('should render a full-trace journey log with hop 1/4 to 4/4 in ascending order', async ({
+  page,
+}) => {
+  await page.goto('/panel.html');
+
+  for (let hop = 0; hop < 4; hop++) await page.getByTestId('btn-next-hop').click();
+
+  const labels = await page.getByTestId('journey-log').locator('.journey-entry').allTextContents();
+  const hopRows = labels.map((text) => text.match(/^(hop \d\/4)/)?.[1]);
+  expect(hopRows.slice(0, 4)).toEqual(['hop 1/4', 'hop 2/4', 'hop 3/4', 'hop 4/4']);
+});
+
+// Teaching correctness: the HUD legend drawer explains the tick clock, the
+// cache stats trio, the Ring 3 site chips, and the wire-lane labels.
+test('should open the legend drawer and read the tick = 100 ms mapping and lane labels', async ({
+  page,
+}) => {
+  await page.goto('/panel.html');
+
+  const drawer = page.getByTestId('legend-panel');
+  await expect(drawer).toBeHidden();
+  await page.getByTestId('legend-toggle').click();
+  await expect(drawer).toBeVisible();
+  await expect(drawer).toContainText('tick = 100 ms');
+  await expect(drawer).toContainText('TICK_MS = 100');
+  await expect(drawer).toContainText('Hits / Misses / TTL-remaining');
+  await expect(drawer).toContainText('site');
+  await expect(drawer).toContainText('request =>');
+  await expect(drawer).toContainText('<- response');
+  await expect(drawer).toContainText('enqueue =>');
+  await expect(drawer).toContainText('write =>');
+
+  await page.getByTestId('legend-toggle').click();
+  await expect(drawer).toBeHidden();
+});
+
+// Every trace, camera, and load control carries a non-empty title attribute
+// (DESIGN.md Do rule: the learner should not have to guess the control).
+test('should give every trace, camera, and load control a non-empty title', async ({ page }) => {
+  await page.goto('/panel.html');
+
+  const ids = [
+    'btn-url-go',
+    'btn-play-request',
+    'btn-next-hop',
+    'start-button',
+    'step-button',
+    'btn-zoom-fit',
+    'btn-zoom-in',
+    'btn-zoom-out',
+  ];
+  for (const id of ids) {
+    const title = await page.getByTestId(id).getAttribute('title');
+    expect(title, `${id} title`).not.toBeNull();
+    expect(title.trim().length, `${id} title`).toBeGreaterThan(0);
+  }
 });

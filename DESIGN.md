@@ -210,6 +210,21 @@ Every stage diagram panel (`panel.html`) is organized into four vertical zones:
 - During a hop-by-hop trace, the component executing the current hop carries
   `.active-hop` (`var(--good)` border glow).
 
+### Camera HUD Drawers (`.legend-panel`, `.teaching-panel`)
+
+- **Legend drawer:** `#legend-toggle` sits in `.camera-hud`; the drawer
+  (`.legend-panel`) explains the tick-to-ms mapping (`TICK_MS = 100` in
+  `js/panel/model.js`), the cache stats trio (`Hits / Misses / TTL-remaining`),
+  the `site` chips on Ring 3 browser nodes, and wire-lane direction labels
+  (`request =>`, `<- response`, `enqueue =>`, `write =>`). All protocol strings
+  in `var(--mono)`; surface tokens only.
+- **Teaching drawer:** `#teaching-toggle` and a `.teaching-panel` aside render
+  the per-stage narrative from `js/panel/teaching.js` (`STAGE_TEACHING`,
+  `describeStageTeaching(stage)`): a `heading-section` headline, `teaches` /
+  `try` / `watchFor` lists, a trade-off line, and one outbound
+  system-design-primer link per stage (`.accent` link, new-tab anchor).
+  Closed by default; state persists across stage switches within the page.
+
 ### Interactive Mini-Browser (`.mini-browser` & `.browser-compact`)
 
 - Every simulated browser (`10.2` .. `10.(N+1)`) on Ring 3 is an addressable
@@ -256,6 +271,9 @@ Every stage diagram panel (`panel.html`) is organized into four vertical zones:
 
 **Do**
 
+- Give every trace, camera, and load control a non-empty `title` attribute
+  (primary controls are sim/camera state changes; the learner should never have
+  to guess `Start` vs `Step 1 tick`).
 - Keep every protocol string, mini-IP address, and queue item in `var(--mono)`
   with `tabular-nums` on counters so live updates do not jitter.
 - Make every new stack component introduced in Stages 2–6 a clickable

@@ -2,9 +2,9 @@
 // labels into DOM updates (queues, route tables, cache entries, load
 // balancer backend counters, and inspector panes). Stage topology and hop
 // highlights live in render-stage.js; event wiring in panel.js.
-import { describeSnapshot } from './model.js';
+import { describeSnapshot, orderJourneyEntries } from './model.js';
 import { COMPONENT_SOURCE } from './inspector-source.js';
-import { formatComponentState } from './inspector-state.js';
+import { componentTitle, formatComponentState } from './inspector-state.js';
 import { renderHopHighlights, renderDots, renderRingBrowsers } from './render-stage.js';
 
 export const $ = (id) => document.getElementById(id);
@@ -45,16 +45,31 @@ export const els = {
   exchange: $('exchange-inspector'),
 };
 
-export function addToJourney(label, text) {
-  if (els.journeyLog.firstElementChild && els.journeyLog.firstElementChild.dataset.text === text) {
-    return;
-  }
-  const item = document.createElement('li');
-  item.className = 'journey-entry';
-  item.textContent = `${label} · ${text}`;
-  item.dataset.text = text;
-  els.journeyLog.prepend(item);
-  while (els.journeyLog.children.length > 20) els.journeyLog.lastElementChild.remove();
+// PINS: journey-log chronology — the entries render newest-run-first and,
+// inside one run, hop-ascending regardless of emission order; the ordering
+// is the pure contract in model.js (orderJourneyEntries). The cap keeps the
+// 20 newest entries (bottom tail trimmed), like the previous DOM trim, and
+// the consecutive-emission dedupe (same label + text emitted twice in a row)
+// stays: the duplicate frame is not logged (the render test pins ordering).
+const JOURNEY_CAP = 20;
+let journeyEntries = [];
+let lastEmitted = null;
+
+export function addToJourney(label, text, { run = 0, hop = 0 } = {}) {
+  if (lastEmitted && lastEmitted.label === label && lastEmitted.text === text) return;
+  lastEmitted = { label, text };
+  journeyEntries = orderJourneyEntries(journeyEntries, { label, text, run, hop }).slice(
+    0,
+    JOURNEY_CAP,
+  );
+  els.journeyLog.replaceChildren(
+    ...journeyEntries.map((entry) => {
+      const item = document.createElement('li');
+      item.className = 'journey-entry';
+      item.textContent = `${entry.label} · ${entry.text}`;
+      return item;
+    }),
+  );
 }
 
 function badgeClass(display) {
@@ -149,10 +164,11 @@ function browserName(address) {
 
 export function renderInspector(selectedComponent, currentSnapshot, browserAddress = '10.2') {
   const source = COMPONENT_SOURCE[selectedComponent];
-  els.inspectorTitle.textContent =
-    selectedComponent === 'browser' && browserAddress !== '10.2'
-      ? `${browserName(browserAddress)} — mini-IP ${browserAddress}`
-      : source.title;
+  els.inspectorTitle.textContent = componentTitle(
+    currentSnapshot,
+    selectedComponent,
+    browserAddress,
+  );
   els.inspectorCode.textContent = source.code;
   if (currentSnapshot) {
     els.inspectorState.textContent = formatComponentState(
@@ -216,5 +232,8 @@ export function render(snapshot, selectedComponent, { layout, activeAddress = '1
   renderHopHighlights(snapshot, selectedComponent);
   renderDots(snapshot.users);
   renderRingBrowsers(layout?.browserSlots ?? [], activeAddress);
+  // The headline is snapshot-derived (componentTitle), so it follows every
+  // stage switch and compact-browser expansion too, not just tab clicks.
+  els.inspectorTitle.textContent = componentTitle(snapshot, selectedComponent, activeAddress);
   els.inspectorState.textContent = formatComponentState(snapshot, selectedComponent, activeAddress);
 }

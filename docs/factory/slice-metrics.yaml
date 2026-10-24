@@ -10,6 +10,46 @@
 # tokens_reasoning, tokens_cache_read, cost_usd, notes.
 
 entries:
+  - id: TEACHING-CORRECTNESS
+    slice:
+      - SHELL
+      - PANEL
+    name: Teaching-correctness amendments — stage-aware inspector headline, run-ordered journey log, legend drawer, tooltips, stage-5 card copy
+    brief: docs/plans/2026-10-24-teaching-correctness.md
+    agent: cheap
+    lead_model: opencode/glm-5.3-flash-free
+    agent_model: opencode/glm-5.3-flash-free
+    session_id: ses_e9345bf30ffeEWhRH2gKMYUUAY
+    tokens_input: 184982
+    tokens_output: 21177
+    tokens_reasoning: 27136
+    tokens_cache_read: 8710528
+    cost_usd: 0
+    human_interventions: 1
+    agent_review_rounds: 0
+    guardrail_failures: 1
+    fix_commits: 0
+    defects_escaped: 0
+    notes: >-
+      Executed from the brief by a general sub-agent on opencode/glm-5.3-flash-free:
+      a recorded process deviation, human-approved in-session because the pinned
+      executor model (opencode-go/glm-5.3-flash) exceeded its usage limit. One
+      in-session red verify run before green (guardrail_failures: 1). Sub-agent
+      ambiguities resolved at Step 3 review: the legend's 'Ring 3 site chips' were
+      realized as the compact-browser mini-IP/status chips per DESIGN.md wording;
+      the brief's (traceId, hop, tick) run key was realized panel-side as
+      monotonic (run, hop) ids since js/sim carries no traceId and was outside
+      the brief's file list (only exposure: a crowd tick flowing between hops of
+      a live manual trace sorts BELOW the trace run, keeping runs whole). The
+      executor also repaired a pre-existing text-only journey-log dedupe that
+      silently dropped the hop 4/4 entry when its frame text equalled hop 3/4's
+      (dedupe now label+text) — required by the brief's own e2e and validated by
+      the Step-3 acceptance probe (full-run hop sequence 1,2,3,4 ascending,
+      stage-1 headline without 10.11 / 10.12, legend tick = 100 ms, 8 non-empty
+      control titles). File-size guard forced two test-file splits (e2e camera
+      tests to orrery-plane.spec.js; stage 3/4 snapshot units to
+      model-stage34.test.js) — brief-pinned titles untouched, manifest refs
+      updated same-change.
   - id: PHASE1-BOOTSTRAP
     slice:
       - SHELL

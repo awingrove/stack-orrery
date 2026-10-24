@@ -116,7 +116,12 @@
             <h3>5 · Worker Queue</h3>
             <span class="stage-badge is-live">Live</span>
           </div>
-          <p>Asynchronous job queue and background workers decoupling slow writes.</p>
+          <p>
+            7 rings: an async <code class="mono">WorkerQueue (10.40)</code> and
+            <code class="mono">Worker (10.41)</code> decouple slow writes — every request answers an
+            immediate <code class="mono">202 {"jobId": …}</code> before the worker finishes and
+            commits the result to <code class="mono">Primary (10.30)</code>.
+          </p>
         </article>
         <article class="ladder-card">
           <div class="ladder-head">

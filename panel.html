@@ -43,10 +43,20 @@
     <main class="container">
       <section class="control-strip" aria-label="Simulation controls">
         <div class="control-group trace-controls" aria-label="Single request trace">
-          <button id="btn-play-request" data-testid="btn-play-request" type="button">
+          <button
+            id="btn-play-request"
+            data-testid="btn-play-request"
+            type="button"
+            title="Play every hop of this request"
+          >
             Send &amp; Watch Hops
           </button>
-          <button id="btn-next-hop" data-testid="btn-next-hop" type="button">
+          <button
+            id="btn-next-hop"
+            data-testid="btn-next-hop"
+            type="button"
+            title="Advance one hop"
+          >
             Step 1 Hop -&gt;
           </button>
           <span id="hop-status" data-testid="hop-status" class="hop-status">Idle</span>
@@ -62,8 +72,22 @@
             value="5"
           />
           <div id="user-dots" data-testid="user-dots" aria-label="Browsers"></div>
-          <button id="start-button" data-testid="start-button" type="button">Start</button>
-          <button id="step-button" data-testid="step-button" type="button">Step 1 tick</button>
+          <button
+            id="start-button"
+            data-testid="start-button"
+            type="button"
+            title="Run the crowd for one tick (100 ms)"
+          >
+            Start
+          </button>
+          <button
+            id="step-button"
+            data-testid="step-button"
+            type="button"
+            title="Advance one tick (100 ms)"
+          >
+            Step 1 tick
+          </button>
         </div>
       </section>
       <div
@@ -74,9 +98,30 @@
         aria-label="Orrery plane viewport"
       >
         <div class="camera-hud" aria-label="Camera controls">
-          <button id="btn-zoom-in" data-testid="btn-zoom-in" type="button">+</button>
-          <button id="btn-zoom-out" data-testid="btn-zoom-out" type="button">&minus;</button>
-          <button id="btn-zoom-fit" data-testid="btn-zoom-fit" type="button">Fit</button>
+          <button id="btn-zoom-in" data-testid="btn-zoom-in" type="button" title="Zoom in">
+            +
+          </button>
+          <button id="btn-zoom-out" data-testid="btn-zoom-out" type="button" title="Zoom out">
+            &minus;
+          </button>
+          <button
+            id="btn-zoom-fit"
+            data-testid="btn-zoom-fit"
+            type="button"
+            title="Fit the plane to the viewport"
+          >
+            Fit
+          </button>
+          <button
+            id="legend-toggle"
+            data-testid="legend-toggle"
+            type="button"
+            title="Open the legend drawer"
+            aria-expanded="false"
+            aria-controls="legend-panel"
+          >
+            Legend
+          </button>
           <span id="zoom-status" data-testid="zoom-status" class="zoom-status">78%</span>
           <label class="hud-tuning" for="ring-gap-slider"
             >Ring gap <span id="ring-gap-value" data-testid="ring-gap-value">400px</span></label
@@ -104,6 +149,25 @@
             value="1.2"
           />
         </div>
+        <aside
+          id="legend-panel"
+          data-testid="legend-panel"
+          class="legend-panel"
+          hidden
+          aria-label="Legend"
+        >
+          <p class="legend-row">
+            Clock — tick = 100 ms (sim time advances in explicit ticks,
+            <code>TICK_MS = 100</code> in <code>js/panel/model.js</code>). Wire lanes name the
+            direction: <code>request =&gt;</code>, <code>&lt;- response</code>,
+            <code>enqueue =&gt;</code>, <code>write =&gt;</code>.
+          </p>
+          <p class="legend-row">
+            Cache — the <code>Hits / Misses / TTL-remaining</code> trio counts warm lookups, cold
+            lookups, and ticks left per entry. Ring 3 <code>site</code> chips are the compact
+            browsers' mini-IPs; click one to expand it.
+          </p>
+        </aside>
         <section
           id="orrery-world"
           data-testid="orrery-world"
@@ -147,7 +211,14 @@
                   <option value="POST">POST</option>
                 </select>
                 <input id="url-input" data-testid="url-input" value="/about" aria-label="Path" />
-                <button id="btn-url-go" data-testid="btn-url-go" type="button">Go</button>
+                <button
+                  id="btn-url-go"
+                  data-testid="btn-url-go"
+                  type="button"
+                  title="Send request, land every hop"
+                >
+                  Go
+                </button>
               </div>
               <div class="browser-viewport" aria-label="Rendered response">
                 <span
