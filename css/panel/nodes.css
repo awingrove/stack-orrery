@@ -88,12 +88,86 @@
   color: var(--text);
 }
 
-/* Filesystem rows mirror the Network mini-IP table (user-requested parity):
-   the served body renders white like the table's name column, and the file
-   path (.fs-path) carries the same address-column treatment a .mini-table
-   row gives a mini-IP. .matched-route keeps its good-soft row highlight. */
+/* Filesystem rows are the sim's own fs Map rendered per-card (fs-editor.js):
+   a two-column grid — the path column sized to its content, the body cell a
+   single-line ellipsis carrying the full text on its title tooltip. The
+   mini-IP-table parity stays: .fs-path takes the address-column accent, the
+   row renders on-surface white like the name column, and .matched-route
+   keeps its good-soft highlight on the rendered rows. */
 .fs-list .route-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.4rem;
+  align-items: baseline;
+  min-width: 0;
   color: var(--text);
+}
+
+.fs-list .fs-body {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The pencil is a real button (fs-editor.js delegation, no inline handlers),
+   revealed on row hover or keyboard focus only. */
+.fs-edit {
+  position: absolute;
+  right: 0.4rem;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 0 0.2rem;
+  border: 0;
+  border-radius: 0.3rem;
+  background: none;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.fs-list .route-item:hover .fs-edit,
+.fs-list .route-item:focus-within .fs-edit {
+  opacity: 1;
+}
+
+/* Inline edit row: "<input> + save + cancel" in place of the columns. */
+.fs-list .fs-editing {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+}
+
+.fs-input {
+  min-width: 0;
+  width: 100%;
+  padding: 0.1rem 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: 0.3rem;
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+}
+
+.fs-commit,
+.fs-cancel {
+  padding: 0 0.2rem;
+  border: 0;
+  border-radius: 0.3rem;
+  background: none;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.fs-commit:disabled {
+  color: var(--text-muted);
+  cursor: default;
+  opacity: 0.4;
 }
 
 .fs-list .fs-path {

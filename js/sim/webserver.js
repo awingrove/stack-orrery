@@ -16,6 +16,10 @@
 // a stale replica read is served but not cached, so the entry only warms
 // from rows the replica has already caught up to.
 //
+// Editable fs: writeFile(path, body) mutates this server's fs Map (the panel
+// filesystem rows are the sim's own view). An edit is explicitly NOT a POST:
+// it invalidates nothing — cached copies age out by their TTL only.
+//
 // CHECKS: constructor rejects a non-positive/non-integer serviceRate
 // (fail-loud over silent-slow).
 const DEFAULT_FILES = {
@@ -187,6 +191,21 @@ export function createWebServer({
 
     filesSnapshot() {
       return Object.fromEntries(fs);
+    },
+
+    // CHECKS: writeFile mutates only this server's fs Map — an existing fs
+    // key plus a non-empty string body; anything else throws (fail-loud
+    // over a silent bogus write). Deliberately no cache invalidation and no
+    // clock: cached copies age out by their TTL alone (the stage-3
+    // stale-read branch), and the Map's insertion order survives a re-set.
+    writeFile(path, body) {
+      if (!fs.has(path)) {
+        throw new Error(`webserver: writeFile — unknown fs path "${path}"`);
+      }
+      if (typeof body !== 'string' || body.length === 0) {
+        throw new Error(`webserver: writeFile — body must be a non-empty string`);
+      }
+      fs.set(path, body);
     },
 
     // `isYou` marks the learner's own interactive-browser request so

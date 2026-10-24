@@ -204,6 +204,19 @@ export function createEngine({
       userPool.setCount(n);
     },
 
+    // CHECKS: setWebFile routes an fs edit to the server whose address
+    // matches — an unknown mini-IP throws (fail-loud over a silent no-op)
+    // and nothing else moves (no snapshot-shape change: servers[i].files
+    // already carries the fs Map). The edit itself invalidates nothing, so
+    // a stage-3+ cache keeps serving its OLD body until the TTL expires.
+    setWebFile(address, path, body) {
+      const server = servers.find((s) => s.address === address);
+      if (!server) {
+        throw new Error(`engine: setWebFile — no server at mini-IP ${address}`);
+      }
+      server.writeFile(path, body);
+    },
+
     snapshot() {
       const serverSnapshots = servers.map((s) => ({
         address: s.address,

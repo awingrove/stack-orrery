@@ -102,6 +102,20 @@ activities:
               - unit: test/panel/render.test.js::within one run, hop entries order ascending regardless of emission order
               - unit: test/panel/render.test.js::a newer run floats above an older one; entries stay whole per run
               - e2e: panel::should render a full-trace journey log with hop 1/4 to 4/4 in ascending order
+          - title: Edit any WebServer file inline and read the sim's live fs Map — bytes served on the next GET, stale only inside the cache TTL
+            status: done
+            priority: medium
+            tests:
+              - unit: test/sim/webserver.test.js::writes an existing fs key so GET serves the new body from the Map
+              - unit: test/sim/webserver.test.js::throws on an unknown fs path and on an empty or non-string body (fail loud)
+              - unit: test/sim/webserver.test.js::keeps a stage-3 cached copy stale until the TTL expires (no write-through invalidation)
+              - unit: test/sim/engine.test.js::routes the write to the server at the matching mini-IP address
+              - unit: test/sim/engine.test.js::hits only the addressed server — the other backend's fs is untouched
+              - unit: test/sim/engine.test.js::throws for an unknown server address instead of writing nothing silently
+              - e2e: webserver-fs::should style WebServer filesystem rows like the Network mini-IP table
+              - e2e: fs-editor::should edit a file inline on Stage 1 and serve the new bytes
+              - e2e: fs-editor::should keep the edit cached-stale on Stage 3 until the TTL expires
+              - e2e: fs-editor::should cancel an inline edit with Escape and disable commit on an empty draft
           - title: Read a legend drawer naming the tick clock, the cache stats trio, the Ring 3 site chips, and the wire-lane labels
             status: done
             priority: medium

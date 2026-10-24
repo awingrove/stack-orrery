@@ -98,7 +98,7 @@ disable commit on an empty draft`. Assert grid + ellipsis computeds once.
 
 - [x] Step 1 (Lead session): human design sign-off (grid+ellipsis /
       pencil+inline / content-only cached-stale) committed in `DESIGN.md` and this brief.
-- [ ] Step 2 (Executor sub-agent): cold implementation from brief contracts,
+- [x] Step 2 (Executor sub-agent): cold implementation from brief contracts,
       unit & e2e tests, manifest updates, green `npm run verify`; tick and commit.
 - [ ] Step 3 (Lead session): run `npm run metrics:extract -- <subagentSessionID>`,
       append entry to `docs/factory/slice-metrics.yaml`, tick Step 3, commit.

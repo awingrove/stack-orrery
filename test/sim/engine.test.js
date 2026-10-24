@@ -147,3 +147,47 @@ describe('createEngine', () => {
     expect(snap.browserDisplay.status).toBe(200);
   });
 });
+
+// The editable filesystem (editable-fs brief): setWebFile routes the write
+// to the server whose address matches and throws on a miss — no silent
+// no-op. DL-1 counter-example pinned: after the write, the snapshot's own
+// files, the next served GET record, and the browser's rendered body all
+// carry the new bytes.
+describe('createEngine setWebFile', () => {
+  it('routes the write to the server at the matching mini-IP address', () => {
+    const engine = createEngine({ seed: 42, stage: 1 });
+    engine.setWebFile('10.1', '/about', 'New body');
+
+    // The snapshot's files gain the new bytes without any shape change.
+    const before = engine.snapshot();
+    expect(before.files).toEqual({ '/': 'Welcome to the home page', '/about': 'New body' });
+    expect(before.servers[0].files['/about']).toBe('New body');
+
+    // The very next served GET record carries the new bytes on the wire
+    // (seeded tick 1: 10.6 -> 10.1 GET /about, the same pin as the e2e).
+    engine.step();
+    const after = engine.snapshot();
+    expect(after.lastExchange.request).toBe('GET /about');
+    expect(after.lastExchange.response).toBe('200 New body');
+    expect(after.lastMatchedRoute).toBe('route-about');
+
+    // And the learner's own browser reads the new body off the trace.
+    for (let hop = 0; hop < 4; hop++) engine.traceHop({ method: 'GET', path: '/about' });
+    expect(engine.snapshot().browserDisplay.body).toBe('New body');
+  });
+
+  it("hits only the addressed server — the other backend's fs is untouched", () => {
+    const engine = createEngine({ seed: 42, stage: 2 });
+    engine.setWebFile('10.12', '/about', 'New body');
+    const snap = engine.snapshot();
+    expect(snap.servers[1].files['/about']).toBe('New body');
+    expect(snap.servers[0].files['/about']).toBe('This is the about page');
+  });
+
+  it('throws for an unknown server address instead of writing nothing silently', () => {
+    const engine = createEngine({ seed: 42, stage: 1 });
+    expect(() => engine.setWebFile('10.99', '/about', 'New body')).toThrow(
+      /no server at mini-IP 10\.99/,
+    );
+  });
+});

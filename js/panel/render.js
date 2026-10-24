@@ -5,6 +5,7 @@
 import { describeSnapshot, orderJourneyEntries } from './model.js';
 import { COMPONENT_SOURCE } from './inspector-source.js';
 import { componentTitle, formatComponentState } from './inspector-state.js';
+import { renderFilesystems } from './fs-editor.js';
 import { renderHopHighlights, renderDots, renderRingBrowsers } from './render-stage.js';
 
 export const $ = (id) => document.getElementById(id);
@@ -249,6 +250,10 @@ export function render(snapshot, selectedComponent, { layout, activeAddress = '1
   els.statusBadge.className = `status-badge${badgeClass(display)}`;
   renderQueueInto(els.queueList, snapshot.queue ?? []);
   renderQueueInto(els.queueList2, snapshot.servers?.[1]?.queue ?? []);
+  // The filesystem rows rebuild from the snapshot each pass and must land
+  // BEFORE renderRoutes() — fresh rows carry no .matched-route state of
+  // their own, so the served-file highlight is re-applied after them.
+  renderFilesystems(snapshot);
   renderRoutes(labels.matchedRouteId, snapshot);
   if (snapshot.stage >= 2) {
     els.server2Address.textContent = labels.server2Address;

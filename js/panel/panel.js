@@ -9,6 +9,7 @@ import { COMPONENT_SOURCE } from './inspector-source.js';
 import { $, els, addToJourney, relabelJourneyRun, render, renderInspector } from './render.js';
 import { renderStageTopology, onStageRendered } from './render-stage.js';
 import { ensureStage6Dom } from './stage6-registry.js';
+import { initFilesystemEditor } from './fs-editor.js';
 import { initViewport } from './viewport.js';
 import { initTeachingDrawer, renderTeaching } from './teaching-drawer.js';
 
@@ -253,6 +254,18 @@ $('legend-toggle').addEventListener('click', () => {
 // hands it the current stage at boot and on every switch (see also the
 // legend drawer above for the toggle pattern).
 initTeachingDrawer();
+
+// CHECKS: the filesystem lists are the sim's own view — the editor module
+// (fs-editor.js) renders both cards' rows from snapshot.servers[i].files and
+// wires its pencil/input/buttons by delegation on those shells; a commit
+// writes engine.setWebFile and updateView re-renders from the fresh
+// snapshot, so the row, the next served record and the browser viewport all
+// read the new bytes (brief negative case). panel.js passes only the engine
+// accessor and the re-render callback; no inline handlers anywhere.
+initFilesystemEditor({
+  getEngine: () => engine,
+  rerender: (snapshot) => updateView(snapshot),
+});
 
 // Boot: Stage 1 is active by default so existing Stage 1 tests run unchanged,
 // except where the URL deep-links a live stage and user count (?stage=N&
