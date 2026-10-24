@@ -13,8 +13,10 @@
 // in test/sim/engine.test.js.
 //
 // CHECKS: constructor validates config ranges via its components (seed is
-// coerced uint32; arrivalProb must be within [0, 1]; stage must be 1, 2, 3,
-// or 4).
+// coerced uint32; arrivalProb must be within [0, 1]; stage must be within
+// 1-6). Stage 6 instantiates DNS 10.60 and the cross-subnet Router
+// (10.65 ⇄ 20.1) and exposes them on the snapshot; its trace narrative adds
+// the two DNS ask/answer hops for hosted paths and none for host-less ones.
 import { createRng } from './rng.js';
 import { createNetwork } from './network.js';
 import { createBrowser } from './browser.js';
@@ -23,6 +25,8 @@ import { createLoadBalancer } from './loadbalancer.js';
 import { createCache } from './cache.js';
 import { createDatabase } from './database.js';
 import { createWorkerQueue } from './queue.js';
+import { createDns } from './dns.js';
+import { createRouter } from './router.js';
 import { createUsers } from './users.js';
 import { createTraceMachine } from './trace.js';
 
@@ -42,12 +46,16 @@ export function createEngine({
   workerQueueAddress = '10.40',
   workerAddress = '10.41',
   jobDurationTicks = 2,
+  dnsAddress = '10.60',
+  dnsTtlTicks = 300,
+  routerLeftAddress = '10.65',
+  routerRightAddress = '20.1',
 } = {}) {
   if (typeof arrivalProb !== 'number' || arrivalProb < 0 || arrivalProb > 1) {
     throw new Error(`engine: arrivalProb must be within [0, 1], got ${arrivalProb}`);
   }
-  if (stage !== 1 && stage !== 2 && stage !== 3 && stage !== 4 && stage !== 5) {
-    throw new Error(`engine: stage must be 1, 2, 3, 4, or 5, got ${stage}`);
+  if (stage !== 1 && stage !== 2 && stage !== 3 && stage !== 4 && stage !== 5 && stage !== 6) {
+    throw new Error(`engine: stage must be 1, 2, 3, 4, 5, or 6, got ${stage}`);
   }
   const rng = createRng(seed);
   const network = createNetwork();
@@ -61,11 +69,24 @@ export function createEngine({
         })
       : null;
   const workerQueue =
-    stage === 5
+    stage >= 5
       ? createWorkerQueue({
           address: workerQueueAddress,
           workerAddress,
           jobDurationTicks,
+        })
+      : null;
+  // Stage 6: the authoritative DNS (10.60, tick-TTL ledger) and the
+  // cross-subnet Router that joins the flat 10.x registry with a 20.x one
+  // (the router registers its own 20-side seat at 10.65 ⇄ 20.1's right).
+  const dns = stage >= 6 ? createDns({ address: dnsAddress, ttlTicks: dnsTtlTicks }) : null;
+  const router =
+    stage >= 6
+      ? createRouter({
+          leftAddress: routerLeftAddress,
+          rightAddress: routerRightAddress,
+          leftNetwork: network,
+          rightNetwork: createNetwork(),
         })
       : null;
   let servers;
@@ -107,6 +128,7 @@ export function createEngine({
     cache,
     database,
     workerQueue,
+    dns,
     bumpTick: () => {
       tick += 1;
       return tick;
@@ -119,6 +141,11 @@ export function createEngine({
     onFinish: (record) => {
       userPool.receiveResponse(record);
       if (record.from === '10.2') clientBrowser.receiveResponse(record);
+    },
+    // Stage 6 negative branch: an NX DNS answer renders the refusal card on
+    // the browser and no GET ever reaches the server pool (no onFinish).
+    onDnsFail: (record) => {
+      if (record.from === '10.2') clientBrowser.receiveDnsFailure(record.request);
     },
   });
 
@@ -161,7 +188,10 @@ export function createEngine({
     // One hop per call, delegated to the trace machine: 4 hops in Stage 1
     // (emit, route, serve, render); 5 in Stage 2 (LB round-robin between
     // route and serve); 6 in Stage 3 (cache check, then response emit);
-    // 7 in Stage 4 (the database hop inserted after the cache check).
+    // 7 in Stage 4 (the database hop inserted after the cache check); 8 in
+    // Stage 5 (the async worker tail); 9 in Stage 6 for hosted paths (the
+    // DNS ask/answer prelude, the stage-5 chain minus its emit hop) and 8
+    // for host-less ones.
     // `from` is the mini-IP of the browser the trace originates from
     // (default the learner's own 10.2).
     traceHop({ method = 'GET', path = '/about', from = '10.2' } = {}) {
@@ -204,6 +234,8 @@ export function createEngine({
         cache: cache ? cache.snapshot(tick) : null,
         database: database ? database.snapshot(tick) : null,
         workerQueue: workerQueue ? workerQueue.snapshot(tick) : null,
+        dns: dns ? dns.snapshot(tick) : null,
+        router: router ? router.snapshot() : null,
         lastMatchedRoute,
         lastFrame,
         browserDisplay: clientBrowser.last(),

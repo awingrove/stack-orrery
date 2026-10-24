@@ -1,9 +1,9 @@
 // DOCUMENTS: per-stage teaching content for the teaching drawer — the
 // narrative layer that names the mechanism the app shows (from js/sim) AND
 // the system-design-primer vocabulary, mirroring the scaling ladder
-// (content only; panel.js renders it). One entry per built stage, keyed 1–5;
-// each entry spells its trade-off sentence in the primer's
-// "everything is a trade-off" register.
+// (content only; panel.js renders it). One entry per built stage, keyed by
+// shipped stage (1-6); each entry spells its trade-off sentence in the
+// primer's "everything is a trade-off" register.
 const PRIMER = 'https://github.com/donnemartin/system-design-primer#';
 
 export const STAGE_TEACHING = {
@@ -127,12 +127,36 @@ export const STAGE_TEACHING = {
       url: `${PRIMER}asynchronism`,
     },
   },
+  6: {
+    headline: 'DNS 10.60 resolves names with a tick-TTL ledger; Router 10.65 ⇄ 20.1 joins subnets',
+    teaches: [
+      'A hosted URL (example.com/about) asks DNS 10.60 first: "who is example.com?" — the answer re-points the GET at the resolved mini-IP.',
+      'The ledger answers from cache inside ttlTicks = 300 ticks and consults the authoritative table only on a miss or expired entry.',
+      'Cross-subnet routing: the Router joins 10.x with the empty 20.x subnet — a frame into subnet 20 takes exactly one router hop, and nothing is there yet (CDN edge is Stage 6b).',
+    ],
+    try: [
+      'Trace example.com/about and read hop 2/10 (the DNS ask) and hop 3/10 (the ledger answer 10.1).',
+      'Trace example.com/about a second time: Cached goes 1 — hop 3 is served by the ledger, not the authoritative table.',
+      'Type a missing-host URL and watch the browser render the NX card with no GET emitted anywhere downstream.',
+    ],
+    watchFor: [
+      'The dns-entries-list row example.com · 10.1 · ttl <N>t draining toward 0t and vanishing at expiry.',
+      'The Router card staying at Routed: 0 — Stage 6a traces never cross subnets; each hop is just per-hop latency.',
+      'A plain /about trace running the Stage 5 hop story byte-identically — plain paths never touch DNS.',
+    ],
+    tradeoff:
+      'Centralized DNS makes directions programmable at a price: every new indirection is one more hop to answer before the first byte moves.',
+    primerLink: {
+      label: "Domain Name System — system-design-primer's DNS section",
+      url: `${PRIMER}domain-name-system`,
+    },
+  },
 };
 
 // CHECKS: describeStageTeaching falls back to a minimal pending placeholder
-// for any key outside 1–5 (a stage landing before its notes) — a real
-// headline, a pending marker, and no throw; the named counter-example is the
-// drawer staying readable instead of blank or crashed.
+// for any key outside the shipped stages (a stage landing before its notes)
+// — a real headline, a pending marker, and no throw; the named
+// counter-example is the drawer staying readable instead of blank or crashed.
 export function describeStageTeaching(stage = 1) {
   const entry = STAGE_TEACHING[stage];
   if (entry) return entry;
