@@ -167,6 +167,14 @@ Every stage diagram panel (`panel.html`) is organized into four vertical zones:
      & `Worker 10.41`), Ring 3 (`Cache 10.20`), Ring 4 (`WebServer-1 10.11` &
      `WebServer-2 10.12`), Ring 5 (`LoadBalancer 10.1`), Ring 6 (`Network 10.x`),
      Ring 7 (`Browsers 10.2+`).
+   - **Stage 6 (8 rings):** Ring 1 (`Database 10.30/10.31`), Ring 2
+     (`WorkerQueue 10.40` & `Worker 10.41`), Ring 3 (`Cache 10.20`), Ring 4
+     (`WebServer-1 10.11` & `WebServer-2 10.12`), Ring 5 (`LoadBalancer 10.1`),
+     Ring 6 (`Network 10.x`, Router side-card `10.65 ⇄ 20.1`), Ring 7
+     (`DNS 10.60`), Ring 8 (`Browsers 10.2+`). A hosted browser path
+     (`example.com/about`) rides Browser -> DNS ask -> DNS answer -> the Stage
+     5 chain; host-less paths skip DNS entirely. Cross-subnet frames take
+     exactly one Router hop.
      All `N` client browsers (`10.2` .. `10.(N+1)`) sit on the outermost ring: the
      currently selected browser renders as the full expanded `#node-browser` card,
      while the other `N - 1` browsers render as clickable compact `.browser-compact`
@@ -251,6 +259,15 @@ Every stage diagram panel (`panel.html`) is organized into four vertical zones:
   and the file served by the most recent `200` response carries
   `.matched-route` (`var(--good-soft)`). Intrinsic HTTP responses (`404`, `405`)
   live in the server's executable code rather than as configured rows.
+- **DNS Resolutions & Tick-TTL Ledger (`#node-dns`, `#dns-entries-list`):** In
+  Stage 6, `DNS` (`10.60`) sits on Ring 7 and displays its lookup/hit counters
+  (`#dns-stats`) and live resolver-cache rows with remaining TTL
+  (`#dns-entries-list`). Unknown names resolve to `NX no record` — the browser
+  card renders it, no GET is emitted.
+- **Cross-Subnet Router (`#node-router`):** Stage 6 `Router` side-card on
+  Ring 6 (`10.65 ⇄ 20.1`) joins the `10.x` and `20.x` network instances;
+  cross-subnet frames take exactly one router hop (`routed` counter), and
+  sends to unregistered `20.x` hosts fail loud.
 - **Cache Entries & Tick TTL (`#node-cache`, `#cache-entries-list`):** In Stage 3,
   `Cache` (`10.20`) sits on Ring 1 (shared cache-aside tier behind `WebServer-1`
   and `WebServer-2`) and displays its hit/miss/TTL counters (`#cache-stats`) and
