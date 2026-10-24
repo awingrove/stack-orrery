@@ -249,8 +249,12 @@ Every stage diagram panel (`panel.html`) is organized into four vertical zones:
 - **Filesystem & Interface Tables (`.route-list`, `.mini-table`):** Each
   `WebServer` displays the files on its local filesystem (`/` and `/about`),
   and the file served by the most recent `200` response carries
-  `.matched-route` (`var(--good-soft)`). Intrinsic HTTP responses (`404`, `405`)
-  live in the server's executable code rather than as configured rows.
+  `.matched-route` (`var(--good-soft)`). Filesystem rows (`.fs-list`) share
+  the mini-IP table's two-part look: the file path (`.fs-path`) carries the
+  same address-column treatment as a `.mini-table` mini-IP (`var(--accent)`),
+  and the served body renders `var(--text)` like the table's name column.
+  Intrinsic HTTP responses (`404`, `405`) live in the server's executable
+  code rather than as configured rows.
 - **Cache Entries & Tick TTL (`#node-cache`, `#cache-entries-list`):** In Stage 3,
   `Cache` (`10.20`) sits on Ring 1 (shared cache-aside tier behind `WebServer-1`
   and `WebServer-2`) and displays its hit/miss/TTL counters (`#cache-stats`) and

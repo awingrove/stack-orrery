@@ -88,6 +88,18 @@
   color: var(--text);
 }
 
+/* Filesystem rows mirror the Network mini-IP table (user-requested parity):
+   the served body renders white like the table's name column, and the file
+   path (.fs-path) carries the same address-column treatment a .mini-table
+   row gives a mini-IP. .matched-route keeps its good-soft row highlight. */
+.fs-list .route-item {
+  color: var(--text);
+}
+
+.fs-list .fs-path {
+  color: var(--accent);
+}
+
 /* Stage 4 repl-lag rows: replica lagging primary shows the .you-pill
    warning colors (DESIGN.md db-rows-list). */
 .route-item.you-pill {

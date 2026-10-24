@@ -59,6 +59,7 @@ slices:
         - test/panel/**
       e2e_specs:
         - e2e/panel.spec.js
+        - e2e/webserver-fs.spec.js
         - e2e/orrery-plane.spec.js
         - e2e/teaching.spec.js
     owns:
