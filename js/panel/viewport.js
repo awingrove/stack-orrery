@@ -4,9 +4,15 @@
 // only (no inline handlers — AGENTS.md CSP rule). Camera math lives in
 // camera.js, geometry in layout.js; both are pure and unit-pinned.
 import { computeStageLayout } from './layout.js';
-import { panCamera, zoomCameraAt, fitCameraToBounds, formatWorldTransform } from './camera.js';
+import {
+  panCamera,
+  zoomCameraAt,
+  fitCameraToBounds,
+  formatWorldTransform,
+  createAutoRefit,
+} from './camera.js';
+import { drawOrrery } from './orrery-svg.js';
 
-const SVG_NS = 'http://www.w3.org/2000/svg';
 const DEFAULT_ZOOM_STEP = 1.2;
 const DEFAULT_RING_GAP = 400;
 const PAN_PX = 48;
@@ -73,47 +79,15 @@ function setWorldPos(el, x, y) {
   el.style.top = `${y}px`;
 }
 
-function svgEl(tag, attrs) {
-  const el = document.createElementNS(SVG_NS, tag);
-  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v));
-  return el;
-}
-
-function drawOrrery(svg, layout) {
-  const parts = [svgEl('circle', { cx: 0, cy: 0, r: 10, class: 'orrery-core' })];
-  for (const ring of layout.rings) {
-    parts.push(svgEl('circle', { cx: 0, cy: 0, r: ring.radius, class: 'orrery-ring' }));
-  }
-  for (const wire of layout.wires) {
-    parts.push(
-      svgEl('line', {
-        x1: wire.x1,
-        y1: wire.y1,
-        x2: wire.x2,
-        y2: wire.y2,
-        class: 'orrery-spoke',
-      }),
-    );
-  }
-  for (const sat of layout.satellites) {
-    parts.push(
-      svgEl('circle', {
-        cx: sat.x,
-        cy: sat.y,
-        r: 6,
-        class: 'orrery-satellite',
-        'data-index': sat.index,
-      }),
-    );
-  }
-  svg.replaceChildren(...parts);
-}
-
 export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers, getActiveBrowser }) {
   let camera = null;
   let layout = null;
   let lastStage = null;
+  let lastUsers = null;
   let zoomStep = DEFAULT_ZOOM_STEP;
+  // CHECKS: manual camera actions cancel the pending auto-refit; only a
+  // stage or user-count change re-arms it (contracts in camera.js).
+  const autoRefit = createAutoRefit();
   const activeAddress = () => getActiveBrowser?.() ?? '10.2';
 
   const zoomStatus = byId('zoom-status');
@@ -164,34 +138,52 @@ export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers, g
   }
 
   // Rebuilds stage layout and repositions cards/lanes/SVG. Refits the camera
-  // only when the stage changed (init + stage switch); pans/zooms survive.
+  // when the stage changed (init + stage switch; pans/zooms survive otherwise)
+  // and, on a re-armed stage or user-count change, when the world bounding
+  // box has grown past the viewport at the current zoom — the same fit
+  // routine as btn-zoom-fit, with zoom-status reflecting the refit.
   function syncLayout() {
     const { w, h } = viewSize();
     // CHECKS: the current slider gap feeds stage sync too, so stage switches,
     // browser expansion, and users changes keep the tuned spacing.
     const ringGap = Number(ringGapSlider?.value) || DEFAULT_RING_GAP;
-    layout = computeStageLayout(getStage(), getUsers(), {
+    const prevStage = lastStage;
+    const prevUsers = lastUsers;
+    lastUsers = getUsers();
+    layout = computeStageLayout(getStage(), lastUsers, {
       ringGap,
       activeBrowser: activeAddress(),
     });
-    if (lastStage !== layout.stage) {
+    // CHECKS: only a stage or user-count change re-arms auto-refit — the
+    // named counter-example is a manual btn-zoom-in followed by a silent
+    // tick: no stage/slider change, so the camera must NOT re-fit.
+    if (lastStage !== layout.stage || prevUsers !== lastUsers) autoRefit.rearm();
+    lastStage = layout.stage;
+    if (
+      lastStage !== prevStage /* init + stage switch reframe unconditionally */ ||
+      autoRefit.shouldRefit(layout.bounds, camera.zoom, w, h)
+    ) {
       camera = fitCameraToBounds(layout.bounds, w, h);
-      lastStage = layout.stage;
     }
     positionParts();
     apply();
   }
 
   // --- interactions ---------------------------------------------------------
+  // Every manual camera action cancels the pending auto-refit: the learner
+  // owns the camera until the next stage or user-count change.
   byId('btn-zoom-in').addEventListener('click', () => {
+    autoRefit.cancel();
     camera = zoomCameraAt(camera, zoomStep, 0, 0);
     apply();
   });
   byId('btn-zoom-out').addEventListener('click', () => {
+    autoRefit.cancel();
     camera = zoomCameraAt(camera, 1 / zoomStep, 0, 0);
     apply();
   });
   byId('btn-zoom-fit').addEventListener('click', () => {
+    autoRefit.cancel();
     const { w, h } = viewSize();
     camera = fitCameraToBounds(layout.bounds, w, h);
     apply();
@@ -201,6 +193,7 @@ export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers, g
   let dragPoint = null;
   viewportEl.addEventListener('pointerdown', (e) => {
     if (e.button !== 0 || e.target.closest(INTERACTIVE_TARGETS)) return;
+    autoRefit.cancel(); // a drag pan is a manual camera action
     dragPoint = { x: e.clientX, y: e.clientY };
     viewportEl.classList.add('is-panning');
     viewportEl.setPointerCapture(e.pointerId);
@@ -223,6 +216,7 @@ export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers, g
     'wheel',
     (e) => {
       e.preventDefault();
+      autoRefit.cancel(); // wheel zoom is a manual camera action
       const rect = viewportEl.getBoundingClientRect();
       const factor = e.deltaY < 0 ? zoomStep : 1 / zoomStep;
       camera = zoomCameraAt(
@@ -239,6 +233,10 @@ export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers, g
   // Keyboard camera control; inputs inside world cards keep their keystrokes.
   viewportEl.addEventListener('keydown', (e) => {
     if (e.target.closest('input, select, textarea')) return;
+    const manualKey =
+      KEY_PANS[e.key] || e.key === '+' || e.key === '=' || e.key === '-' || e.key === '0';
+    if (!manualKey) return;
+    autoRefit.cancel(); // keyboard camera control is a manual action
     if (KEY_PANS[e.key]) {
       e.preventDefault();
       camera = panCamera(camera, ...KEY_PANS[e.key]);
@@ -249,7 +247,7 @@ export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers, g
     } else if (e.key === '-') {
       camera = zoomCameraAt(camera, 1 / zoomStep, 0, 0);
       apply();
-    } else if (e.key === '0') {
+    } else {
       const { w, h } = viewSize();
       camera = fitCameraToBounds(layout.bounds, w, h);
       apply();

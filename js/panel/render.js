@@ -28,6 +28,7 @@ export const els = {
   serverIpChip: $('server-ip-chip'),
   queueList: $('server-queue-list'),
   queueBar: $('queue-bar'),
+  servedRate: $('served-rate'),
   server2Address: $('server-2-address'),
   queueList2: $('server-2-queue-list'),
   queueBar2: $('queue-bar-2'),
@@ -186,6 +187,9 @@ export function render(snapshot, selectedComponent, { layout, activeAddress = '1
   els.queueBar.style.width = labels.queueFill1;
   $('latency').textContent = labels.latency;
   $('served').textContent = labels.served;
+  // The SERVED card's subordinate per-tick rate; the cumulative total above
+  // stays untouched.
+  els.servedRate.textContent = labels.servedRate;
   $('users-count').textContent = labels.users;
   $('server-address').textContent = labels.server1Address;
   els.serverIpChip.textContent = labels.server1Address;
