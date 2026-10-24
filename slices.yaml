@@ -107,7 +107,7 @@ slices:
       - unit: test/panel/teaching.test.js::describes all shipped stages with a headline, three lists, a tradeoff, and a primerLink
       - unit: test/panel/teaching.test.js::stage 1 content never mentions cache TTL names
       - unit: test/panel/teaching.test.js::unknown stages degrade to a pending-entries placeholder, not a crash
-      - unit: test/panel/model-stage6.test.js::describes the hosted 10-hop trace with the DNS ask/answer prelude and ledger labels
+      - unit: test/panel/model-stage6.test.js::describes the hosted 9-hop trace with the DNS ask/answer prelude and ledger labels
       - unit: test/panel/model-stage6.test.js::keeps a host-less /about trace at the byte-identical stage-5 sentences
       - unit: test/panel/model-stage6.test.js::ends the NX narrative at the answer hop with no GET emitted
       - unit: test/panel/layout-stage6.test.js::inherits the stage-5 ring stack and seats the DNS and Router nodes on new spokes

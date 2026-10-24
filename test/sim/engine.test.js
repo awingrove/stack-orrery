@@ -57,21 +57,22 @@ describe('createEngine', () => {
   });
 
   // PINS: the stage-6 trace machine — hosted paths get the DNS ask/answer
-  // prelude (+2 hops, 10 total), then the byte-identical stage-5 chain.
+  // prelude (9 hops: ask + answer + the stage-5 wire chain) and never emit
+  // a GET toward a hostname; the stage-5 chain then replays byte-identical.
   it('traces example.com/about through the DNS ask/answer prelude into the stage-5 chain', () => {
     const engine = createEngine({ stage: 6 });
     const frames = [];
-    for (let hop = 1; hop <= 10; hop++) {
+    for (let hop = 1; hop <= 9; hop++) {
       const snap = engine.traceHop({ method: 'GET', path: 'example.com/about' });
       expect(snap.trace.hop).toBe(hop);
       frames.push(snap.lastFrame);
     }
     expect(frames).toEqual([
-      '10.2 -> example.com | GET example.com/about',
       '10.2 -> 10.60 | who is example.com?',
       '10.60 -> 10.2 | 10.1',
-      // Hops 4-10: the stage-5 chain shifted +2, request re-pointed by the
-      // answer — no DNS tokens appear again after hop 3.
+      // Hops 3-9: the stage-5 chain shifted +2, request re-pointed by the
+      // answer — no DNS tokens appear again after hop 2, and no pre-answer
+      // GET frame exists anywhere.
       'routed 10.2 -> 10.1 (GET /about) to LoadBalancer',
       'LB 10.1 -> 10.11 (GET /about) queued',
       'Database SELECT /about @ 10.31 (fresh)',
@@ -81,7 +82,7 @@ describe('createEngine', () => {
       'Worker 10.41 idle — no async jobs in this trace',
     ]);
     const snap = engine.snapshot();
-    expect(snap.trace.hop).toBe(10);
+    expect(snap.trace.hop).toBe(9);
     expect(snap.trace.request).toBe('GET /about');
     expect(snap.trace.dnsTarget).toBe('10.1');
     // The rendered response landed on the browser exactly once.
@@ -114,19 +115,18 @@ describe('createEngine', () => {
     expect(snap.dns.lookups).toBe(0);
   });
 
-  // CHECKS: named counter-example — an NX answer ends the trace at hop 3, no
-  // GET is emitted (no onFinish, served stays 0), the browser renders the NX
-  // card, and a following traceHop RESTARTS a fresh trace at hop 1 (it cannot
-  // walk a phantom hop 4 of the dead NX trace).
+  // CHECKS: named counter-example — an NX answer ends the trace at hop 2, no
+  // GET is emitted (no onFinish, served stays 0, and hop 1 is the DNS ask —
+  // the GET never becomes a wire frame), the browser renders the NX card,
+  // and a following traceHop RESTARTS a fresh trace at hop 1 (it cannot walk
+  // a phantom hop 3 of the dead NX trace).
   it('ends an NX trace at the DNS answer hop without ever emitting a GET', () => {
     const engine = createEngine({ stage: 6 });
     let snap = engine.traceHop({ method: 'GET', path: 'missing-host.example/about' });
-    expect(snap.lastFrame).toBe('10.2 -> missing-host.example | GET missing-host.example/about');
-    snap = engine.traceHop();
     expect(snap.lastFrame).toBe('10.2 -> 10.60 | who is missing-host.example?');
     snap = engine.traceHop();
     expect(snap.lastFrame).toBe('10.60 -> 10.2 | NX no record');
-    expect(snap.trace.hop).toBe(3);
+    expect(snap.trace.hop).toBe(2);
     expect(snap.trace.nx).toBe(true);
     expect(snap.browserDisplay).toMatchObject({
       status: 'NX',

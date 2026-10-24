@@ -189,8 +189,9 @@ export function createEngine({
     // (emit, route, serve, render); 5 in Stage 2 (LB round-robin between
     // route and serve); 6 in Stage 3 (cache check, then response emit);
     // 7 in Stage 4 (the database hop inserted after the cache check); 8 in
-    // Stage 5 (the async worker tail); 10 in Stage 6 for hosted paths (the
-    // DNS ask/answer prelude, +2) and 8 for host-less ones.
+    // Stage 5 (the async worker tail); 9 in Stage 6 for hosted paths (the
+    // DNS ask/answer prelude, the stage-5 chain minus its emit hop) and 8
+    // for host-less ones.
     // `from` is the mini-IP of the browser the trace originates from
     // (default the learner's own 10.2).
     traceHop({ method = 'GET', path = '/about', from = '10.2' } = {}) {

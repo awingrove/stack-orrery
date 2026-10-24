@@ -4,8 +4,10 @@
 export const TICK_MS = 100;
 const QUEUE_BAR_SATURATION = 20; // bar reads full at 20 queued requests
 // Total hops per stage's trace shape (trace.js, trace-stage6.js and
-// engine.traceHop agree). Stage 6's hosted shape is the stage-5 count + 2.
-const TOTAL_HOPS = { 1: 4, 2: 5, 3: 6, 4: 7, 5: 8, 6: 10 };
+// engine.traceHop agree). Stage 6's hosted shape is 9: the DNS ask + answer
+// plus the stage-5 chain's wire hops (its emit hop is the browser's
+// composition, not a wire frame).
+const TOTAL_HOPS = { 1: 4, 2: 5, 3: 6, 4: 7, 5: 8, 6: 9 };
 
 const HOP_START_SENTENCE = 'Idle — type a path and click Go or Step 1 Hop ->';
 
@@ -66,8 +68,11 @@ const withHopPrefix = (parts, total) => parts.map((p, i) => `Hop ${i + 1}/${tota
 
 // Stage 6 composes two DNS sentences onto the stage-5 chain. The ledger
 // address comes from the live snapshot; an NX answer ends the trace at
-// hop 3 — the browser renders the refusal card and no GET appears anywhere
+// hop 2 — the browser renders the refusal card and no GET appears anywhere
 // downstream (pinned counter-example in test/panel/model-stage6.test.js).
+// The stage-5 emit sentence is still the host-less hop 1; on a hosted path
+// the browser's composure is not a wire hop, so hop 1 is the DNS ask and
+// the 9-hop shape is ask + answer + the stage-5 chain minus emit.
 function stage6Sentences(snapshot, from, serverAddress) {
   const t = snapshot.trace ?? {};
   const parts = stage5ChainParts(snapshot, from, serverAddress);
@@ -79,11 +84,11 @@ function stage6Sentences(snapshot, from, serverAddress) {
   const ask = `Browser (${from}) -> DNS (${dnsAddress}): who is ${t.host}?`;
   if (t.nx) {
     const answer = `DNS (${dnsAddress}) -> Browser (${from}): NX no record — no GET emitted`;
-    return withHopPrefix([parts[0], ask, answer], 3);
+    return withHopPrefix([ask, answer], 2);
   }
   const answer = `DNS (${dnsAddress}) -> Browser (${from}) answers ${t.dnsTarget ?? '10.1'}`;
-  // Hosted = the stage-5 count + exactly 2 (ask + answer), tail renumbered.
-  return withHopPrefix([parts[0], ask, answer, ...parts.slice(1)], 10);
+  // Hosted = 9 hops: ask + answer, then the stage-5 wire chain renumbered.
+  return withHopPrefix([ask, answer, ...parts.slice(1)], 9);
 }
 
 // One hop-status sentence per hop, in hop order, for each stage's trace

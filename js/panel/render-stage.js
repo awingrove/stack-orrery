@@ -86,8 +86,8 @@ export function renderStageTopology(stage) {
 // round-robin pick; Stage 3 splits the backend serve into the cache
 // lookup (Cache 10.20 answers) and the response emission; Stage 4 adds
 // the database hop; Stage 5 adds async worker queue processing. Stage 6
-// re-uses this stage-5 mapping (host-less verbatim; hosted hops > 3 off by
-// exactly the +2 DNS prelude) and owns its hops 1-3 below.
+// re-uses this stage-5 mapping (host-less verbatim; hosted hops > 2 off by
+// exactly the +2 DNS prelude) and owns its hops 1-2 below.
 function stage5HopTarget(snapshot, hop) {
   const backendCard =
     snapshot.trace?.targetServer === '10.12' ? 'node-webserver-2' : 'node-webserver';
@@ -141,12 +141,14 @@ function activeHopTarget(snapshot) {
   const hop = snapshot.trace?.hop ?? 0;
   if (snapshot.stage === 6) {
     if (!snapshot.trace?.host) return stage5HopTarget(snapshot, hop);
-    if (hop <= 3) {
-      // Hops 1-3 of the hosted shape: the browser emits, DNS 10.60 answers
-      // the ask on its ledger lane; NX and resolved answers share the lanes
-      // (both write the packet-res-dns answer lane at hop 3).
-      const owners = { 1: 'node-browser', 2: 'node-dns', 3: 'node-browser' };
-      const lanes = { 1: 'packet-req-left', 2: 'packet-req-dns', 3: 'packet-res-dns' };
+    if (hop <= 2) {
+      // Hops 1-2 of the hosted shape: the browser asks DNS 10.60 and the
+      // ledger answers on its wire lane; NX and resolved answers share the
+      // lanes (both write the packet-res-dns answer lane at hop 2). There
+      // is no card highlight before hop 1's ask — no GET exists on the wire
+      // yet.
+      const owners = { 1: 'node-dns', 2: 'node-browser' };
+      const lanes = { 1: 'packet-req-dns', 2: 'packet-res-dns' };
       return { cardId: owners[hop], laneId: lanes[hop] };
     }
     // The resolved chain replays the stage-5 cards two hops deeper.

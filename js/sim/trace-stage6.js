@@ -6,15 +6,15 @@
 // shortcut is faked — the ask hop really runs the DNS ledger lookup and the
 // serve hop really drains the target's queue.
 //
-// Hosted browser paths (<host>/<path>) split on the first slash: hop 1
-// emits the typed request, hop 2 is the ask to DNS 10.60, hop 3 is the
-// answer — a resolved target re-points the GET at the plain path and the
-// Stage 5 chain replays byte-identically at hops 4-10 (+2 hop numbers).
-// Host-less paths (/<path>) run the Stage 5 shape exactly: 8 hops, same
-// frames, no DNS consult. An NX answer renders the NX card on the browser
-// and NO GET is emitted: the trace ends at hop 3 (CHECKS: pinned in
-// test/sim/engine.test.js — a following traceHop restarts a fresh trace,
-// it cannot walk a phantom hop 4).
+// Hosted browser paths (<host>/<path>) split on the first slash: hop 1 is
+// the ask to DNS 10.60, hop 2 is the ledger answer — a resolved target
+// re-points the GET at the plain path and the Stage 5 chain replays
+// byte-identically at hops 3-9 (s5 = hop - 2, minus the stage-5 emit hop so
+// the wire frames stay real). Host-less paths (/<path>) run the Stage 5
+// shape exactly: 8 hops, same frames, no DNS consult. An NX answer renders
+// the NX card on the browser and NO GET is emitted: the trace ends at hop 2
+// (CHECKS: pinned in test/sim/engine.test.js — a following traceHop
+// restarts a fresh trace, it cannot walk a phantom hop 3).
 export function createStage6Trace({
   serverAddress,
   servers,
@@ -89,9 +89,8 @@ export function createStage6Trace({
 
   // The Stage 5 chain, one stage-hop per call: s5 is the machine state the
   // original stage-5 conditions ran on, and the trace advances one hop per
-  // call either way — hosted at hop s5+2, host-less at hop s5. Frames are
-  // assembled from the same trace fields, so host-less output is identical
-  // to the stage-5 machine's.
+  // call either way. Frames are assembled from the same trace fields, so
+  // host-less output is identical to the stage-5 machine's.
   function chainStep(s5) {
     trace.hop += 1;
     if (s5 === 1) {
@@ -160,12 +159,20 @@ export function createStage6Trace({
   return {
     step({ method = 'GET', path = '/about', from = '10.2' } = {}) {
       // Final hop count comes from the live trace shape: 8 for host-less,
-      // 10 for hosted, and 3 once the answer says NX.
-      const finalHop = trace.host ? (trace.nx ? 3 : 10) : 8;
+      // 9 for hosted (ask + answer + the 7 stage-5 chain hops), and 2 once
+      // the answer says NX.
+      const finalHop = trace.host ? (trace.nx ? 2 : 9) : 8;
       let frame;
       if (trace.hop === 0 || trace.hop >= finalHop) {
-        // Emission: the typed path splits into host + resource path on the
-        // first slash. 'example.com/about' is hosted; '/about' is not.
+        // Emission parses the typed path into host + resource path on the
+        // first slash — 'example.com/about' is hosted; '/about' is not —
+        // but is itself NO wire hop on a hosted path. CHECKS: the browser's
+        // first wire frame is the DNS ask; the GET only becomes a wire
+        // token after the answer re-points it at the resolved target, so a
+        // listed hop must never show a wire arrow toward a hostname (the
+        // old "10.2 -> example.com | GET ..." narrated a delivery the
+        // component model never makes — DL-4; for an NX host no GET exists
+        // at all). Host-less emission keeps the stage-5 emit frame verbatim.
         const slash = String(path).indexOf('/');
         const host =
           slash === -1 ? String(path) : slash === 0 ? null : String(path).slice(0, slash);
@@ -174,24 +181,19 @@ export function createStage6Trace({
         trace = { ...freshTrace(), hop: 1, method, path: rest, host: host || null, request, from };
         served = null;
         answer = null;
-        frame = host
-          ? `${from} -> ${host} | ${request}`
-          : `${from} -> ${serverAddress} | ${request}`;
+        if (host) {
+          // Hop 1/9 is the ask: the DNS ledger lookup runs right here,
+          // feeding the answer hop the component's real result.
+          answer = dns.lookup(host, getTick());
+          frame = `${from} -> ${dns.address} | who is ${host}?`;
+        } else {
+          frame = `${from} -> ${serverAddress} | ${request}`;
+        }
       } else if (trace.hop === 1 && trace.host) {
-        // Hop 2/10: the browser asks DNS — the ledger lookup runs right
-        // here, feeding the answer hop the component's real result.
-        trace.hop = 2;
-        answer = dns.lookup(trace.host, getTick());
-        frame = `${trace.from} -> ${dns.address} | who is ${trace.host}?`;
-      } else if (trace.hop === 1) {
-        // Host-less hop 2/8 keeps the stage-5 route wording byte-identical.
-        trace.hop = 2;
-        frame = `routed ${trace.from} -> ${serverAddress} (${trace.request}) to LoadBalancer`;
-      } else if (trace.hop === 2 && trace.host) {
-        // Hop 3/10: the ledger answer. NX ends the trace here; a resolved
+        // Hop 2/9: the ledger answer. NX ends the trace here; a resolved
         // target re-points the GET at the plain resource path, so the
         // remaining chain traffic reads exactly like stage 5's.
-        trace.hop = 3;
+        trace.hop = 2;
         if (answer.status === 'NX') {
           trace.nx = true;
           onDnsFail({ from: trace.from, request: trace.request });
@@ -201,8 +203,12 @@ export function createStage6Trace({
           trace.request = `${trace.method} ${trace.path}`;
           frame = `${dns.address} -> ${trace.from} | ${answer.target}`;
         }
+      } else if (trace.hop === 1) {
+        // Host-less hop 2/8 keeps the stage-5 route wording byte-identical.
+        trace.hop = 2;
+        frame = `routed ${trace.from} -> ${serverAddress} (${trace.request}) to LoadBalancer`;
       } else {
-        const s5 = trace.host ? trace.hop - 2 : trace.hop;
+        const s5 = trace.host ? trace.hop - 1 : trace.hop;
         frame = chainStep(s5);
       }
       return frame;

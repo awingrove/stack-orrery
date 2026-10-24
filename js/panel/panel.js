@@ -25,19 +25,20 @@ let currentSnapshot = null;
 // every other browser renders as a compact clickable node in its slot.
 let activeBrowserAddress = '10.2';
 // Total hops per stage's trace shape; trace.js, trace-stage6.js and
-// model.js's labels agree (stage 6's hosted shape: stage-5 count + 2).
-const TOTAL_HOPS = { 1: 4, 2: 5, 3: 6, 4: 7, 5: 8, 6: 10 };
+// model.js's labels agree (stage 6's hosted shape: ask + answer + the
+// stage-5 wire chain = 9).
+const TOTAL_HOPS = { 1: 4, 2: 5, 3: 6, 4: 7, 5: 8, 6: 9 };
 
 const totalHopsFor = (stage) => TOTAL_HOPS[stage] ?? TOTAL_HOPS[1];
 
 // CHECKS: the live final hop reads from the trace itself — stage 6's shape
-// is host ? (nx ? 3 : 10) : 8 (mirroring trace-stage6.js), so a host-less
+// is host ? (nx ? 2 : 9) : 8 (mirroring trace-stage6.js), so a host-less
 // trace stops at its normal stage-5 count and an NX answer stops at the
 // answer hop; other stages use TOTAL_HOPS.
 const traceFinalHop = (snapshot, stage) => {
   if (snapshot.stage === 6 && snapshot.trace) {
-    if (snapshot.trace.nx) return 3;
-    return snapshot.trace.host ? 10 : 8;
+    if (snapshot.trace.nx) return 2;
+    return snapshot.trace.host ? 9 : 8;
   }
   return totalHopsFor(stage);
 };

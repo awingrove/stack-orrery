@@ -25,6 +25,11 @@ Execute mechanically from Step 2 and keep `npm run verify` green at every commit
   an expired entry must NOT be answered from the cache ledger. §Tests pin it.
 - **Unknown-name branch.** `nope.example/about` must NOT emit a GET: the trace
   is DNS ask + `NX no record` answer, browser renders the NX card. §Tests pin it.
+  Clarified at Step-3 review (open-state, before PR): there is NO addressing hop
+  before the DNS ask in any hosted trace — the first wire message is the DNS ask;
+  a listed hop must never present `GET <host>/...` toward a hostname as a wire
+  frame (the browser's GET only becomes a wire token after resolution, inside
+  the stage-5 chain at the resolved target).
 - **Cross-subnet fail-loud.** A send into subnet 20 to an unregistered host
   (`20.9`) throws (DL-1 fail-loud, mirrors `network.js` today). §Tests pin it.
 - **Deep-link live-stage set.** The live-stage list feeding `?stage=` extends

@@ -54,36 +54,38 @@ const baseSnapshot = {
 };
 
 describe('describeSnapshot stage 6', () => {
-  it('describes the hosted 10-hop trace with the DNS ask/answer prelude and ledger labels', () => {
+  it('describes the hosted 9-hop trace with the DNS ask/answer prelude and ledger labels', () => {
     const labels = describeSnapshot(baseSnapshot);
     expect(labels.stage).toBe(6);
-    expect(labels.totalHops).toBe(10);
-    expect(labels.hopStatus).toBe('Hop 2/10: Browser (10.2) -> DNS (10.60): who is example.com?');
+    expect(labels.totalHops).toBe(9);
+    expect(labels.hopStatus).toBe('Hop 2/9: DNS (10.60) -> Browser (10.2) answers 10.1');
 
     const hopLabels = (hop, over = {}) =>
       describeSnapshot({ ...baseSnapshot, trace: { ...baseSnapshot.trace, hop, ...over } })
         .hopStatus;
-    expect(hopLabels(1)).toBe('Hop 1/10: Browser (10.2) emits "GET example.com/about"');
-    expect(hopLabels(3)).toBe('Hop 3/10: DNS (10.60) -> Browser (10.2) answers 10.1');
-    // Hops 4-10 replay the stage-5 chain renumbered behind the prelude; the
-    // re-pointed GET reads its plain path exactly as the real trace carries
-    // it after hop 3.
+    // Hop 1 is the DNS ask — the browser's composure of the GET is not a
+    // wire hop, so no emission sentence exists on a hosted path.
+    expect(hopLabels(1)).toBe('Hop 1/9: Browser (10.2) -> DNS (10.60): who is example.com?');
+    expect(hopLabels(2)).toBe('Hop 2/9: DNS (10.60) -> Browser (10.2) answers 10.1');
+    // Hops 3-9 replay the stage-5 wire chain renumbered behind the prelude;
+    // the re-pointed GET reads its plain path exactly as the real trace
+    // carries it after hop 2.
+    expect(hopLabels(3, { request: 'GET /about' })).toBe(
+      'Hop 3/9: Network (10.x) routes to LoadBalancer (10.1)',
+    );
     expect(hopLabels(4, { request: 'GET /about' })).toBe(
-      'Hop 4/10: Network (10.x) routes to LoadBalancer (10.1)',
+      'Hop 4/9: LoadBalancer (10.1) -> 10.11 queue',
     );
     expect(hopLabels(5, { request: 'GET /about' })).toBe(
-      'Hop 5/10: LoadBalancer (10.1) -> 10.11 queue',
+      'Hop 5/9: Database SKIP — warm cache HIT (10.20)',
     );
     expect(hopLabels(6, { request: 'GET /about' })).toBe(
-      'Hop 6/10: Database SKIP — warm cache HIT (10.20)',
+      'Hop 6/9: WebServer (10.11) -> "200 This is the about page" (cache MISS)',
     );
-    expect(hopLabels(7, { request: 'GET /about' })).toBe(
-      'Hop 7/10: WebServer (10.11) -> "200 This is the about page" (cache MISS)',
+    expect(hopLabels(9, { request: 'GET /about' })).toBe(
+      'Hop 9/9: Worker (10.41) idle — no async jobs in this trace',
     );
-    expect(hopLabels(10, { request: 'GET /about' })).toBe(
-      'Hop 10/10: Worker (10.41) idle — no async jobs in this trace',
-    );
-    expect(hopLabels(11)).toBe('Idle — type a path and click Go or Step 1 Hop ->');
+    expect(hopLabels(10)).toBe('Idle — type a path and click Go or Step 1 Hop ->');
 
     // The DNS HUD labels mirror the ledger counters and the TTL, and the
     // entry rows come straight off the snapshot's live Map.
@@ -105,9 +107,9 @@ describe('describeSnapshot stage 6', () => {
       },
     };
     const labels = describeSnapshot(snap);
-    // totalHops stays the stage-6 map value (10); the trace-aware final hop
+    // totalHops stays the stage-6 map value (9); the trace-aware final hop
     // for the host-less shape (8) is panel.js's traceFinalHop contract.
-    expect(labels.totalHops).toBe(10);
+    expect(labels.totalHops).toBe(9);
     expect(labels.hopStatus).toBe('Hop 1/8: Browser (10.2) emits "GET example.com/about"');
     const hopLabels = (hop, over = {}) =>
       describeSnapshot({ ...snap, trace: { ...snap.trace, hop, ...over } }).hopStatus;
@@ -115,15 +117,15 @@ describe('describeSnapshot stage 6', () => {
     expect(hopLabels(8)).toBe('Hop 8/8: Worker (10.41) idle — no async jobs in this trace');
   });
 
-  // PINS: negative case — an NX answer ends the trace at hop 3 and the
-  // narrative never names a GET anywhere downstream: no hop 4, no served
+  // PINS: negative case — an NX answer ends the trace at hop 2 and the
+  // narrative never names a GET anywhere downstream: no hop 3, no served
   // sentence — the browser renders the refusal card instead.
   it('ends the NX narrative at the answer hop with no GET emitted', () => {
     const snap = {
       ...baseSnapshot,
       trace: {
         ...baseSnapshot.trace,
-        hop: 3,
+        hop: 2,
         host: 'nope.example',
         dnsTarget: null,
         nx: true,
@@ -131,9 +133,9 @@ describe('describeSnapshot stage 6', () => {
     };
     const labels = describeSnapshot(snap);
     expect(labels.hopStatus).toBe(
-      'Hop 3/3: DNS (10.60) -> Browser (10.2): NX no record — no GET emitted',
+      'Hop 2/2: DNS (10.60) -> Browser (10.2): NX no record — no GET emitted',
     );
-    const after = describeSnapshot({ ...snap, trace: { ...snap.trace, hop: 4 } });
+    const after = describeSnapshot({ ...snap, trace: { ...snap.trace, hop: 3 } });
     expect(after.hopStatus).toBe('Idle — type a path and click Go or Step 1 Hop ->');
     expect(JSON.stringify(after.hopStatus + after.exchangeSummary)).not.toContain('GET /about');
 

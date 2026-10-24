@@ -2,9 +2,10 @@ import { test, expect } from '@playwright/test';
 
 // Stage 6a (stage6a-dns-crossnet brief): the DNS 10.60 tick-TTL ledger and
 // the cross-subnet Router 10.65 ⇄ 20.1. The orrery redraws to 8 rings, the
-// hosted URL example.com/about walks a 10-hop trace whose first three hops
-// are emit -> DNS ask -> ledger answer, and the DNS code + ledger rows open
-// in the bottom inspector.
+// hosted URL example.com/about walks a 9-hop trace whose first two hops
+// are the DNS ask -> the ledger answer (no pre-resolution GET frame: the
+// browser's GET only becomes a wire token after the answer), and the DNS
+// code + ledger rows open in the bottom inspector.
 test('should switch to Stage 6, resolve example.com through DNS 10.60, and inspect DNS code + TTL ledger', async ({
   page,
 }) => {
@@ -28,10 +29,10 @@ test('should switch to Stage 6, resolve example.com through DNS 10.60, and inspe
   await expect(page.locator('#packet-req-router')).toContainText('route =>');
   await expect(page.locator('#packet-res-router')).toContainText('<- via router');
 
-  // The full hosted trace walks 10 hops: ask + answer then the stage-5 chain.
+  // The full hosted trace walks 9 hops: ask + answer then the stage-5 chain.
   await page.getByTestId('url-input').fill('example.com/about');
-  for (let hop = 0; hop < 10; hop++) await page.getByTestId('btn-next-hop').click();
-  await expect(page.getByTestId('hop-status')).toContainText('Hop 10/10');
+  for (let hop = 0; hop < 9; hop++) await page.getByTestId('btn-next-hop').click();
+  await expect(page.getByTestId('hop-status')).toContainText('Hop 9/9');
   await expect(page.getByTestId('browser-rendered-body')).toHaveText('This is the about page');
   await expect(page.getByTestId('browser-status-badge')).toContainText('200');
 
@@ -54,7 +55,8 @@ test('should switch to Stage 6, resolve example.com through DNS 10.60, and inspe
 });
 
 // The hosted trace's ask/answer hops are visible as their own sentences with
-// the browser and DNS cards active — the mechanism, not a summary badge.
+// the DNS card active on the ask — the mechanism, not a summary badge. No
+// pre-resolution GET hop exists: the wire starts at the ask.
 test('should trace example.com/about with DNS ask + answer hops', async ({ page }) => {
   await page.goto('/panel.html');
 
@@ -63,29 +65,23 @@ test('should trace example.com/about with DNS ask + answer hops', async ({ page 
 
   await page.getByTestId('btn-next-hop').click();
   await expect(page.getByTestId('hop-status')).toHaveText(
-    'Hop 1/10: Browser (10.2) emits "GET example.com/about"',
-  );
-  await expect(page.locator('#node-browser.active-hop')).not.toHaveCount(0);
-
-  await page.getByTestId('btn-next-hop').click();
-  await expect(page.getByTestId('hop-status')).toHaveText(
-    'Hop 2/10: Browser (10.2) -> DNS (10.60): who is example.com?',
+    'Hop 1/9: Browser (10.2) -> DNS (10.60): who is example.com?',
   );
   await expect(page.locator('#node-dns.active-hop')).not.toHaveCount(0);
   await expect(page.locator('#packet-req-dns.lane-active')).not.toHaveCount(0);
 
   await page.getByTestId('btn-next-hop').click();
   await expect(page.getByTestId('hop-status')).toHaveText(
-    'Hop 3/10: DNS (10.60) -> Browser (10.2) answers 10.1',
+    'Hop 2/9: DNS (10.60) -> Browser (10.2) answers 10.1',
   );
   await expect(page.locator('#packet-res-dns.lane-active')).not.toHaveCount(0);
 
-  // Hops 4-10 replay the stage-5 chain renumbered (+2) behind the prelude.
+  // Hops 3-9 replay the stage-5 chain renumbered (+2) behind the prelude.
   for (let hop = 0; hop < 7; hop++) await page.getByTestId('btn-next-hop').click();
   await expect(page.getByTestId('hop-status')).toHaveText(
-    'Hop 10/10: Worker (10.41) idle — no async jobs in this trace',
+    'Hop 9/9: Worker (10.41) idle — no async jobs in this trace',
   );
-  await expect(page.getByTestId('journey-log')).toContainText('hop 3/10');
+  await expect(page.getByTestId('journey-log')).toContainText('hop 3/9');
 });
 
 // CHECKS: named counter-example — a plain /about path keeps the stage-5 hop
@@ -126,10 +122,10 @@ test('should render the NX card on Stage 6 for a missing host without emitting a
 
   await page.getByTestId('stage-pill-6').click();
   await page.getByTestId('url-input').fill('nope.example/about');
-  // Send & Watch Hops stops at the NX trace's own final hop (3).
+  // Send & Watch Hops stops at the NX trace's own final hop (2).
   await page.getByTestId('btn-url-go').click();
   await expect(page.getByTestId('hop-status')).toHaveText(
-    'Hop 3/3: DNS (10.60) -> Browser (10.2): NX no record — no GET emitted',
+    'Hop 2/2: DNS (10.60) -> Browser (10.2): NX no record — no GET emitted',
   );
   await expect(page.getByTestId('browser-status-badge')).toHaveText('NX (GET nope.example/about)');
   await expect(page.getByTestId('browser-rendered-body')).toHaveText(
@@ -138,7 +134,7 @@ test('should render the NX card on Stage 6 for a missing host without emitting a
   // No served exchange anywhere: nothing reached the server pool.
   await expect(page.getByTestId('exchange-inspector')).toHaveText('No requests served yet');
   await expect(page.getByTestId('dns-entries-list')).toHaveText('');
-  await expect(page.locator('#journey-log .journey-entry')).toHaveCount(3);
+  await expect(page.locator('#journey-log .journey-entry')).toHaveCount(2);
 });
 
 // Deep-link: the live-stage list extends to 6; unknown values still fall
