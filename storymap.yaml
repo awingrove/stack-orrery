@@ -130,7 +130,7 @@ activities:
             status: done
             priority: medium
             tests:
-              - unit: test/panel/teaching.test.js::describes all five stages with a headline, three lists, a tradeoff, and a primerLink
+              - unit: test/panel/teaching.test.js::describes all shipped stages with a headline, three lists, a tradeoff, and a primerLink
               - unit: test/panel/teaching.test.js::stage 1 content never mentions cache TTL names
               - unit: test/panel/teaching.test.js::unknown stages degrade to a pending-entries placeholder, not a crash
               - e2e: teaching::should open the teaching drawer, trace it across stage switches, and show stage-1 content only on stage 1
@@ -234,3 +234,40 @@ activities:
             tests:
               - unit: test/panel/model-stage5.test.js::describes Stage 5 8-hop async queue trace labels and workerqueue inspector state
               - e2e: panel::should switch to Stage 5, process an async POST /jobs job through worker 10.41, and inspect queue state
+
+  - name: 'Stage 6 — DNS ledger and cross-subnet routing'
+    tasks:
+      - id: SIM-6
+        name: Resolve hosted names through DNS 10.60 and route across subnets via Router 10.65 ⇄ 20.1
+        entry_point: n/a (engine behavior, not navigable)
+        stories:
+          - title: Answer hosted names from the authoritative table, the tick-TTL ledger, or an NX refusal, and route cross-subnet frames with one router hop
+            status: done
+            priority: high
+            tests:
+              - unit: test/sim/dns.test.js::answers the authoritative table on a miss, the ledger inside ttlTicks, and evicts on expiry
+              - unit: test/sim/engine.test.js::traces example.com/about through the DNS ask/answer prelude into the stage-5 chain
+              - unit: test/sim/engine.test.js::keeps a host-less /about trace at the stage-5 hop story on stage 6
+              - unit: test/sim/engine.test.js::ends an NX trace at the DNS answer hop without ever emitting a GET
+              - unit: test/sim/router.test.js::passes same-subnet frames through untouched and takes exactly one hop across subnets
+              - unit: test/sim/engine.test.js::rejects a stage outside 1..6
+
+      - id: PANEL-6
+        name: Switch to Stage 6 and trace the DNS-ledger orrery
+        entry_point: index.html -> Diagram Panel link -> 6 · Multi-Net / CDN pill
+        stories:
+          - title: Switch to Stage 6, resolve example.com through DNS 10.60 over the 10-hop hosted trace, and inspect DNS ledger and Router state
+            status: done
+            priority: high
+            tests:
+              - unit: test/panel/model-stage6.test.js::describes the hosted 10-hop trace with the DNS ask/answer prelude and ledger labels
+              - unit: test/panel/model-stage6.test.js::keeps a host-less /about trace at the byte-identical stage-5 sentences
+              - unit: test/panel/model-stage6.test.js::ends the NX narrative at the answer hop with no GET emitted
+              - unit: test/panel/layout-stage6.test.js::inherits the stage-5 ring stack and seats the DNS and Router nodes on new spokes
+              - unit: test/panel/layout-stage6.test.js::buildStage6Extras derives the router/browser-reach bound and lane wires from real geometry
+              - unit: test/panel/teaching.test.js::describes all shipped stages with a headline, three lists, a tradeoff, and a primerLink
+              - e2e: panel-stage6::should switch to Stage 6, resolve example.com through DNS 10.60, and inspect DNS code + TTL ledger
+              - e2e: panel-stage6::should trace example.com/about with DNS ask + answer hops
+              - e2e: panel-stage6::should keep GET /about on Stage 6 at the Stage 5 hop story
+              - e2e: panel-stage6::should render the NX card on Stage 6 for a missing host without emitting a GET
+              - e2e: panel-stage6::should deep-link ?stage=6 into the DNS topology

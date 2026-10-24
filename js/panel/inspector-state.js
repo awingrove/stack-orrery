@@ -41,6 +41,12 @@ export function componentTitle(snapshot = null, component, browserAddress = '10.
       return `Worker Queue — Queue ${snapshot?.workerQueue?.address ?? '10.40'} / Worker ${
         snapshot?.workerQueue?.workerAddress ?? '10.41'
       }`;
+    case 'dns':
+      return `DNS — mini-IP ${snapshot?.dns?.address ?? '10.60'}`;
+    case 'router':
+      return `Router — mini-IP ${snapshot?.router?.address ?? '10.65'} ⇄ ${
+        snapshot?.router?.rightAddress ?? '20.1'
+      }`;
     default:
       throw new Error(`inspector-source: unknown component ${component}`);
   }
@@ -66,7 +72,7 @@ const STATE_BUILDERS = {
     // CHECKS: mini-IP keys are quoted strings — a bare `10.20:` literal
     // collapses to the number 10.2 and collides with the browser's mini-IP.
     interfaces:
-      snapshot.stage === 5
+      snapshot.stage === 6
         ? {
             10.1: 'LoadBalancer',
             10.11: 'WebServer-1',
@@ -77,9 +83,12 @@ const STATE_BUILDERS = {
             10.31: 'Database (Replica)',
             '10.40': 'WorkerQueue',
             10.41: 'Worker',
+            '10.60': 'DNS',
+            10.65: 'Router (left)',
+            20.1: 'Router (right)',
             Crowd: `${snapshot.users} simulated browsers`,
           }
-        : snapshot.stage === 4
+        : snapshot.stage === 5
           ? {
               10.1: 'LoadBalancer',
               10.11: 'WebServer-1',
@@ -88,30 +97,43 @@ const STATE_BUILDERS = {
               '10.20': 'Cache',
               '10.30': 'Database (Primary)',
               10.31: 'Database (Replica)',
+              '10.40': 'WorkerQueue',
+              10.41: 'Worker',
               Crowd: `${snapshot.users} simulated browsers`,
             }
-          : snapshot.stage === 3
+          : snapshot.stage === 4
             ? {
                 10.1: 'LoadBalancer',
                 10.11: 'WebServer-1',
                 10.12: 'WebServer-2',
                 10.2: 'Browser (You)',
                 '10.20': 'Cache',
+                '10.30': 'Database (Primary)',
+                10.31: 'Database (Replica)',
                 Crowd: `${snapshot.users} simulated browsers`,
               }
-            : snapshot.stage === 2
+            : snapshot.stage === 3
               ? {
                   10.1: 'LoadBalancer',
                   10.11: 'WebServer-1',
                   10.12: 'WebServer-2',
                   10.2: 'Browser (You)',
+                  '10.20': 'Cache',
                   Crowd: `${snapshot.users} simulated browsers`,
                 }
-              : {
-                  10.1: 'WebServer',
-                  10.2: 'Browser (You)',
-                  Crowd: `${snapshot.users} simulated browsers`,
-                },
+              : snapshot.stage === 2
+                ? {
+                    10.1: 'LoadBalancer',
+                    10.11: 'WebServer-1',
+                    10.12: 'WebServer-2',
+                    10.2: 'Browser (You)',
+                    Crowd: `${snapshot.users} simulated browsers`,
+                  }
+                : {
+                    10.1: 'WebServer',
+                    10.2: 'Browser (You)',
+                    Crowd: `${snapshot.users} simulated browsers`,
+                  },
     lastFrame: snapshot.lastFrame ?? null,
   }),
   loadbalancer: (snapshot) => ({
@@ -175,5 +197,21 @@ const STATE_BUILDERS = {
     activeJob: snapshot.workerQueue?.activeJob ?? null,
     pendingJobs: snapshot.workerQueue?.pendingJobs ?? [],
     lastJobResult: snapshot.workerQueue?.lastJobResult ?? null,
+  }),
+  dns: (snapshot) => ({
+    address: snapshot.dns?.address ?? '10.60',
+    role: 'authoritative name server',
+    ttlTicks: snapshot.dns?.ttlTicks ?? 300,
+    lookups: snapshot.dns?.lookups ?? 0,
+    cachedHits: snapshot.dns?.cachedHits ?? 0,
+    authoritative: snapshot.dns?.authoritative ?? 0,
+    lastLookup: snapshot.dns?.lastLookup ?? null,
+    ledger: snapshot.dns?.cache ?? [],
+  }),
+  router: (snapshot) => ({
+    address: snapshot.router?.address ?? '10.65',
+    rightAddress: snapshot.router?.rightAddress ?? '20.1',
+    routedTotal: snapshot.router?.routed ?? 0,
+    lastCross: snapshot.router?.lastCross ?? null,
   }),
 };

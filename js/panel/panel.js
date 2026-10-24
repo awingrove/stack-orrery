@@ -8,8 +8,13 @@ import { TICK_MS } from './model.js';
 import { COMPONENT_SOURCE } from './inspector-source.js';
 import { $, els, addToJourney, render, renderInspector } from './render.js';
 import { renderStageTopology, onStageRendered } from './render-stage.js';
+import { ensureStage6Dom } from './stage6-registry.js';
 import { initViewport } from './viewport.js';
 import { initTeachingDrawer, renderTeaching } from './teaching-drawer.js';
+
+// Stage-6 topology DOM (DNS/Router cards, wire columns, inspector tabs) is
+// injected before the wiring loops below so every getElementById resolves.
+ensureStage6Dom();
 
 let currentStage = 1;
 let engine = null;
@@ -19,10 +24,23 @@ let currentSnapshot = null;
 // The browser currently expanded into #node-browser (mini-IP on Ring 3);
 // every other browser renders as a compact clickable node in its slot.
 let activeBrowserAddress = '10.2';
-// Total hops per stage; trace.js's machine and model.js's labels agree.
-const TOTAL_HOPS = { 1: 4, 2: 5, 3: 6, 4: 7, 5: 8 };
+// Total hops per stage's trace shape; trace.js, trace-stage6.js and
+// model.js's labels agree (stage 6's hosted shape: stage-5 count + 2).
+const TOTAL_HOPS = { 1: 4, 2: 5, 3: 6, 4: 7, 5: 8, 6: 10 };
 
 const totalHopsFor = (stage) => TOTAL_HOPS[stage] ?? TOTAL_HOPS[1];
+
+// CHECKS: the live final hop reads from the trace itself — stage 6's shape
+// is host ? (nx ? 3 : 10) : 8 (mirroring trace-stage6.js), so a host-less
+// trace stops at its normal stage-5 count and an NX answer stops at the
+// answer hop; other stages use TOTAL_HOPS.
+const traceFinalHop = (snapshot, stage) => {
+  if (snapshot.stage === 6 && snapshot.trace) {
+    if (snapshot.trace.nx) return 3;
+    return snapshot.trace.host ? 10 : 8;
+  }
+  return totalHopsFor(stage);
+};
 
 function createEngineFromControls() {
   return createEngine({
@@ -84,17 +102,17 @@ function switchStage(stage) {
 }
 
 // CHECKS: deep-linked state reads exactly once at load — ?stage=N selects a
-// live stage 1-5 and ?users=U clamps into the slider's 1-50 range; anything
+// live stage 1-6 and ?users=U clamps into the slider's 1-50 range; anything
 // unknown, out of range, or non-numeric falls back to the fresh-load
 // defaults (Stage 1, five users) without a console error. Named
 // counter-example (pinned in e2e/panel.spec.js): ?stage=9 renders Stage 1 —
-// it must never select the disabled 6 · Multi-Net / CDN pill or crash.
+// out-of-range values must not crash or half-select a pill.
 function readDeepLink() {
   const params = new URLSearchParams(window.location.search);
   const stage = Number.parseInt(params.get('stage') ?? '', 10);
   const users = Number.parseFloat(params.get('users') ?? '');
   return {
-    stage: stage >= 1 && stage <= 5 ? stage : 1,
+    stage: stage >= 1 && stage <= 6 ? stage : 1,
     users: Number.isFinite(users) ? Math.min(50, Math.max(1, Math.round(users))) : 5,
   };
 }
@@ -155,7 +173,7 @@ function stepOneHop() {
     path: els.urlInput.value,
     from: activeBrowserAddress,
   });
-  const totalHops = totalHopsFor(snapshot.stage);
+  const totalHops = traceFinalHop(snapshot, snapshot.stage);
   // PINS: hop 1 emission starts a new trace run — that run (whole, hops
   // ascending) floats above the previous run in #journey-log.
   if (snapshot.trace.hop === 1) traceRunId = nextJourneyRun();
@@ -171,17 +189,17 @@ $('btn-next-hop').addEventListener('click', stepOneHop);
 
 $('btn-play-request').addEventListener('click', () => {
   if (timer) pause();
-  const finalHop = totalHopsFor(currentStage);
   const iv = setInterval(() => {
-    if (stepOneHop().trace.hop === finalHop) clearInterval(iv);
+    const snapshot = stepOneHop();
+    if (snapshot.trace.hop === traceFinalHop(snapshot, currentStage)) clearInterval(iv);
   }, TICK_MS);
 });
 
 $('btn-url-go').addEventListener('click', () => {
   if (timer) pause();
-  const finalHop = totalHopsFor(currentStage);
-  for (let i = 0; i < finalHop + 1; i += 1) {
-    if (stepOneHop().trace.hop === finalHop) break;
+  for (let i = 0; i < totalHopsFor(currentStage) + 1; i += 1) {
+    const snapshot = stepOneHop();
+    if (snapshot.trace.hop === traceFinalHop(snapshot, currentStage)) break;
   }
 });
 

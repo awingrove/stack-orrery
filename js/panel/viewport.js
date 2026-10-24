@@ -16,9 +16,7 @@ import { drawOrrery } from './orrery-svg.js';
 const DEFAULT_ZOOM_STEP = 1.2;
 const DEFAULT_RING_GAP = 400;
 const PAN_PX = 48;
-
-// Drag-start targets that own their pointer events (camera does not hijack
-// them: .camera-hud holds buttons and tuning sliders).
+// Drag-start targets that own their pointer events (.camera-hud excluded).
 const INTERACTIVE_TARGETS = 'button, input, select, a, .node-card, .camera-hud';
 
 const KEY_PANS = {
@@ -30,10 +28,9 @@ const KEY_PANS = {
 
 // PINS: each wire lane sits on its wire in world coordinates (col-left on
 // browser↔network, col-right on network↔webserver/lb, lb-backends centered
-// between the two backend wires, servers-cache centered between the two
-// cache wires). A value may pin a lane at a fraction t down its wire:
-// Stage 5 anchors the cache→db lane at t=0.3 so it clears the queue→worker
-// crossing.
+// between their two wires, stage-6 dns/router columns on their own spokes).
+// A value may pin a lane at a fraction t down its wire: Stage 5 anchors the
+// cache→db lane at t=0.3 so it clears the queue→worker crossing.
 const LANE_WIRES = {
   1: { 'wire-col-left': 'wire-browser-network', 'wire-col-right': 'wire-network-webserver' },
   2: { 'wire-col-left': 'wire-browser-network', 'wire-col-right': 'wire-network-lb' },
@@ -50,18 +47,27 @@ const LANE_WIRES = {
     'wire-cache-queue': 'wire-cache-queue',
     'wire-queue-worker': 'wire-queue-worker',
   },
+  6: {
+    'wire-col-left': 'wire-browser-network',
+    'wire-col-right': 'wire-network-lb',
+    'wire-cache-db': ['wire-cache-db', 0.3],
+    'wire-cache-queue': 'wire-cache-queue',
+    'wire-queue-worker': 'wire-queue-worker',
+    'wire-dns': 'wire-browser-dns',
+    'wire-router': 'wire-network-router',
+  },
 };
 // Lanes anchored between parallel wires — lb-backends shared across stages
-// 2-5; servers-cache capped left of the Cache card it would otherwise clip.
+// 2-6; servers-cache capped left of the Cache card it would otherwise clip.
 const LANES_BETWEEN = [
   {
     laneId: 'wire-lb-backends',
-    stages: [2, 3, 4, 5],
+    stages: [2, 3, 4, 5, 6],
     wireIds: ['wire-lb-webserver', 'wire-lb-webserver-2'],
   },
   {
     laneId: 'wire-servers-cache',
-    stages: [3, 4, 5],
+    stages: [3, 4, 5, 6],
     wireIds: ['wire-webserver-cache', 'wire-webserver-2-cache'],
     capTo: 'node-cache',
     capDx: -175, // 15.5rem card half + chip half + margin, in world px
@@ -129,23 +135,20 @@ export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers, g
       setWorldPos(lane, nx ?? at(w1.midX, w2.midX, 0.5), ny ?? at(w1.midY, w2.midY, 0.5));
     }
     for (const slot of layout.browserSlots ?? []) {
-      // CHECKS: compact Ring-3 nodes track layout.browserSlots so they move in
-      // real time as the ring-gap slider is dragged, like every other card.
+      // CHECKS: compact Ring-3 nodes track layout.browserSlots so they move
+      // with the ring-gap slider like every other card.
       const btn = document.querySelector(`.browser-compact[data-address="${slot.address}"]`);
       if (btn) setWorldPos(btn, slot.x, slot.y);
     }
     drawOrrery(svgEl, layout);
   }
 
-  // Rebuilds stage layout and repositions cards/lanes/SVG. Refits the camera
-  // when the stage changed (init + stage switch; pans/zooms survive otherwise)
-  // and, on a re-armed stage or user-count change, when the world bounding
-  // box has grown past the viewport at the current zoom — the same fit
-  // routine as btn-zoom-fit, with zoom-status reflecting the refit.
+  // Rebuilds stage layout and repositions cards/lanes/SVG; refits the camera
+  // on a stage change or a grown bounding box (autoRefit, camera.js).
   function syncLayout() {
     const { w, h } = viewSize();
-    // CHECKS: the current slider gap feeds stage sync too, so stage switches,
-    // browser expansion, and users changes keep the tuned spacing.
+    // CHECKS: the current slider gap feeds stage sync too — stage switches,
+    // browser expansion, and user changes keep the tuned spacing.
     const ringGap = Number(ringGapSlider?.value) || DEFAULT_RING_GAP;
     const prevStage = lastStage;
     const prevUsers = lastUsers;
@@ -155,8 +158,8 @@ export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers, g
       activeBrowser: activeAddress(),
     });
     // CHECKS: only a stage or user-count change re-arms auto-refit — the
-    // named counter-example is a manual btn-zoom-in followed by a silent
-    // tick: no stage/slider change, so the camera must NOT re-fit.
+    // named counter-example is a manual zoom followed by a silent tick: no
+    // stage/slider change, so the camera must NOT re-fit.
     if (lastStage !== layout.stage || prevUsers !== lastUsers) autoRefit.rearm();
     lastStage = layout.stage;
     if (
@@ -170,8 +173,8 @@ export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers, g
   }
 
   // --- interactions ---------------------------------------------------------
-  // Every manual camera action cancels the pending auto-refit: the learner
-  // owns the camera until the next stage or user-count change.
+  // Every manual camera action cancels the pending auto-refit; only a stage
+  // or user-count change re-arms it (camera.js contract).
   byId('btn-zoom-in').addEventListener('click', () => {
     autoRefit.cancel();
     camera = zoomCameraAt(camera, zoomStep, 0, 0);
@@ -189,7 +192,7 @@ export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers, g
     apply();
   });
 
-  // Pointer drag pans the plane; the plane follows the cursor's screen delta.
+  // Pointer drag pans the plane; manual actions cancel the pending refit.
   let dragPoint = null;
   viewportEl.addEventListener('pointerdown', (e) => {
     if (e.button !== 0 || e.target.closest(INTERACTIVE_TARGETS)) return;
@@ -230,7 +233,7 @@ export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers, g
     { passive: false },
   );
 
-  // Keyboard camera control; inputs inside world cards keep their keystrokes.
+  // Keyboard camera control; world-card inputs keep their keystrokes.
   viewportEl.addEventListener('keydown', (e) => {
     if (e.target.closest('input, select, textarea')) return;
     const manualKey =
@@ -254,9 +257,7 @@ export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers, g
     }
   });
 
-  // Ring-gap tuning: rebuild the layout at the chosen spacing and reposition
-  // everything live — the camera is deliberately NOT reset, so the user can
-  // watch the rings expand/contract from the current view.
+  // Ring-gap tuning: reposition everything live; the camera is NOT reset.
   ringGapSlider.addEventListener('input', () => {
     const ringGap = Number(ringGapSlider.value) || DEFAULT_RING_GAP;
     ringGapValue.textContent = `${ringGap}px`;
@@ -268,8 +269,7 @@ export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers, g
     apply();
   });
 
-  // Zoom-speed tuning: every zoom gesture (buttons, wheel, keyboard) reads
-  // this step size.
+  // Zoom-speed tuning: every zoom gesture reads this step size.
   zoomSpeedSlider.addEventListener('input', () => {
     zoomStep = Number(zoomSpeedSlider.value) || DEFAULT_ZOOM_STEP;
     zoomSpeedValue.textContent = `${zoomStep.toFixed(2)}x`;
