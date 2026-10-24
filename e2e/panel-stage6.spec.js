@@ -135,6 +135,12 @@ test('should render the NX card on Stage 6 for a missing host without emitting a
   await expect(page.getByTestId('exchange-inspector')).toHaveText('No requests served yet');
   await expect(page.getByTestId('dns-entries-list')).toHaveText('');
   await expect(page.locator('#journey-log .journey-entry')).toHaveCount(2);
+  // CHECKS: the finished NX run's stored labels carry the final denominator
+  // (2) — the early `hop 1/9` estimate must not survive into the log.
+  await expect(page.locator('#journey-log .journey-entry')).toHaveText([
+    /hop 1\/2 ·/,
+    /hop 2\/2 ·/,
+  ]);
 });
 
 // Deep-link: the live-stage list extends to 6; unknown values still fall

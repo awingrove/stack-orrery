@@ -6,7 +6,7 @@
 import { createEngine } from '../sim/engine.js';
 import { TICK_MS } from './model.js';
 import { COMPONENT_SOURCE } from './inspector-source.js';
-import { $, els, addToJourney, render, renderInspector } from './render.js';
+import { $, els, addToJourney, relabelJourneyRun, render, renderInspector } from './render.js';
 import { renderStageTopology, onStageRendered } from './render-stage.js';
 import { ensureStage6Dom } from './stage6-registry.js';
 import { initViewport } from './viewport.js';
@@ -177,11 +177,17 @@ function stepOneHop() {
   const totalHops = traceFinalHop(snapshot, snapshot.stage);
   // PINS: hop 1 emission starts a new trace run — that run (whole, hops
   // ascending) floats above the previous run in #journey-log.
+  // CHECKS: when the trace's final hop lands, the run's stored labels are
+  // relabeled to the final denominator (an NX run's early `hop 1/9` estimate
+  // must not survive into the finished log, which ends at hop 2).
   if (snapshot.trace.hop === 1) traceRunId = nextJourneyRun();
   addToJourney(`hop ${snapshot.trace.hop}/${totalHops}`, snapshot.lastFrame, {
     run: traceRunId,
     hop: snapshot.trace.hop,
   });
+  if (snapshot.trace.hop === traceFinalHop(snapshot, snapshot.stage)) {
+    relabelJourneyRun(traceRunId, totalHops);
+  }
   updateView(snapshot);
   return snapshot;
 }

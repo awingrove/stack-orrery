@@ -63,6 +63,24 @@ export function addToJourney(label, text, { run = 0, hop = 0 } = {}) {
     0,
     JOURNEY_CAP,
   );
+  renderJourney();
+}
+
+// CHECKS: a trace run's stored hop denominators must be the run's FINAL hop
+// count. An NX run's estimate (`host ? 9 : 8`) bakes `hop 1/9` before the
+// answer proves the run ends at 2; once the final hop lands, relabelRun()
+// rewrites every entry of that run so the log never advertises hops the
+// run did not take (render() re-reads journeyEntries only).
+export function relabelJourneyRun(run, totalHops) {
+  journeyEntries = journeyEntries.map((entry) =>
+    entry.run === run && entry.hop > 0
+      ? { ...entry, label: `hop ${entry.hop}/${totalHops}` }
+      : entry,
+  );
+  renderJourney();
+}
+
+function renderJourney() {
   els.journeyLog.replaceChildren(
     ...journeyEntries.map((entry) => {
       const item = document.createElement('li');
