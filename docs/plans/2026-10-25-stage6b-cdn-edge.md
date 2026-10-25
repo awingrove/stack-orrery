@@ -58,4 +58,4 @@
 
 - [x] Step 1 (Lead session): human design sign-off (6b scope set 2026-10-24; "proceed" 2026-10-25) committed in `DESIGN.md` (9-ring registry, Router re-seat, CDN Edge component contract) and this brief.
 - [x] Step 2 (Executor sub-agent): cold implementation, unit & e2e tests, manifest updates, green `npm run verify`; tick and commit.
-- [ ] Step 3 (Lead session): run `npm run metrics:extract -- <subagentSessionID>`, append entry to `docs/factory/slice-metrics.yaml`, tick Step 3, commit.
+- [x] Step 3 (Lead session): run `npm run metrics:extract -- <subagentSessionID>`, append entry to `docs/factory/slice-metrics.yaml`, tick Step 3, commit.
