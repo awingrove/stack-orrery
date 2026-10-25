@@ -104,12 +104,59 @@ describe('createRouter', () => {
     expect(router.snapshot().routed).toBe(1);
   });
 
-  // PINS: the engine wires the Router at 10.65 ⇄ 20.1 and exposes
-  // snapshot.router; stages 1-5 expose no router at all.
+  // CHECKS (Stage 6b): the default right seat re-seats to 20.254 (the CDN
+  // edge took 20.1) and answers the identity there; a frame whose source
+  // lives in subnet 20 (the edge's origin pull, or its response record
+  // returning to the browser) crosses LEFTWARD — exactly one routed hop and
+  // the delivery happens on the left network, where the destination
+  // resolves.
+  it('re-seats to 20.254 by default and crosses a subnet-20 frame leftward', () => {
+    const left = createNetwork();
+    const right = createNetwork();
+    const router = createRouter({ leftAddress: '10.65', leftNetwork: left, rightNetwork: right });
+    expect(router.snapshot().rightAddress).toBe('20.254');
+    expect(right.send({ from: '10.2', to: '20.254', request: 'GET /' }).response).toBe(
+      '200 Router 10.65 ⇄ 20.254',
+    );
+
+    let leftEnqueued = null;
+    left.registerServer('10.2', {
+      enqueue: (frame) => {
+        leftEnqueued = frame;
+      },
+    });
+    router.forward({
+      id: 'c',
+      from: '20.1',
+      to: '10.2',
+      request: '200 Welcome to the home page',
+      atTick: 1,
+      isYou: true,
+    });
+    expect(leftEnqueued).toEqual({
+      id: 'c',
+      from: '20.1',
+      to: '10.2',
+      request: '200 Welcome to the home page',
+      atTick: 1,
+      isYou: true,
+    });
+    expect(router.snapshot().routed).toBe(1);
+    expect(router.snapshot().lastCross).toEqual({
+      from: '20.1',
+      to: '10.2',
+      request: '200 Welcome to the home page',
+      isYou: true,
+    });
+  });
+
+  // PINS: the engine wires the Router at 10.65 ⇄ 20.254 (Stage 6b re-seat —
+  // the CDN edge owns 20.1) and exposes snapshot.router; stages 1-5 expose
+  // no router at all.
   it('stage 6 engine exposes the router; stages 1-5 do not', () => {
     const snap = createEngine({ stage: 6 }).snapshot();
     expect(snap.router).not.toBe(null);
-    expect(snap.router).toMatchObject({ address: '10.65', rightAddress: '20.1', routed: 0 });
+    expect(snap.router).toMatchObject({ address: '10.65', rightAddress: '20.254', routed: 0 });
     expect(createEngine({ stage: 1 }).snapshot().router).toBe(null);
     expect(createEngine({ stage: 5 }).snapshot().router).toBe(null);
   });

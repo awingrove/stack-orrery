@@ -1,11 +1,12 @@
 import { test, expect } from '@playwright/test';
 
-// Stage 6a (stage6a-dns-crossnet brief): the DNS 10.60 tick-TTL ledger and
-// the cross-subnet Router 10.65 ⇄ 20.1. The orrery redraws to 8 rings, the
-// hosted URL example.com/about walks a 9-hop trace whose first two hops
-// are the DNS ask -> the ledger answer (no pre-resolution GET frame: the
-// browser's GET only becomes a wire token after the answer), and the DNS
-// code + ledger rows open in the bottom inspector.
+// Stage 6a (stage6a-dns-crossnet brief; Stage 6b re-seats the Router at
+// 10.65 ⇄ 20.254 and seats CDN edge 20.1 on a 9-ring orrery): the DNS 10.60
+// tick-TTL ledger and the cross-subnet Router. The orrery redraws to 9
+// rings, the hosted URL example.com/about walks a 9-hop trace whose first
+// two hops are the DNS ask -> the ledger answer (no pre-resolution GET
+// frame: the browser's GET only becomes a wire token after the answer), and
+// the DNS code + ledger rows open in the bottom inspector.
 test('should switch to Stage 6, resolve example.com through DNS 10.60, and inspect DNS code + TTL ledger', async ({
   page,
 }) => {
@@ -15,19 +16,26 @@ test('should switch to Stage 6, resolve example.com through DNS 10.60, and inspe
   await expect(page.getByTestId('stage-pill-6')).toHaveAttribute('aria-current', 'true');
   await expect(page.getByTestId('node-dns')).toBeVisible();
   await expect(page.getByTestId('node-router')).toBeVisible();
-  await expect(page.locator('.orrery-ring')).toHaveCount(8);
+  await expect(page.getByTestId('node-cdn')).toBeVisible();
+  await expect(page.locator('.orrery-ring')).toHaveCount(9);
   await expect(page.locator('.orrery-ring').first()).toHaveAttribute('r', '400');
-  await expect(page.locator('.orrery-ring').last()).toHaveAttribute('r', '3200');
-  await expect(page.locator('#node-router .ip-chip')).toHaveText('10.65 ⇄ 20.1');
-  // The two new HUD cards carry their stats trios, both wire columns exist.
+  await expect(page.locator('.orrery-ring').last()).toHaveAttribute('r', '3600');
+  await expect(page.locator('#node-router .ip-chip')).toHaveText('10.65 ⇄ 20.254');
+  await expect(page.locator('#node-cdn .ip-chip')).toHaveText('20.1');
+  // The HUD cards carry their stats trios, and all three wire columns exist.
   await expect(page.getByTestId('dns-stats')).toHaveText(
     'Lookups: 0 · Cached: 0 · Authoritative: 0 · TTL: 300t',
   );
-  await expect(page.getByTestId('router-stats')).toHaveText('Router 10.65 ⇄ 20.1 · Routed: 0');
+  await expect(page.getByTestId('router-stats')).toHaveText('Router 10.65 ⇄ 20.254 · Routed: 0');
+  await expect(page.getByTestId('cdn-stats')).toHaveText(
+    'Hits: 0 · Misses: 0 · Fills: 0 · TTL: 10t',
+  );
   await expect(page.locator('#packet-req-dns')).toContainText('who is? =>');
   await expect(page.locator('#packet-res-dns')).toContainText('<- answer');
   await expect(page.locator('#packet-req-router')).toContainText('route =>');
   await expect(page.locator('#packet-res-router')).toContainText('<- via router');
+  await expect(page.locator('#packet-req-cdn')).toContainText('edge GET =>');
+  await expect(page.locator('#packet-res-cdn')).toContainText('<- edge HIT');
 
   // The full hosted trace walks 9 hops: ask + answer then the stage-5 chain.
   await page.getByTestId('url-input').fill('example.com/about');
@@ -51,7 +59,12 @@ test('should switch to Stage 6, resolve example.com through DNS 10.60, and inspe
   await expect(page.getByTestId('inspector-state')).toContainText('"authoritative": 1');
   await page.locator('.comp-tab[data-select="router"]').click();
   await expect(page.getByTestId('inspector-code')).toContainText('createRouter');
-  await expect(page.getByTestId('inspector-state')).toContainText('"rightAddress": "20.1"');
+  await expect(page.getByTestId('inspector-state')).toContainText('"rightAddress": "20.254"');
+  await page.locator('.comp-tab[data-select="cdn"]').click();
+  await expect(page.getByTestId('inspector-code')).toContainText('createCdnEdge');
+  await expect(page.getByTestId('inspector-state')).toContainText(
+    '"strategy": "pull-through, GET-only"',
+  );
 });
 
 // The hosted trace's ask/answer hops are visible as their own sentences with
@@ -150,4 +163,5 @@ test('should deep-link ?stage=6 into the DNS topology', async ({ page }) => {
   await expect(page.getByTestId('stage-pill-6')).toHaveAttribute('aria-current', 'true');
   await expect(page.getByTestId('node-dns')).toBeVisible();
   await expect(page.getByTestId('node-router')).toBeVisible();
+  await expect(page.getByTestId('node-cdn')).toBeVisible();
 });

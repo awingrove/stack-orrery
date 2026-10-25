@@ -90,6 +90,11 @@
 
 .comp-tabs {
   display: flex;
+  /* CHECKS: the Stage 6 tab row (browser..cdn) is wider than its grid
+     column; wrapping keeps every tab inside the inspector card instead of
+     spilling into the adjacent log-card, whose background paints above the
+     spill and swallows the last tab's click. */
+  flex-wrap: wrap;
   gap: 0.35rem;
 }
 

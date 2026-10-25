@@ -10,6 +10,62 @@
 # tokens_reasoning, tokens_cache_read, cost_usd, notes.
 
 entries:
+  - id: STAGE6B-CDN-EDGE
+    slice:
+      - SIM
+      - PANEL
+    name: 'Stage 6b — CDN edge 20.1 (tick-TTL pull-through serving, GET-only pass-through) + Router re-seat 10.65 ⇄ 20.254, 9-ring registry'
+    brief: docs/plans/2026-10-25-stage6b-cdn-edge.md
+    agent: cheap
+    lead_model: opencode/glm-5.3-flash-free
+    agent_model: opencode/glm-5.3-flash-free
+    session_id: ses_e8d5abcdbffezi5Q4BMBtHvsYZ
+    tokens_input: 573950
+    tokens_output: 76393
+    tokens_reasoning: 91441
+    tokens_cache_read: 28243392
+    cost_usd: 0
+    human_interventions: 0
+    agent_review_rounds: 0
+    guardrail_failures: 15
+    fix_commits: 1
+    defects_escaped: 0
+    notes: >-
+      fix_commits counts the post-open PR-CI fix (this slice's in-session
+      build reds are the 15 above; nothing escaped the gate). PR #18 CI
+      rejected e2e panel.spec.js 'queue depth climbing' once: slider fill
+      raced module boot on the CI box, and the deep-link boot then rewrote
+      the slider to the default 5 with the input event lost (local never
+      reproduced). Named-cause fix, no assertion weakened: the test now
+      gates on the boot render (toHaveCount(5) for the default crowd)
+      before filling; panel.spec.js sits at the 450-line cap.
+      Standing per-slice deviation (pinned executor over limit) — executed on
+      opencode/glm-5.3-flash-free. 15 in-session reds during build
+      (convergence on new unit/e2e pins plus one real DL-2 catch: the wider
+      Stage 6 tab row spilled under .log-card so the rightmost inspector tab
+      was unclickable; fixed with .comp-tabs flex-wrap and a DESIGN.md
+      inspector amendment in the same change — flagged for human review as
+      the raised amendment question). Two brief-scoped splits by
+      responsibility: cdn-chain.js (hops 3-9, per brief §3's split clause)
+      and trace-helpers.js (shared drain/serve/finish hop helpers, no frame
+      strings — kept the guard single-line cap by extraction; report of a
+      pre-existing trace.js 303-line state was reviewed as as an
+      extraction-triggered recount, current counts all ≤ 300). browser-seat.js
+      added out-of-brief: an inert left-network receive seat for browsers so
+      a reverse Router crossing can deliver without fabricating frames (only
+      registered from stage 6 traces). Executor adaptation recorded, not
+      escaped: stage-6 endpoint staleness is taught through the POST
+      write-through origin mutation (a plain fs edit is shadowed by the
+      stage-6 db-cache read chain), exactly the editable-fs staleness shape
+      at one tier farther out. slices.yaml double-claim avoided per brief
+      note: cdn.js claimed by the js/sim/** glob; cdn-edge.spec.js listed
+      explicitly. Step-3 strict probe green: MISS 9-hop pull (ask, answer,
+      Router crossing, edge MISS report, real lb.enqueue, real
+      drainUntilYou with (cache ...) status, FILL delivery, browser render),
+      HIT 6-hop ledger serve (no origin leg), edge counters + ledger rows on
+      the real card, router counter counts crossings, POST pass-through
+      leaves edge counters untouched, stage-6a shapes byte-stable
+      (host-less 8/8, hosted-home 9/9), clean error surface.
   - id: EDITABLE-FS
     slice:
       - SIM

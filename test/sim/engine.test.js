@@ -191,3 +191,163 @@ describe('createEngine setWebFile', () => {
     );
   });
 });
+
+describe('createEngine stage 6b — the CDN edge at 20.1', () => {
+  // PINS: the edge instantiates only with the stage-6 engine, seated
+  // beside the router's re-seated right leg.
+  it('exposes snapshot.cdn on stage 6 and cdn: null on stages 1-5', () => {
+    const snap = createEngine({ stage: 6 }).snapshot();
+    expect(snap.cdn).toMatchObject({
+      address: '20.1',
+      originAddress: '10.1',
+      ttlTicks: 10,
+      hits: 0,
+      misses: 0,
+      fills: 0,
+      ledger: [],
+    });
+    expect(createEngine({ stage: 5 }).snapshot().cdn).toBe(null);
+  });
+
+  // PINS: the first cd.example.com trace rides the MISS shape — the DNS
+  // prelude, the forward crossing (`routed` +1), the edge's announce, the
+  // REAL pull through the Router into the LB queue (`routed` +1), the
+  // drained origin record with its cache-aside status, the fill + reverse
+  // crossing (`routed` +1), and the render.
+  it('pulls cd.example.com through the Router on an edge MISS and fills the ledger (9 hops)', () => {
+    const engine = createEngine({ stage: 6 });
+    const frames = [];
+    for (let hop = 1; hop <= 9; hop++) {
+      const snap = engine.traceHop({ method: 'GET', path: 'cd.example.com/about' });
+      expect(snap.trace.hop).toBe(hop);
+      frames.push(snap.lastFrame);
+    }
+    expect(frames).toEqual([
+      '10.2 -> 10.60 | who is cd.example.com?',
+      '10.60 -> 10.2 | 20.1',
+      '10.2 -> 10.65 | GET /about (to 20.1)',
+      '20.1 -> 10.65 | MISS — pulling origin 10.1 via router',
+      '20.1 -> 10.1 | GET /about (edge pull via router)',
+      'LB 10.1 -> 10.11 (GET /about) queued',
+      '10.11 -> 10.65 | 200 This is the about page (cache MISS)',
+      '10.65 -> 10.2 | 200 This is the about page delivered (edge FILL /about, ttl 10t)',
+      'Browser 10.2 received and displayed 200',
+    ]);
+    const snap = engine.snapshot();
+    expect(snap.router.routed).toBe(3); // forward, pull, reverse — one hop each
+    expect(snap.cdn).toMatchObject({ hits: 0, misses: 1, fills: 1 });
+    expect(snap.cdn.ledger).toEqual([
+      { path: '/about', body: 'This is the about page', expiresAtTick: 11, ttlRemaining: 10 },
+    ]);
+    // The browser really rendered the pulled origin bytes.
+    expect(snap.browserDisplay).toMatchObject({ status: 200, body: 'This is the about page' });
+    // The pull really ran the cache-aside chain (miss warmed the shared cache).
+    expect(snap.cache.entries).toMatchObject([{ key: '/about' }]);
+  });
+
+  // CHECKS: named counter-example — a second cd.example.com GET must NOT
+  // replay the 9-hop hosted chain: inside the ledger TTL the edge serves the
+  // HIT shape (6 hops), the origin pool sees nothing, and the ledger row is
+  // what the frame narrates (ttl Nt read back from the snapshot).
+  it('serves a second cd.example.com trace from the ledger in 6 hops (edge HIT)', () => {
+    const engine = createEngine({ stage: 6 });
+    for (let hop = 0; hop < 9; hop++) {
+      engine.traceHop({ method: 'GET', path: 'cd.example.com/about' });
+    }
+    const frames = [];
+    for (let hop = 1; hop <= 6; hop++) {
+      const snap = engine.traceHop({ method: 'GET', path: 'cd.example.com/about' });
+      expect(snap.trace.hop).toBe(hop);
+      frames.push(snap.lastFrame);
+    }
+    expect(frames).toEqual([
+      '10.2 -> 10.60 | who is cd.example.com?',
+      '10.60 -> 10.2 | 20.1',
+      '10.2 -> 10.65 | GET /about (to 20.1)',
+      '20.1 -> 10.65 | 200 This is the about page (edge HIT, ttl 9t)',
+      '10.65 -> 10.2 | 200 This is the about page delivered',
+      'Browser 10.2 received and displayed 200',
+    ]);
+    const snap = engine.snapshot();
+    expect(snap.router.routed).toBe(5); // miss run's 3 + this HIT run's 2
+    expect(snap.cdn).toMatchObject({ hits: 1, misses: 1, fills: 1 });
+    expect(snap.browserDisplay.body).toBe('This is the about page');
+  });
+
+  // CHECKS: named counter-example — the ledger row answers only inside the
+  // TTL window; past expiry (filled at tick 1, dead at 11) the next lookup
+  // evicts and a fresh pull serves the origin's CURRENT bytes. The origin
+  // edit is the real write-through: a hosted POST to the origin path writes
+  // Primary 10.30 and invalidates the origin Cache (on stage 6 the /
+  // /about row lives in the database, so the fs edit alone cannot move the
+  // pulled bytes). The same run pins the staleness rule: nothing at the
+  // edge changes inside its TTL window.
+  it('keeps an origin write stale at the edge inside the TTL and pulls the new bytes after expiry', () => {
+    const engine = createEngine({ stage: 6 });
+    for (let hop = 0; hop < 9; hop++) {
+      engine.traceHop({ method: 'GET', path: 'cd.example.com/about' });
+    }
+    // The origin's /about really changes: a hosted POST writes through to
+    // Primary 10.30 at tick 2 and invalidates the origin Cache (replica
+    // catches up 3t later).
+    let snap;
+    for (let hop = 0; hop < 9; hop++) {
+      snap = engine.traceHop({ method: 'POST', path: 'example.com/about' });
+      expect(snap.trace.hop).toBe(hop + 1);
+    }
+    expect(engine.snapshot().trace.dbOp).toBe('WRITE');
+    // Inside the edge TTL (filled @1, dead @11; the clock is at 3 after the
+    // POST run's own bump): the 4th call here is the HIT announce at hop 4,
+    // still the OLD pulled bytes.
+    for (let hop = 0; hop < 4; hop++) snap = engine.traceHop({ path: 'cd.example.com/about' });
+    expect(snap.trace.hop).toBe(4);
+    expect(snap.lastFrame).toBe('20.1 -> 10.65 | 200 This is the about page (edge HIT, ttl 8t)');
+    for (let hop = 5; hop <= 6; hop++) {
+      snap = engine.traceHop({ path: 'cd.example.com/about' });
+      expect(snap.trace.hop).toBe(hop);
+    }
+    expect(engine.snapshot().browserDisplay.body).toBe('This is the about page');
+    // Age the entry out: steps past the expiry tick (the edge lookup evicts
+    // at tick >= 11), well past replication lag too.
+    for (let i = 0; i < 8; i++) engine.step();
+    // The next cd.example.com lookup MISSes and the pull returns the NEW
+    // bytes through the Router's left leg (the full 9-hop shape again).
+    snap = engine.traceHop({ method: 'GET', path: 'cd.example.com/about' });
+    expect(snap.trace.hop).toBe(1);
+    for (let hop = 2; hop <= 9; hop++) snap = engine.traceHop();
+    expect(snap.trace.hop).toBe(9);
+    expect(engine.snapshot().browserDisplay.body).toBe('Updated /about at tick 2');
+    const cdn = engine.snapshot().cdn;
+    expect(cdn.hits).toBe(1);
+    expect(cdn.fills).toBe(2);
+    expect(cdn.ledger[0]).toMatchObject({ path: '/about', body: 'Updated /about at tick 2' });
+  });
+
+  // CHECKS: named counter-example pinned from the machine side — a POST on
+  // a CDN name rides the MISS shape minus the fill (9 hops, a real origin
+  // answer) and the edge counters stay at their initial values with the
+  // ledger row absent.
+  it('passes a POST through to the origin without touching the edge ledger', () => {
+    const engine = createEngine({ stage: 6 });
+    const frames = [];
+    for (let hop = 1; hop <= 9; hop++) {
+      const snap = engine.traceHop({ method: 'POST', path: 'cd.example.com/note' });
+      expect(snap.trace.hop).toBe(hop);
+      frames.push(snap.lastFrame);
+    }
+    expect(frames).toEqual([
+      '10.2 -> 10.60 | who is cd.example.com?',
+      '10.60 -> 10.2 | 20.1',
+      '10.2 -> 10.65 | POST /note (to 20.1)',
+      '20.1 -> 10.65 | PASS — POST /note is not edge-cacheable, pulling origin 10.1 via router',
+      '20.1 -> 10.1 | POST /note (edge pull via router)',
+      'LB 10.1 -> 10.11 (POST /note) queued',
+      '10.11 -> 10.65 | 200 Updated /note at tick 1 (cache INVALIDATE)',
+      '10.65 -> 10.2 | 200 Updated /note at tick 1 delivered (no edge FILL — non-GET pass-through)',
+      'Browser 10.2 received and displayed 200',
+    ]);
+    const snap = engine.snapshot();
+    expect(snap.router.routed).toBe(3); // forward, pull, reverse — same 3 crossings
+    expect(snap.cdn).toMatchObject({ hits: 0, misses: 0, fills: 0, ledger: [] });
+  });
+});

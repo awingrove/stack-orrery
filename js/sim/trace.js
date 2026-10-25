@@ -13,6 +13,7 @@
 // trace-stage6.js (a DNS ask/answer prelude in front of the byte-identical
 // stage-5 chain), so the stage-1-to-5 conditions below are untouched.
 import { createStage6Trace } from './trace-stage6.js';
+import { drainUntilYou, backendFor, serveInto, finishTo } from './trace-helpers.js';
 
 // CHECKS: an out-of-range stage fails loud at construction instead of
 // building a trace that can never advance.
@@ -26,6 +27,8 @@ export function createTraceMachine({
   database = null,
   workerQueue = null,
   dns = null,
+  cdn = null,
+  router = null,
   bumpTick,
   getTick,
   onServe,
@@ -42,6 +45,8 @@ export function createTraceMachine({
       lb,
       network,
       dns,
+      cdn,
+      router,
       cache,
       database,
       workerQueue,
@@ -71,39 +76,6 @@ export function createTraceMachine({
       body: null,
       routeId: null,
     };
-  }
-
-  // Serve from the front of the target's queue until the trace's own
-  // request (isYou) comes back, or the queue runs dry this tick.
-  function drainUntilYou(targetServer) {
-    for (;;) {
-      const batch = targetServer.step(getTick());
-      const you = batch.find((item) => item.isYou);
-      if (you || batch.length === 0) return you;
-    }
-  }
-
-  function backendFor(targetAddress) {
-    return servers.find((s) => s.address === targetAddress) ?? servers[0];
-  }
-
-  function serve(you) {
-    trace.response = you.response;
-    trace.status = you.status;
-    trace.body = you.body;
-    trace.routeId = you.routeId;
-    onServe(you);
-  }
-
-  // Final hop: the rendered response lands on the browser the trace
-  // originated from (the engine routes it into the right browser state).
-  function finish(toAddress) {
-    onFinish({
-      from: trace.from ?? '10.2',
-      to: toAddress,
-      request: trace.request,
-      response: trace.response,
-    });
   }
 
   return {
@@ -145,14 +117,14 @@ export function createTraceMachine({
         frame = `routed ${trace.from} -> ${serverAddress} (${trace.request}) into queue`;
       } else if (stage === 1 && trace.hop === 2) {
         trace.hop = 3;
-        const you = drainUntilYou(servers[0]);
+        const you = drainUntilYou(servers[0], getTick);
         if (you) {
-          serve(you);
+          serveInto(trace, you, onServe);
           frame = `${serverAddress} -> ${trace.from} | ${you.response}`;
         }
       } else if (stage === 1 && trace.hop === 3) {
         trace.hop = 4;
-        finish(serverAddress);
+        finishTo(trace, serverAddress, onFinish);
       } else if (trace.hop === 1) {
         trace.hop = 2;
         frame = `routed ${trace.from} -> ${serverAddress} (${trace.request}) to LoadBalancer`;
@@ -171,22 +143,22 @@ export function createTraceMachine({
         frame = `LB ${serverAddress} -> ${target} (${trace.request}) queued`;
       } else if (stage === 2 && trace.hop === 3) {
         trace.hop = 4;
-        const backend = backendFor(trace.targetServer);
-        const you = drainUntilYou(backend);
+        const backend = backendFor(servers, trace.targetServer);
+        const you = drainUntilYou(backend, getTick);
         if (you) {
-          serve(you);
+          serveInto(trace, you, onServe);
           frame = `${backend.address} -> ${trace.from} | ${you.response}`;
         }
       } else if (stage === 2 && trace.hop === 4) {
         trace.hop = 5;
-        finish(trace.targetServer ?? serverAddress);
+        finishTo(trace, trace.targetServer ?? serverAddress, onFinish);
       } else if (stage === 3 && trace.hop === 3) {
         // Hop 4/6: the target backend checks Cache and serves the queued
         // request; the response record is held one hop so the learner sees
         // the cache lookup before the response leaves the backend.
         trace.hop = 4;
-        const backend = backendFor(trace.targetServer);
-        served = drainUntilYou(backend);
+        const backend = backendFor(servers, trace.targetServer);
+        served = drainUntilYou(backend, getTick);
         if (served) {
           trace.cacheStatus = served.cacheStatus ?? null;
           frame = `${backend.address} -> ${cache.address} | cache ${trace.cacheStatus} (${trace.path})`;
@@ -194,20 +166,20 @@ export function createTraceMachine({
       } else if (stage === 3 && trace.hop === 4) {
         trace.hop = 5;
         if (served) {
-          serve(served);
+          serveInto(trace, served, onServe);
           frame = `${trace.targetServer} -> ${trace.from} | ${served.response} (${trace.cacheStatus})`;
         }
       } else if (stage === 3 && trace.hop === 5) {
         trace.hop = 6;
-        finish(trace.targetServer ?? serverAddress);
+        finishTo(trace, trace.targetServer ?? serverAddress, onFinish);
       } else if (stage === 4 && trace.hop === 3) {
         // Hop 4/7: the target backend checks Cache and serves the queued
         // request (a POST write-through carries cacheStatus INVALIDATE);
         // the response record is held so the learner watches the cache
         // lookup, then the database hop.
         trace.hop = 4;
-        const backend = backendFor(trace.targetServer);
-        served = drainUntilYou(backend);
+        const backend = backendFor(servers, trace.targetServer);
+        served = drainUntilYou(backend, getTick);
         if (served) {
           trace.cacheStatus = served.cacheStatus ?? null;
           frame = `${backend.address} -> ${cache.address} | cache ${trace.cacheStatus} (${trace.path})`;
@@ -232,19 +204,19 @@ export function createTraceMachine({
       } else if (stage === 4 && trace.hop === 5) {
         trace.hop = 6;
         if (served) {
-          serve(served);
+          serveInto(trace, served, onServe);
           frame = `${trace.targetServer} -> ${trace.from} | ${served.response} (cache ${trace.cacheStatus})`;
         }
       } else if (stage === 4 && trace.hop === 6) {
         trace.hop = 7;
-        finish(trace.targetServer ?? serverAddress);
+        finishTo(trace, trace.targetServer ?? serverAddress, onFinish);
       } else if (stage === 5 && trace.hop === 3) {
         // Hop 4/8: an async POST /jobs enqueues to WorkerQueue 10.40; other
         // requests narrate the cache/database hop they actually took (the
         // Stage 4 story) — no phantom async jobs on GET traces (DL-4).
         trace.hop = 4;
-        const backend = backendFor(trace.targetServer);
-        served = drainUntilYou(backend);
+        const backend = backendFor(servers, trace.targetServer);
+        served = drainUntilYou(backend, getTick);
         if (served) {
           trace.cacheStatus = served.cacheStatus ?? null;
           trace.dbOp = served.dbOp ?? null;
@@ -265,7 +237,7 @@ export function createTraceMachine({
         // the actually-served response for everything else.
         trace.hop = 5;
         if (served) {
-          serve(served);
+          serveInto(trace, served, onServe);
           frame = served.asyncJob
             ? `${trace.targetServer} -> ${trace.from} | ${served.response}`
             : `${trace.targetServer} -> ${trace.from} | ${served.response} (cache ${trace.cacheStatus})`;
@@ -277,7 +249,7 @@ export function createTraceMachine({
       } else if (stage === 5 && trace.hop === 6) {
         // Hop 7/8: Browser receives and displays the response
         trace.hop = 7;
-        finish(trace.targetServer ?? serverAddress);
+        finishTo(trace, trace.targetServer ?? serverAddress, onFinish);
         frame = `Browser ${trace.from} received and displayed ${trace.status}`;
       } else if (stage === 5 && trace.hop === 7) {
         // Hop 8/8: async job tails with the worker's commit; a request that

@@ -6,7 +6,7 @@ meta:
     A runnable orrery of a web stack: simulated components driven by a
     discrete tick queue, making scaling dynamics visible instead of
     described.
-  last_updated: 2026-10-24
+  last_updated: 2026-10-25
 
 activities:
   - name: 'Stage 1 — Single server under load'
@@ -252,7 +252,7 @@ activities:
   - name: 'Stage 6 — DNS ledger and cross-subnet routing'
     tasks:
       - id: SIM-6
-        name: Resolve hosted names through DNS 10.60 and route across subnets via Router 10.65 ⇄ 20.1
+        name: Resolve hosted names through DNS 10.60 and route across subnets via Router 10.65 ⇄ 20.254
         entry_point: n/a (engine behavior, not navigable)
         stories:
           - title: Answer hosted names from the authoritative table, the tick-TTL ledger, or an NX refusal, and route cross-subnet frames with one router hop
@@ -265,6 +265,21 @@ activities:
               - unit: test/sim/engine.test.js::ends an NX trace at the DNS answer hop without ever emitting a GET
               - unit: test/sim/router.test.js::passes same-subnet frames through untouched and takes exactly one hop across subnets
               - unit: test/sim/engine.test.js::rejects a stage outside 1..6
+          - title: Serve cd.example.com from a pull-through CDN edge at 20.1 — a GET inside the TTL answers from the fill ledger, a miss pulls the origin through the Router, and a non-GET passes through without touching it
+            status: done
+            priority: high
+            tests:
+              - unit: test/sim/cdn.test.js::rejects invalid mini-IPs and a non-positive-integer TTL at construction
+              - unit: test/sim/cdn.test.js::answers a HIT from the ledger inside ttlTicks and a MISS when absent
+              - unit: test/sim/cdn.test.js::evicts an expired entry and never answers from the ledger past expiry
+              - unit: test/sim/cdn.test.js::rejects an empty or non-string fill path/body (fail-loud)
+              - unit: test/sim/cdn.test.js::keeps a pass-through edge untouched — no lookup, no counters, no row
+              - unit: test/sim/router.test.js::re-seats to 20.254 by default and crosses a subnet-20 frame leftward
+              - unit: 'test/sim/engine.test.js::exposes snapshot.cdn on stage 6 and cdn: null on stages 1-5'
+              - unit: test/sim/engine.test.js::pulls cd.example.com through the Router on an edge MISS and fills the ledger (9 hops)
+              - unit: test/sim/engine.test.js::serves a second cd.example.com trace from the ledger in 6 hops (edge HIT)
+              - unit: test/sim/engine.test.js::keeps an origin write stale at the edge inside the TTL and pulls the new bytes after expiry
+              - unit: test/sim/engine.test.js::passes a POST through to the origin without touching the edge ledger
 
       - id: PANEL-6
         name: Switch to Stage 6 and trace the DNS-ledger orrery
@@ -285,3 +300,15 @@ activities:
               - e2e: panel-stage6::should keep GET /about on Stage 6 at the Stage 5 hop story
               - e2e: panel-stage6::should render the NX card on Stage 6 for a missing host without emitting a GET
               - e2e: panel-stage6::should deep-link ?stage=6 into the DNS topology
+          - title: Switch to Stage 6 and trace the CDN edge — miss pulls and fills through the Router in 9 hops, a warm GET hits from the ledger in 6, origin writes stay stale until the TTL expires, and a POST passes through unfilled
+            status: done
+            priority: high
+            tests:
+              - unit: test/panel/model-stage6.test.js::narrates the 9-hop MISS shape through the Router with the ledger fill
+              - unit: test/panel/model-stage6.test.js::narrates the 6-hop HIT shape from the ledger with no origin traffic
+              - unit: test/panel/model-stage6.test.js::narrates a POST pass-through with no ledger write
+              - unit: test/panel/model-stage6.test.js::exposes the cdn inspector state and headline from the snapshot
+              - e2e: cdn-edge::should resolve cd.example.com and serve an edge HIT through the Router (6 hops)
+              - e2e: cdn-edge::should pull the origin through the Router on an edge MISS and fill the ledger (9 hops)
+              - e2e: cdn-edge::should keep an origin edit stale at the edge until the TTL expires
+              - e2e: cdn-edge::should pass a POST through to the origin without filling the edge

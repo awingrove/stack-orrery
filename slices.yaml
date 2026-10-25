@@ -48,11 +48,22 @@ slices:
       - unit: test/sim/dns.test.js::stage 6 engine exposes DNS 10.60 and resolves example.com through the trace
       - unit: test/sim/router.test.js::rejects invalid mini-IPs and missing networks at construction
       - unit: test/sim/router.test.js::passes same-subnet frames through untouched and takes exactly one hop across subnets
+      - unit: test/sim/router.test.js::re-seats to 20.254 by default and crosses a subnet-20 frame leftward
       - unit: test/sim/router.test.js::stage 6 engine exposes the router; stages 1-5 do not
+      - unit: test/sim/cdn.test.js::rejects invalid mini-IPs and a non-positive-integer TTL at construction
+      - unit: test/sim/cdn.test.js::answers a HIT from the ledger inside ttlTicks and a MISS when absent
+      - unit: test/sim/cdn.test.js::evicts an expired entry and never answers from the ledger past expiry
+      - unit: test/sim/cdn.test.js::rejects an empty or non-string fill path/body (fail-loud)
+      - unit: test/sim/cdn.test.js::keeps a pass-through edge untouched — no lookup, no counters, no row
       - unit: test/sim/engine.test.js::rejects a stage outside 1..6
       - unit: test/sim/engine.test.js::traces example.com/about through the DNS ask/answer prelude into the stage-5 chain
       - unit: test/sim/engine.test.js::keeps a host-less /about trace at the stage-5 hop story on stage 6
       - unit: test/sim/engine.test.js::ends an NX trace at the DNS answer hop without ever emitting a GET
+      - unit: 'test/sim/engine.test.js::exposes snapshot.cdn on stage 6 and cdn: null on stages 1-5'
+      - unit: test/sim/engine.test.js::pulls cd.example.com through the Router on an edge MISS and fills the ledger (9 hops)
+      - unit: test/sim/engine.test.js::serves a second cd.example.com trace from the ledger in 6 hops (edge HIT)
+      - unit: test/sim/engine.test.js::keeps an origin write stale at the edge inside the TTL and pulls the new bytes after expiry
+      - unit: test/sim/engine.test.js::passes a POST through to the origin without touching the edge ledger
     entry_point: n/a (engine logic; rendered by PANEL-1)
 
   - id: PANEL
@@ -71,6 +82,7 @@ slices:
         - e2e/webserver-fs.spec.js
         - e2e/fs-editor.spec.js
         - e2e/panel-stage6.spec.js
+        - e2e/cdn-edge.spec.js
         - e2e/orrery-plane.spec.js
         - e2e/teaching.spec.js
     owns:
@@ -114,6 +126,14 @@ slices:
       - unit: test/panel/model-stage6.test.js::ends the NX narrative at the answer hop with no GET emitted
       - unit: test/panel/layout-stage6.test.js::inherits the stage-5 ring stack and seats the DNS and Router nodes on new spokes
       - unit: test/panel/layout-stage6.test.js::buildStage6Extras derives the router/browser-reach bound and lane wires from real geometry
+      - unit: test/panel/model-stage6.test.js::narrates the 9-hop MISS shape through the Router with the ledger fill
+      - unit: test/panel/model-stage6.test.js::narrates the 6-hop HIT shape from the ledger with no origin traffic
+      - unit: test/panel/model-stage6.test.js::narrates a POST pass-through with no ledger write
+      - unit: test/panel/model-stage6.test.js::exposes the cdn inspector state and headline from the snapshot
+      - e2e: cdn-edge::should resolve cd.example.com and serve an edge HIT through the Router (6 hops)
+      - e2e: cdn-edge::should pull the origin through the Router on an edge MISS and fill the ledger (9 hops)
+      - e2e: cdn-edge::should keep an origin edit stale at the edge until the TTL expires
+      - e2e: cdn-edge::should pass a POST through to the origin without filling the edge
       - e2e: teaching::should open the teaching drawer, trace it across stage switches, and show stage-1 content only on stage 1
       - e2e: teaching::should link to the system-design-primer section for the active stage
       - e2e: orrery-plane::should pan and zoom the concentric orrery plane and reset with Fit to view

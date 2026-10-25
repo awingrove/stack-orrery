@@ -2,7 +2,9 @@
 // tick-TTL resolver ledger. It mirrors the cache-aside Cache's determinism
 // contract: no clock, no RNG — time arrives as the `currentTick` argument.
 // The authoritative table maps names to mini-IPs (stage 6a ships exactly one
-// answer, `example.com -> 10.1`; stage 6b adds the CDN edge name). Every
+// answer, `example.com -> 10.1`; stage 6b adds the CDN edge's second static
+// entry, `cd.example.com -> 20.1` — the answer whose subnet keys the 6b
+// trace branch). Every
 // miss writes a ledger entry with `expiresAtTick`; a lookup still inside the
 // window is a ledger hit that does not consult the table again.
 //
@@ -25,7 +27,10 @@ export function createDns({ address = '10.60', ttlTicks = 300 } = {}) {
   if (!Number.isInteger(ttlTicks) || ttlTicks < 1) {
     throw new Error(`dns: ttlTicks must be a positive integer, got ${ttlTicks}`);
   }
-  const answers = new Map([['example.com', '10.1']]); // authoritative table
+  const answers = new Map([
+    ['example.com', '10.1'],
+    ['cd.example.com', '20.1'],
+  ]); // authoritative table
   const ledger = new Map(); // name -> { name, target, writtenAtTick, expiresAtTick }
   let lookups = 0;
   let cachedHits = 0;

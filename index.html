@@ -129,9 +129,10 @@
             <span class="stage-badge is-live">Live</span>
           </div>
           <p>
-            8 rings: authoritative <code class="mono">DNS (10.60)</code> resolves hosted URLs from a
-            tick-TTL ledger, and a cross-subnet <code class="mono">Router (10.65 ⇄ 20.1)</code>
-            joins the subnets — with the CDN edge named as coming next.
+            9 rings: authoritative <code class="mono">DNS (10.60)</code> resolves hosted URLs from a
+            tick-TTL ledger, a cross-subnet <code class="mono">Router (10.65 ⇄ 20.254)</code> joins
+            the subnets, and the <code class="mono">CDN edge (20.1)</code> serves hot paths from a
+            tick-TTL fill ledger — a miss pulls the origin through the Router's real LB chain.
           </p>
         </article>
       </section>
