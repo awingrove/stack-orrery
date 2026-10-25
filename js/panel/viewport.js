@@ -55,6 +55,7 @@ const LANE_WIRES = {
     'wire-queue-worker': 'wire-queue-worker',
     'wire-dns': 'wire-browser-dns',
     'wire-router': 'wire-network-router',
+    'wire-cdn': 'wire-browser-cdn',
   },
 };
 // Lanes anchored between parallel wires — lb-backends shared across stages

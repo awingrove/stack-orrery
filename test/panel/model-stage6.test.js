@@ -22,7 +22,7 @@ const baseSnapshot = {
     lastLookup: { name: 'example.com', status: 'AUTH', target: '10.1', atTick: 1 },
     cache: [{ name: 'example.com', target: '10.1', expiresAtTick: 301, ttlRemaining: 300 }],
   },
-  router: { address: '10.65', rightAddress: '20.1', routed: 0, lastCross: null },
+  router: { address: '10.65', rightAddress: '20.254', routed: 0, lastCross: null },
   workerQueue: {
     address: '10.40',
     workerAddress: '10.41',
@@ -91,7 +91,9 @@ describe('describeSnapshot stage 6', () => {
     // entry rows come straight off the snapshot's live Map.
     expect(labels.dnsStatsLabel).toBe('Lookups: 1 · Cached: 0 · Authoritative: 1 · TTL: 300t');
     expect(labels.dnsEntries).toEqual(baseSnapshot.dns.cache);
-    expect(labels.routerStatsLabel).toBe('Router 10.65 ⇄ 20.1 · Routed: 0');
+    // Stage 6b: the Router's HUD line reports the re-seated right seat (the
+    // CDN edge took 20.1).
+    expect(labels.routerStatsLabel).toBe('Router 10.65 ⇄ 20.254 · Routed: 0');
   });
 
   // CHECKS: named counter-example — the host-less shape keeps the stage-5
@@ -157,14 +159,158 @@ describe('describeSnapshot stage 6', () => {
     const routerState = JSON.parse(formatComponentState(snap, 'router'));
     expect(routerState).toEqual({
       address: '10.65',
-      rightAddress: '20.1',
+      rightAddress: '20.254',
       routedTotal: 0,
       lastCross: null,
     });
-    expect(componentTitle(snap, 'router')).toBe('Router — mini-IP 10.65 ⇄ 20.1');
+    expect(componentTitle(snap, 'router')).toBe('Router — mini-IP 10.65 ⇄ 20.254');
     const networkState = JSON.parse(formatComponentState(snap, 'network'));
     expect(networkState.interfaces['10.60']).toBe('DNS');
     expect(networkState.interfaces['10.65']).toBe('Router (left)');
-    expect(networkState.interfaces['20.1']).toBe('Router (right)');
+    expect(networkState.interfaces['20.254']).toBe('Router (right)');
+    expect(networkState.interfaces['20.1']).toBe('CDN edge');
+  });
+
+  describe('stage 6b CDN trace sentences', () => {
+    const cdnSnapshot = {
+      ...baseSnapshot,
+      cdn: {
+        address: '20.1',
+        originAddress: '10.1',
+        ttlTicks: 10,
+        hits: 0,
+        misses: 1,
+        fills: 1,
+        lastPull: { path: '/about', atTick: 1 },
+        ledger: [
+          { path: '/about', body: 'This is the about page', expiresAtTick: 11, ttlRemaining: 9 },
+        ],
+      },
+      trace: {
+        ...baseSnapshot.trace,
+        hop: 8,
+        method: 'GET',
+        path: '/about',
+        host: 'cd.example.com',
+        dnsTarget: '20.1',
+        cdn: true,
+        edgeStatus: 'MISS',
+        request: 'GET /about',
+        targetServer: '10.11',
+        cacheStatus: 'MISS',
+      },
+    };
+
+    const hopLabels = (over = {}) =>
+      describeSnapshot({ ...cdnSnapshot, trace: { ...cdnSnapshot.trace, ...over } }).hopStatus;
+
+    // PINS: the MISS shape — 9 sentences whose prelude names the resolved
+    // edge and whose legs name the Router's real crossings.
+    it('narrates the 9-hop MISS shape through the Router with the ledger fill', () => {
+      expect(hopLabels({ hop: 1 })).toBe(
+        'Hop 1/9: Browser (10.2) -> DNS (10.60): who is cd.example.com?',
+      );
+      expect(hopLabels({ hop: 2 })).toBe('Hop 2/9: DNS (10.60) -> Browser (10.2) answers 20.1');
+      expect(hopLabels({ hop: 3 })).toBe(
+        'Hop 3/9: Browser (10.2) -> Router (10.65): GET /about to 20.1 (one router hop)',
+      );
+      expect(hopLabels({ hop: 4 })).toBe(
+        'Hop 4/9: CDN edge (20.1): MISS on /about — pulling origin 10.1 via the Router',
+      );
+      expect(hopLabels({ hop: 5 })).toBe(
+        'Hop 5/9: CDN edge (20.1) -> LoadBalancer (10.1): GET /about (edge pull via router)',
+      );
+      expect(hopLabels({ hop: 6 })).toBe('Hop 6/9: LoadBalancer (10.1) -> 10.11 queue');
+      expect(hopLabels({ hop: 7 })).toBe(
+        'Hop 7/9: WebServer (10.11) -> Router (10.65): "200 This is the about page" (cache MISS)',
+      );
+      expect(hopLabels({ hop: 8 })).toBe(
+        'Hop 8/9: CDN edge (20.1) filled /about (ttl 9t) and delivered "200 This is the about page" to Browser (10.2)',
+      );
+      expect(hopLabels({ hop: 9 })).toBe('Hop 9/9: Browser (10.2) received and displayed 200');
+
+      // The edge HUD labels mirror the fill ledger (counters and the row's
+      // own TTL, the Map on screen).
+      const labels = describeSnapshot(cdnSnapshot);
+      expect(labels.cdnStatsLabel).toBe('Hits: 0 · Misses: 1 · Fills: 1 · TTL: 10t');
+      expect(labels.cdnEntries).toEqual(cdnSnapshot.cdn.ledger);
+    });
+
+    // CHECKS: named counter-example — a HIT never replays the 9-hop shape
+    // and never mentions a fill: the ledger bytes arrive via the reverse
+    // Router hop and the run ends at 6.
+    it('narrates the 6-hop HIT shape from the ledger with no origin traffic', () => {
+      const hit = {
+        ...cdnSnapshot,
+        trace: { ...cdnSnapshot.trace, edgeStatus: 'HIT' },
+        cdn: { ...cdnSnapshot.cdn, hits: 1, misses: 1, fills: 1 },
+      };
+      expect(describeSnapshot({ ...hit, trace: { ...hit.trace, hop: 4 } }).hopStatus).toBe(
+        'Hop 4/6: CDN edge (20.1) -> Router (10.65): "200 This is the about page" (edge HIT — ledger bytes, no origin traffic)',
+      );
+      expect(describeSnapshot({ ...hit, trace: { ...hit.trace, hop: 5 } }).hopStatus).toBe(
+        'Hop 5/6: Router (10.65) -> Browser (10.2): "200 This is the about page" delivered (one router hop)',
+      );
+      expect(describeSnapshot({ ...hit, trace: { ...hit.trace, hop: 6 } }).hopStatus).toBe(
+        'Hop 6/6: Browser (10.2) received and displayed 200',
+      );
+      expect(describeSnapshot({ ...hit, trace: { ...hit.trace, hop: 7 } }).hopStatus).toContain(
+        'Idle — type a path',
+      );
+      // No fill anywhere on the HIT shape.
+      const all = [
+        describeSnapshot({ ...hit, trace: { ...hit.trace, hop: 1 } }).hopStatus,
+        describeSnapshot({ ...hit, trace: { ...hit.trace, hop: 4 } }).hopStatus,
+        describeSnapshot({ ...hit, trace: { ...hit.trace, hop: 6 } }).hopStatus,
+      ].join(' ');
+      expect(all).not.toContain('fill');
+      expect(all).not.toContain('Ledger');
+    });
+
+    // CHECKS: named counter-example — a non-GET on a CDN name rides the MISS
+    // shape minus the fill: its announce names the pass-through and its
+    // delivery sentence names why nothing entered the ledger.
+    it('narrates a POST pass-through with no ledger write', () => {
+      const post = {
+        ...cdnSnapshot,
+        trace: {
+          ...cdnSnapshot.trace,
+          hop: 4,
+          method: 'POST',
+          path: '/note',
+          edgeStatus: 'PASS',
+          request: 'POST /note',
+          response: '200 Updated /note at tick 1',
+        },
+      };
+      expect(describeSnapshot({ ...post, trace: { ...post.trace, hop: 4 } }).hopStatus).toBe(
+        'Hop 4/9: CDN edge (20.1): POST /note is not edge-cacheable — pulling origin 10.1',
+      );
+      expect(describeSnapshot({ ...post, trace: { ...post.trace, hop: 5 } }).hopStatus).toBe(
+        'Hop 5/9: CDN edge (20.1) -> LoadBalancer (10.1): POST /note (edge pull via router)',
+      );
+      expect(describeSnapshot({ ...post, trace: { ...post.trace, hop: 8 } }).hopStatus).toBe(
+        'Hop 8/9: CDN edge (20.1) passed "200 Updated /note at tick 1" through to Browser (10.2) — no fill (non-GET)',
+      );
+      expect(describeSnapshot({ ...post, trace: { ...post.trace, hop: 8 } })).toBeDefined();
+    });
+
+    // CHECKS: the edge inspector state is the snapshot's own ledger and
+    // counters, and the cdn headline derives from the live snapshot.
+    it('exposes the cdn inspector state and headline from the snapshot', () => {
+      const state = JSON.parse(formatComponentState(cdnSnapshot, 'cdn'));
+      expect(state).toEqual({
+        address: '20.1',
+        originAddress: '10.1',
+        strategy: 'pull-through, GET-only',
+        ttlTicks: 10,
+        hits: 0,
+        misses: 1,
+        fills: 1,
+        lastPull: { path: '/about', atTick: 1 },
+        ledger: cdnSnapshot.cdn.ledger,
+      });
+      expect(componentTitle(cdnSnapshot, 'cdn')).toBe('CDN Edge — mini-IP 20.1 / origin 10.1');
+    });
   });
 });

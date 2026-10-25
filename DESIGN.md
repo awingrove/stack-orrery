@@ -195,7 +195,10 @@ Every stage diagram panel (`panel.html`) is organized into four vertical zones:
 4. **Bottom Split (`.bottom-panels`):**
    - **Component Code & State Inspector (`.inspector-card`):** Side-by-side view
      of the selected component's executable JS source code (`#inspector-code`)
-     and its live internal state JSON (`#inspector-state`).
+     and its live internal state JSON (`#inspector-state`). The component tab
+     row (`.comp-tabs`) wraps (Stage 6b amendment: `browser`…`cdn` exceeds one
+     line, and an unwrapped row spills under the adjacent journey-log card,
+     which paints over its last tab).
    - **Wire Journey Log (`.log-card`):** Reverse-chronological hop and tick
      history (`#exchange-inspector` headline + `#journey-log` list).
 

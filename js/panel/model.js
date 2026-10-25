@@ -1,6 +1,8 @@
 // DOCUMENTS: pure presentation model — engine snapshot in, labels and bar
 // geometry out. No DOM here: this is what the unit suite pins; panel.js and
-// render.js own all DOM writes.
+// render.js own all DOM writes. Stage-6 hop sentences live in
+// model-stage6.js (guard-file-size split).
+import { stage6Sentences } from './model-stage6.js';
 export const TICK_MS = 100;
 const QUEUE_BAR_SATURATION = 20; // bar reads full at 20 queued requests
 // Total hops per stage's trace shape (trace.js, trace-stage6.js and
@@ -20,7 +22,7 @@ function fillPercent(depth) {
 // prefix: stage 5 and stage 6's host-less trace wrap them identically (the
 // host-less counter-example renders byte-identically), and stage 6's hosted
 // shape renumbers the tail behind its DNS prelude.
-function stage5ChainParts(snapshot, from, serverAddress) {
+export function stage5ChainParts(snapshot, from, serverAddress) {
   const t = snapshot.trace ?? {};
   const target = t.targetServer ?? '10.11';
   if (t.asyncJob) {
@@ -64,32 +66,14 @@ function stage5ChainParts(snapshot, from, serverAddress) {
 
 const workerAddressOf = (snapshot) => snapshot.workerQueue?.workerAddress ?? '10.41';
 
-const withHopPrefix = (parts, total) => parts.map((p, i) => `Hop ${i + 1}/${total}: ${p}`);
+export const withHopPrefix = (parts, total) => parts.map((p, i) => `Hop ${i + 1}/${total}: ${p}`);
 
-// Stage 6 composes two DNS sentences onto the stage-5 chain. The ledger
-// address comes from the live snapshot; an NX answer ends the trace at
+// Stage 6 composes its sentences in model-stage6.js: the two DNS prelude
+// sentences plus one of the three hosted shapes behind the answer (plain
+// subnet-10 chain, Stage-6b CDN chain, or the NX refusal), or the
+// byte-identical host-less stage-5 story. An NX answer ends the trace at
 // hop 2 — the browser renders the refusal card and no GET appears anywhere
 // downstream (pinned counter-example in test/panel/model-stage6.test.js).
-// The stage-5 emit sentence is still the host-less hop 1; on a hosted path
-// the browser's composure is not a wire hop, so hop 1 is the DNS ask and
-// the 9-hop shape is ask + answer + the stage-5 chain minus emit.
-function stage6Sentences(snapshot, from, serverAddress) {
-  const t = snapshot.trace ?? {};
-  const parts = stage5ChainParts(snapshot, from, serverAddress);
-  if (!t.host) {
-    // Host-less counter-example: GET /about keeps the stage-5 story whole.
-    return withHopPrefix(parts, 8);
-  }
-  const dnsAddress = snapshot.dns?.address ?? '10.60';
-  const ask = `Browser (${from}) -> DNS (${dnsAddress}): who is ${t.host}?`;
-  if (t.nx) {
-    const answer = `DNS (${dnsAddress}) -> Browser (${from}): NX no record — no GET emitted`;
-    return withHopPrefix([ask, answer], 2);
-  }
-  const answer = `DNS (${dnsAddress}) -> Browser (${from}) answers ${t.dnsTarget ?? '10.1'}`;
-  // Hosted = 9 hops: ask + answer, then the stage-5 wire chain renumbered.
-  return withHopPrefix([ask, answer, ...parts.slice(1)], 9);
-}
 
 // One hop-status sentence per hop, in hop order, for each stage's trace
 // shape: 4 hops in Stage 1 (emit, route, serve, render), 5 in Stage 2 (LB
@@ -239,6 +223,13 @@ export function describeSnapshot(snapshot) {
     // PINS: the DNS ledger renders one row per live cache entry — name,
     // resolved target, ticks left — the Map on screen, not an aggregate.
     dnsEntries: snapshot.dns?.cache ?? [],
+    // CHECKS (Stage 6b): the edge HUD mirrors the fill ledger's counters and
+    // TTL from the live snapshot — hits/misses/fills are the edge's own
+    // lookup tally, and rows carry the per-entry remaining ticks.
+    cdnStatsLabel: `Hits: ${snapshot.cdn?.hits ?? 0} · Misses: ${snapshot.cdn?.misses ?? 0} · Fills: ${
+      snapshot.cdn?.fills ?? 0
+    } · TTL: ${snapshot.cdn?.ttlTicks ?? 10}t`,
+    cdnEntries: snapshot.cdn?.ledger ?? [],
     routerStatsLabel: snapshot.router
       ? `Router ${snapshot.router.address} ⇄ ${snapshot.router.rightAddress} · Routed: ${snapshot.router.routed}`
       : '',

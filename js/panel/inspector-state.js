@@ -45,7 +45,11 @@ export function componentTitle(snapshot = null, component, browserAddress = '10.
       return `DNS — mini-IP ${snapshot?.dns?.address ?? '10.60'}`;
     case 'router':
       return `Router — mini-IP ${snapshot?.router?.address ?? '10.65'} ⇄ ${
-        snapshot?.router?.rightAddress ?? '20.1'
+        snapshot?.router?.rightAddress ?? '20.254'
+      }`;
+    case 'cdn':
+      return `CDN Edge — mini-IP ${snapshot?.cdn?.address ?? '20.1'} / origin ${
+        snapshot?.cdn?.originAddress ?? '10.1'
       }`;
     default:
       throw new Error(`inspector-source: unknown component ${component}`);
@@ -85,7 +89,8 @@ const STATE_BUILDERS = {
             10.41: 'Worker',
             '10.60': 'DNS',
             10.65: 'Router (left)',
-            20.1: 'Router (right)',
+            20.254: 'Router (right)',
+            20.1: 'CDN edge',
             Crowd: `${snapshot.users} simulated browsers`,
           }
         : snapshot.stage === 5
@@ -210,8 +215,21 @@ const STATE_BUILDERS = {
   }),
   router: (snapshot) => ({
     address: snapshot.router?.address ?? '10.65',
-    rightAddress: snapshot.router?.rightAddress ?? '20.1',
+    rightAddress: snapshot.router?.rightAddress ?? '20.254',
     routedTotal: snapshot.router?.routed ?? 0,
     lastCross: snapshot.router?.lastCross ?? null,
+  }),
+  // CHECKS (Stage 6b): the edge's displayed ledger rows are the snapshot
+  // rows (path, body, expiry, remaining ticks) — exactly what a HIT serves.
+  cdn: (snapshot) => ({
+    address: snapshot.cdn?.address ?? '20.1',
+    originAddress: snapshot.cdn?.originAddress ?? '10.1',
+    strategy: 'pull-through, GET-only',
+    ttlTicks: snapshot.cdn?.ttlTicks ?? 10,
+    hits: snapshot.cdn?.hits ?? 0,
+    misses: snapshot.cdn?.misses ?? 0,
+    fills: snapshot.cdn?.fills ?? 0,
+    lastPull: snapshot.cdn?.lastPull ?? null,
+    ledger: snapshot.cdn?.ledger ?? [],
   }),
 };

@@ -7,11 +7,14 @@ import { STAGE6_RINGS, buildStage6Extras } from '../../js/panel/layout-stage6.js
 // pinned here so camera.test.js stays inside the 450-line test cap.
 describe('stage 6 layout', () => {
   it('inherits the stage-5 ring stack and seats the DNS and Router nodes on new spokes', () => {
-    // CHECKS: 8 rings — the stage-5 stack plus RING 7 · DNS, with the client
-    // ring shifted to RING 8 · BROWSERS; radii stay k * ringGap.
+    // CHECKS (Stage 6b): 9 rings — the stage-6a stack plus RING 8 · CDN EDGE,
+    // with the client ring shifted out to RING 9 · BROWSERS; radii stay
+    // k * ringGap.
     const rings = buildOrreryRings(400, 6);
     expect(rings.map((r) => r.id)).toEqual(STAGE6_RINGS.map(([id]) => id));
-    expect(rings.map((r) => r.radius)).toEqual([400, 800, 1200, 1600, 2000, 2400, 2800, 3200]);
+    expect(rings.map((r) => r.radius)).toEqual([
+      400, 800, 1200, 1600, 2000, 2400, 2800, 3200, 3600,
+    ]);
     expect(STAGE6_RINGS.map(([, label]) => label)).toEqual([
       'RING 1 · DATABASE',
       'RING 2 · WORKERS',
@@ -20,12 +23,14 @@ describe('stage 6 layout', () => {
       'RING 5 · LOADBALANCER',
       'RING 6 · NETWORK',
       'RING 7 · DNS',
-      'RING 8 · BROWSERS',
+      'RING 8 · CDN EDGE',
+      'RING 9 · BROWSERS',
     ]);
 
     const layout = computeStageLayout(6, 5);
     // The Router lives beside the 10.x hub (ring-network, 150°); the DNS
-    // ledger sits on the new DNS ring at 205°.
+    // ledger sits on the DNS ring at 205°; the CDN edge on its own ring at
+    // 155° (up-right of the hub, between DNS and the browser ring).
     expect(layout.nodes['node-router']).toEqual({
       id: 'node-router',
       ring: 'ring-network',
@@ -40,6 +45,13 @@ describe('stage 6 layout', () => {
       angleDeg: 205,
       ...polarToWorld(2800, 205),
     });
+    expect(layout.nodes['node-cdn']).toEqual({
+      id: 'node-cdn',
+      ring: 'ring-cdn',
+      radius: 3200,
+      angleDeg: 155,
+      ...polarToWorld(3200, 155),
+    });
     // The stage-5 nodes all survive: DB, workers, cache, backends, LB, hub.
     for (const id of [
       'node-db',
@@ -52,11 +64,13 @@ describe('stage 6 layout', () => {
     ]) {
       expect(layout.nodes[id]).toBeDefined();
     }
-    // The new wires are spokes like every other stage's: hub -> router and
-    // browser -> dns, all derived from the same stage-5 geometry.
+    // The new wires are spokes like every other stage's: hub -> router,
+    // browser -> dns, and browser -> cdn (the Stage 6b edge lane), all
+    // derived from the same stage-5 geometry.
     const wireIds = layout.wires.map((w) => w.id);
     expect(wireIds).toContain('wire-network-router');
     expect(wireIds).toContain('wire-browser-dns');
+    expect(wireIds).toContain('wire-browser-cdn');
     const routerWire = layout.wires.find((w) => w.id === 'wire-network-router');
     expect(routerWire).toMatchObject({
       fromId: 'node-network',
@@ -68,8 +82,9 @@ describe('stage 6 layout', () => {
     });
 
     // CHECKS: the camera bounds widen vertically to the extra node reach
-    // (+180 padding), and stages 1-5 bounds stay unchanged by this slice.
-    expect(layout.bounds).toEqual({ minX: -3380, maxX: 120, minY: -1380, maxY: 1380 });
+    // (+180 padding) and horizontally to the 9-ring outer radius; stages
+    // 1-5 bounds stay unchanged by this slice.
+    expect(layout.bounds).toEqual({ minX: -3780, maxX: 120, minY: -1532, maxY: 1532 });
     expect(computeStageLayout(5, 5).bounds).toEqual({
       minX: -2980,
       maxX: 120,
@@ -90,9 +105,16 @@ describe('stage 6 layout', () => {
     const { nodes, wires, boundY } = buildStage6Extras(400, { network, browser });
     expect(nodes['node-router'].y).toBe(1200);
     expect(nodes['node-dns'].y).toBe(-1183);
-    expect(boundY).toBe(1380);
-    expect(wires.map((w) => w.id)).toEqual(['wire-network-router', 'wire-browser-dns']);
+    expect(nodes['node-cdn'].y).toBe(1352);
+    expect(boundY).toBe(1532);
+    expect(wires.map((w) => w.id)).toEqual([
+      'wire-network-router',
+      'wire-browser-dns',
+      'wire-browser-cdn',
+    ]);
     const dnsWire = wires[1];
     expect(dnsWire).toMatchObject({ fromId: 'node-browser', toId: 'node-dns', y1: 0, y2: -1183 });
+    const cdnWire = wires[2];
+    expect(cdnWire).toMatchObject({ fromId: 'node-browser', toId: 'node-cdn', y1: 0, y2: 1352 });
   });
 });

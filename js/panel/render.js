@@ -126,17 +126,42 @@ function renderRoutes(matchedRouteId, snapshot) {
   }
 }
 
-// DOCUMENTS: cache entries (Stage 3) render one row per live cached key with
-// its remaining TTL in ticks — the Map on screen rather than an aggregate hit rate.
-function renderCacheEntries(entries) {
-  els.cacheEntries.replaceChildren(
-    ...entries.map((e) => {
+// DOCUMENTS: DNS ledger rows, cache entries, and worker jobs all render as
+// one `route-item` row per item (the Map on screen, not an aggregate); the
+// callers only differ in the row text they build from their entry shape.
+function renderRowsInto(container, rows, textOf) {
+  container.replaceChildren(
+    ...rows.map((row) => {
       const item = document.createElement('li');
       item.className = 'route-item';
-      item.textContent = `${e.key} · ttl ${e.ttlRemaining}t`;
+      item.textContent = textOf(row);
       return item;
     }),
   );
+}
+
+// DOCUMENTS: Stage-6 HUD — DNS counters + ledger rows, Router tally, and
+// the Stage-6b CDN edge counters + fill-ledger rows. The stage-6 nodes are
+// JS-injected by stage6-registry.js, so their lookups stay lazy (same rule
+// as render-stage.js's lane elements).
+function renderStage6Hud(snapshot) {
+  const labels = describeSnapshot(snapshot);
+  const dnsStats = $('dns-stats');
+  if (dnsStats) dnsStats.textContent = labels.dnsStatsLabel;
+  const dnsEntries = $('dns-entries-list');
+  if (dnsEntries)
+    renderRowsInto(
+      dnsEntries,
+      labels.dnsEntries,
+      (e) => `${e.name} · ${e.target} · ttl ${e.ttlRemaining}t`,
+    );
+  const routerStats = $('router-stats');
+  if (routerStats) routerStats.textContent = labels.routerStatsLabel;
+  const cdnStats = $('cdn-stats');
+  if (cdnStats) cdnStats.textContent = labels.cdnStatsLabel;
+  const cdnEntries = $('cdn-entries-list');
+  if (cdnEntries)
+    renderRowsInto(cdnEntries, labels.cdnEntries, (e) => `${e.path} · ttl ${e.ttlRemaining}t`);
 }
 
 // DOCUMENTS: database rows (Stage 4) render one row per primary key with
@@ -157,36 +182,11 @@ function renderDbRows(rows) {
 // its enqueue tick; the queue stats and worker HUD mirror the counters and
 // the active job (DESIGN.md queue-jobs-list).
 function renderJobsInto(container, jobs) {
-  container.replaceChildren(
-    ...jobs.map((job) => {
-      const item = document.createElement('li');
-      item.className = 'route-item';
-      item.textContent = `#${job.jobId} · ${job.path} · queued @ tick ${job.queuedAtTick}`;
-      return item;
-    }),
+  renderRowsInto(
+    container,
+    jobs,
+    (job) => `#${job.jobId} · ${job.path} · queued @ tick ${job.queuedAtTick}`,
   );
-}
-
-// DOCUMENTS: DNS ledger rows (Stage 6) render one row per live ledger entry —
-// name, resolved target, ticks left — the Map on screen, not an aggregate.
-// The stage-6 nodes are JS-injected by stage6-registry.js, so their lookups
-// stay lazy (same rule as render-stage.js's lane elements).
-function renderDnsHud(snapshot) {
-  const dnsStats = $('dns-stats');
-  const dnsEntries = $('dns-entries-list');
-  const routerStats = $('router-stats');
-  if (dnsStats) dnsStats.textContent = describeSnapshot(snapshot).dnsStatsLabel;
-  if (dnsEntries) {
-    dnsEntries.replaceChildren(
-      ...describeSnapshot(snapshot).dnsEntries.map((entry) => {
-        const item = document.createElement('li');
-        item.className = 'route-item';
-        item.textContent = `${entry.name} · ${entry.target} · ttl ${entry.ttlRemaining}t`;
-        return item;
-      }),
-    );
-  }
-  if (routerStats) routerStats.textContent = describeSnapshot(snapshot).routerStatsLabel;
 }
 
 function activeBrowserDisplay(snapshot, activeAddress) {
@@ -267,7 +267,11 @@ export function render(snapshot, selectedComponent, { layout, activeAddress = '1
   }
   if (snapshot.stage >= 3 && snapshot.cache) {
     els.cacheStats.textContent = labels.cacheStatsLabel;
-    renderCacheEntries(labels.cacheEntries);
+    renderRowsInto(
+      els.cacheEntries,
+      labels.cacheEntries,
+      (e) => `${e.key} · ttl ${e.ttlRemaining}t`,
+    );
   }
   if (snapshot.stage >= 4 && snapshot.database) {
     els.dbStats.textContent = labels.dbStatsLabel;
@@ -279,7 +283,7 @@ export function render(snapshot, selectedComponent, { layout, activeAddress = '1
     renderJobsInto(els.queueJobs, labels.queueJobs);
   }
   if (snapshot.stage >= 6 && snapshot.dns) {
-    renderDnsHud(snapshot);
+    renderStage6Hud(snapshot);
   }
   renderHopHighlights(snapshot, selectedComponent);
   renderDots(snapshot.users);

@@ -33,12 +33,15 @@ const TOTAL_HOPS = { 1: 4, 2: 5, 3: 6, 4: 7, 5: 8, 6: 9 };
 const totalHopsFor = (stage) => TOTAL_HOPS[stage] ?? TOTAL_HOPS[1];
 
 // CHECKS: the live final hop reads from the trace itself — stage 6's shape
-// is host ? (nx ? 2 : 9) : 8 (mirroring trace-stage6.js), so a host-less
-// trace stops at its normal stage-5 count and an NX answer stops at the
-// answer hop; other stages use TOTAL_HOPS.
+// is (nx ? 2 : cdn ? (edgeStatus === 'HIT' ? 6 : 9) : host ? 9 : 8)
+// (mirroring trace-stage6.js), so a host-less trace stops at its normal
+// stage-5 count, an NX answer stops at the answer hop, and a CDN GET stops
+// at 6 only after the answer proved an edge HIT; other stages use
+// TOTAL_HOPS.
 const traceFinalHop = (snapshot, stage) => {
   if (snapshot.stage === 6 && snapshot.trace) {
     if (snapshot.trace.nx) return 2;
+    if (snapshot.trace.cdn) return snapshot.trace.edgeStatus === 'HIT' ? 6 : 9;
     return snapshot.trace.host ? 9 : 8;
   }
   return totalHopsFor(stage);

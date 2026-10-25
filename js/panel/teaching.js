@@ -128,24 +128,24 @@ export const STAGE_TEACHING = {
     },
   },
   6: {
-    headline: 'DNS 10.60 resolves names with a tick-TTL ledger; Router 10.65 ⇄ 20.1 joins subnets',
+    headline: 'DNS 10.60 resolves names, the Router joins subnets, and CDN edge 20.1 fills on miss',
     teaches: [
       'A hosted URL (example.com/about) asks DNS 10.60 first: "who is example.com?" — the answer re-points the GET at the resolved mini-IP.',
       'The ledger answers from cache inside ttlTicks = 300 ticks and consults the authoritative table only on a miss or expired entry.',
-      'Cross-subnet routing: the Router joins 10.x with the empty 20.x subnet — a frame into subnet 20 takes exactly one router hop, and nothing is there yet (CDN edge is Stage 6b).',
+      'Cross-subnet: the Router (10.65 ⇄ 20.254) counts one hop per crossing, and the CDN edge (cd.example.com → 20.1) serves a GET inside its 10t TTL from the fill ledger — a miss pulls the origin through the real LB/backend chain, then fills.',
     ],
     try: [
-      'Trace example.com/about and read hop 2/10 (the DNS ask) and hop 3/10 (the ledger answer 10.1).',
-      'Trace example.com/about a second time: Cached goes 1 — hop 3 is served by the ledger, not the authoritative table.',
+      'Trace cd.example.com/about once (9 hops: MISS → pull → FILL), then again — the second run ends at Hop 6/6 with the edge HITting, no origin traffic.',
+      'Edit /about on WebServer-1 (10.11) and trace cd.example.com/about again: the edge still serves the OLD bytes until its TTL expires — then the pull returns the new ones.',
       'Type a missing-host URL and watch the browser render the NX card with no GET emitted anywhere downstream.',
     ],
     watchFor: [
       'The dns-entries-list row example.com · 10.1 · ttl <N>t draining toward 0t and vanishing at expiry.',
-      'The Router card staying at Routed: 0 — Stage 6a traces never cross subnets; each hop is just per-hop latency.',
-      'A plain /about trace running the Stage 5 hop story byte-identically — plain paths never touch DNS.',
+      'The Router card counting Routed: 3 on a cd.example.com/about miss — the forward hop, the origin pull, and the reverse delivery each count once.',
+      'A plain /about trace running the Stage 5 hop story byte-identically — plain paths never touch DNS or the edge.',
     ],
     tradeoff:
-      'Centralized DNS makes directions programmable at a price: every new indirection is one more hop to answer before the first byte moves.',
+      'An edge makes hot content cheap and far away, but it sells you staleness: edits hide behind the TTL until expiry, and the ledger only knows what once flowed through it.',
     primerLink: {
       label: "Domain Name System — system-design-primer's DNS section",
       url: `${PRIMER}domain-name-system`,

@@ -1,12 +1,15 @@
-// Stage-6 topology DOM (stage6a brief): the DNS card, the Router card, their
-// two wire columns, and the two inspector tabs. Injected from js rather than
-// panel.html because that page sits at its 550-line cap (teaching-drawer.js
-// precedent). Behavior stays addEventListener-only elsewhere (AGENTS.md CSP
-// rule) and all content comes from textContent/attributes — no innerHTML.
+// Stage-6 topology DOM (stage6a brief; Stage 6b adds the CDN edge): the DNS
+// card, the Router card, the CDN Edge card, their three wire columns, and
+// the three inspector tabs. Injected from js rather than panel.html because
+// that page sits at its 550-line cap (teaching-drawer.js precedent).
+// Behavior stays addEventListener-only elsewhere (AGENTS.md CSP rule) and
+// all content comes from textContent/attributes — no innerHTML.
 // CHECKS: ensureStage6Dom runs once at panel-boot (before panel.js's wiring
 // loops call renderStageTopology), so the injected ids exist by the first
 // render; calling it twice must not duplicate the registry (idempotent guard
 // below).
+// CHECKS (Stage 6b): the Router chip and stats line read 10.65 ⇄ 20.254 —
+// the edge took 20.1, matching router.js's re-seat exactly.
 
 let injected = false;
 
@@ -20,8 +23,8 @@ export function ensureStage6Dom() {
       ['packet-req-router', 'route =>'],
       ['packet-res-router', '<- via router'],
     ]),
-    nodeCard('node-router', 'router', 'Router', 'cross-subnet gateway', '10.65 ⇄ 20.1', [
-      ['p', 'router-stats', 'Router 10.65 ⇄ 20.1 · Routed: 0'],
+    nodeCard('node-router', 'router', 'Router', 'cross-subnet gateway', '10.65 ⇄ 20.254', [
+      ['p', 'router-stats', 'Router 10.65 ⇄ 20.254 · Routed: 0'],
     ]),
     wireColumn('wire-dns', [
       ['packet-req-dns', 'who is? =>'],
@@ -31,12 +34,21 @@ export function ensureStage6Dom() {
       ['p', 'dns-stats', 'Lookups: 0 · Cached: 0 · Authoritative: 0 · TTL: 300t'],
       ['ul', 'dns-entries-list'],
     ]),
+    wireColumn('wire-cdn', [
+      ['packet-req-cdn', 'edge GET =>'],
+      ['packet-res-cdn', '<- edge HIT'],
+    ]),
+    nodeCard('node-cdn', 'cdn', 'CDN Edge', 'edge fill ledger', '20.1', [
+      ['p', 'cdn-stats', 'Hits: 0 · Misses: 0 · Fills: 0 · TTL: 10t'],
+      ['ul', 'cdn-entries-list'],
+    ]),
   );
 
   const tabs = document.querySelector('.comp-tabs');
   for (const [key, label] of [
     ['dns', 'dns'],
     ['router', 'router'],
+    ['cdn', 'cdn'],
   ]) {
     const tab = document.createElement('button');
     tab.className = 'comp-tab';
@@ -91,7 +103,8 @@ function nodeCard(id, component, name, subtitle, addressChip, bodyNodes) {
 
 const FIRST_TEXT = {
   'dns-stats': 'Lookups: 0 · Cached: 0 · Authoritative: 0 · TTL: 300t',
-  'router-stats': 'Router 10.65 ⇄ 20.1 · Routed: 0',
+  'router-stats': 'Router 10.65 ⇄ 20.254 · Routed: 0',
+  'cdn-stats': 'Hits: 0 · Misses: 0 · Fills: 0 · TTL: 10t',
 };
 
 function firstText(nodeId) {

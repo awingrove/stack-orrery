@@ -14,9 +14,10 @@
 //
 // CHECKS: constructor validates config ranges via its components (seed is
 // coerced uint32; arrivalProb must be within [0, 1]; stage must be within
-// 1-6). Stage 6 instantiates DNS 10.60 and the cross-subnet Router
-// (10.65 ⇄ 20.1) and exposes them on the snapshot; its trace narrative adds
-// the two DNS ask/answer hops for hosted paths and none for host-less ones.
+// 1-6). Stage 6 instantiates DNS 10.60, the cross-subnet Router (10.65 ⇄
+// 20.254 — Stage 6b re-seat; the edge owns 20.1) and the CDN edge on the
+// right network at 20.1; hosted paths add the DNS ask/answer hops and CDN
+// ones ride the Router + edge.
 import { createRng } from './rng.js';
 import { createNetwork } from './network.js';
 import { createBrowser } from './browser.js';
@@ -27,6 +28,8 @@ import { createDatabase } from './database.js';
 import { createWorkerQueue } from './queue.js';
 import { createDns } from './dns.js';
 import { createRouter } from './router.js';
+import { createCdnEdge } from './cdn.js';
+import { createBrowserSeatRegistry } from './browser-seat.js';
 import { createUsers } from './users.js';
 import { createTraceMachine } from './trace.js';
 
@@ -49,7 +52,11 @@ export function createEngine({
   dnsAddress = '10.60',
   dnsTtlTicks = 300,
   routerLeftAddress = '10.65',
-  routerRightAddress = '20.1',
+  // Stage 6b: the CDN edge took 10.65's old 20-side seat (20.1), so the
+  // router re-seats to 20.254 and the edge registers at 20.1.
+  routerRightAddress = '20.254',
+  cdnAddress = '20.1',
+  edgeTtlTicks = 10,
 } = {}) {
   if (typeof arrivalProb !== 'number' || arrivalProb < 0 || arrivalProb > 1) {
     throw new Error(`engine: arrivalProb must be within [0, 1], got ${arrivalProb}`);
@@ -78,15 +85,16 @@ export function createEngine({
       : null;
   // Stage 6: the authoritative DNS (10.60, tick-TTL ledger) and the
   // cross-subnet Router that joins the flat 10.x registry with a 20.x one
-  // (the router registers its own 20-side seat at 10.65 ⇄ 20.1's right).
+  // (from Stage 6b the router sits 10.65 ⇄ 20.254; the edge owns 20.1).
   const dns = stage >= 6 ? createDns({ address: dnsAddress, ttlTicks: dnsTtlTicks }) : null;
+  const rightNetwork = stage >= 6 ? createNetwork() : null;
   const router =
     stage >= 6
       ? createRouter({
           leftAddress: routerLeftAddress,
           rightAddress: routerRightAddress,
           leftNetwork: network,
-          rightNetwork: createNetwork(),
+          rightNetwork,
         })
       : null;
   let servers;
@@ -106,6 +114,25 @@ export function createEngine({
     lb = createLoadBalancer({ address: serverAddress, backends: backendAddresses, network });
     network.registerServer(serverAddress, lb);
   }
+  // CHECKS (Stage 6b): the CDN edge instantiates on the right network at
+  // `cdnAddress` (default 20.1) next to the router's re-seated right-side
+  // seat. The edge's seat receives the frames the Router delivers into
+  // subnet 20 (the same seat pattern the router itself uses); the real
+  // ledger decision runs through edge.lookup inside the trace machine.
+  const edge =
+    stage >= 6
+      ? createCdnEdge({
+          address: cdnAddress,
+          ttlTicks: edgeTtlTicks,
+          originAddress: serverAddress,
+        })
+      : null;
+  if (edge) {
+    rightNetwork.registerServer(cdnAddress, {
+      handleRequest: () => `200 CDN edge ${cdnAddress}`,
+      enqueue: (frame) => frame,
+    });
+  }
   // The learner's own interactive client shares the crowd's network and
   // server pool but keeps its own browser and address; users.js keeps its
   // addresses so seeded tick sequences stay identical (PINS above).
@@ -115,6 +142,11 @@ export function createEngine({
   let lastExchange = null;
   let lastMatchedRoute = null;
   let lastFrame = null;
+
+  // CHECKS (Stage 6b): left-network wire seats for browsers receiving
+  // cross-subnet response frames (browser-seat.js); registered before a
+  // trace runs.
+  const ensureBrowserSeat = createBrowserSeatRegistry(network);
 
   // The trace machine owns the hop-by-hop trace state; the engine owns the
   // clock, the served-exchange record, and browser delivery — the machine
@@ -129,6 +161,8 @@ export function createEngine({
     database,
     workerQueue,
     dns,
+    cdn: edge,
+    router,
     bumpTick: () => {
       tick += 1;
       return tick;
@@ -191,10 +225,15 @@ export function createEngine({
     // 7 in Stage 4 (the database hop inserted after the cache check); 8 in
     // Stage 5 (the async worker tail); 9 in Stage 6 for hosted paths (the
     // DNS ask/answer prelude, the stage-5 chain minus its emit hop) and 8
-    // for host-less ones.
+    // for host-less ones; 6 for CDN edge HITs, 9 for CDN MISS and pass
+    // through (Stage 6b).
     // `from` is the mini-IP of the browser the trace originates from
     // (default the learner's own 10.2).
     traceHop({ method = 'GET', path = '/about', from = '10.2' } = {}) {
+      // CHECKS (Stage 6b): a CDN response frame crosses BACK through the
+      // Router into the originating browser, so the browser needs a real
+      // resolvable seat on the left network (browser-seat.js).
+      if (stage >= 6) ensureBrowserSeat(from);
       const frame = traceMachine.step({ method, path, from });
       if (frame !== null) lastFrame = frame;
       return this.snapshot();
@@ -249,6 +288,7 @@ export function createEngine({
         workerQueue: workerQueue ? workerQueue.snapshot(tick) : null,
         dns: dns ? dns.snapshot(tick) : null,
         router: router ? router.snapshot() : null,
+        cdn: edge ? edge.snapshot(tick) : null,
         lastMatchedRoute,
         lastFrame,
         browserDisplay: clientBrowser.last(),

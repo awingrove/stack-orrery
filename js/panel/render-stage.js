@@ -1,8 +1,11 @@
 // DOCUMENTS: stage-shape DOM writes, split from render.js by
 // responsibility (guard-file-size): which cards and wire lanes are visible
-// per stage, which card and wire lane carries the active hop, the crowd
-// dots, and the compact browser nodes on the outer client ring. Zero
-// engine knowledge: snapshots and layout geometry in, DOM writes out.
+// per stage, the crowd dots, the active-hop DOM writes, and the compact
+// browser nodes on the outer client ring. Zero engine knowledge: snapshots
+// and layout geometry in, DOM writes out; the hop → (card, lane) id
+// mapping itself lives in hop-targets.js.
+import { activeHopTarget } from './hop-targets.js';
+
 const $ = (id) => document.getElementById(id);
 
 // CHECKS: lane lookups are lazy — the stage-6 cards/columns are JS-injected
@@ -31,6 +34,8 @@ function laneEls() {
     'packet-res-dns': lane('packet-res-dns'),
     'packet-req-router': lane('packet-req-router'),
     'packet-res-router': lane('packet-res-router'),
+    'packet-req-cdn': lane('packet-req-cdn'),
+    'packet-res-cdn': lane('packet-res-cdn'),
   };
   for (const [id, node] of Object.entries(laneCache)) {
     if (!node) delete laneCache[id];
@@ -63,14 +68,18 @@ export function renderStageTopology(stage) {
   $('wire-cache-queue').hidden = !hasWorkers;
   $('node-worker').hidden = !hasWorkers;
   $('wire-queue-worker').hidden = !hasWorkers;
-  // Stage 6: the DNS ledger card + its browser wire column, and the Router
-  // card + its hub wire column (10.65 ⇄ 20.1 gateway lane).
+  // Stage 6: the DNS ledger card + its browser wire column, the Router
+  // card + its hub wire column (10.65 ⇄ 20.254 gateway lane), and the
+  // Stage 6b CDN edge card + its browser wire column (20.1 edge lane).
   $('node-dns').hidden = !hasCrossNet;
   $('node-router').hidden = !hasCrossNet;
+  $('node-cdn').hidden = !hasCrossNet;
   const dnsColumn = $('wire-dns');
   if (dnsColumn) dnsColumn.hidden = !hasCrossNet;
   const routerColumn = $('wire-router');
   if (routerColumn) routerColumn.hidden = !hasCrossNet;
+  const cdnColumn = $('wire-cdn');
+  if (cdnColumn) cdnColumn.hidden = !hasCrossNet;
   $('network-role-10-1').textContent = hasLb ? 'LoadBalancer -> 10.11, 10.12' : 'WebServer';
   for (const pill of document.querySelectorAll('.stage-pill[data-stage]')) {
     const active = Number(pill.dataset.stage) === stage;
@@ -79,156 +88,6 @@ export function renderStageTopology(stage) {
     else pill.removeAttribute('aria-current');
   }
   if (stageRenderedHook) stageRenderedHook(stage);
-}
-
-// Which card executes the hop, and which wire lane carries it:
-// Stage 1 is emit / route / serve / render; Stage 2 inserts the LB's
-// round-robin pick; Stage 3 splits the backend serve into the cache
-// lookup (Cache 10.20 answers) and the response emission; Stage 4 adds
-// the database hop; Stage 5 adds async worker queue processing. Stage 6
-// re-uses this stage-5 mapping (host-less verbatim; hosted hops > 2 off by
-// exactly the +2 DNS prelude) and owns its hops 1-2 below.
-function stage5HopTarget(snapshot, hop) {
-  const backendCard =
-    snapshot.trace?.targetServer === '10.12' ? 'node-webserver-2' : 'node-webserver';
-  const dbLane = snapshot.trace?.dbOp === 'WRITE' ? 'packet-req-db' : 'packet-res-db';
-  const owners = snapshot.trace?.asyncJob
-    ? {
-        1: 'node-browser',
-        2: 'node-network',
-        3: 'node-lb',
-        4: 'node-queue',
-        5: 'node-webserver',
-        6: 'node-network',
-        7: 'node-browser',
-        8: 'node-worker',
-      }
-    : {
-        1: 'node-browser',
-        2: 'node-network',
-        3: 'node-lb',
-        4: 'node-db',
-        5: backendCard,
-        6: 'node-network',
-        7: 'node-browser',
-        8: 'node-worker',
-      };
-  const lanes = snapshot.trace?.asyncJob
-    ? {
-        1: 'packet-req-left',
-        2: 'packet-req-right',
-        3: 'packet-req-lb',
-        4: 'packet-req-queue',
-        5: 'packet-res-cache',
-        6: 'packet-res-right',
-        7: 'packet-res-left',
-        8: 'packet-res-db',
-      }
-    : {
-        1: 'packet-req-left',
-        2: 'packet-req-right',
-        3: 'packet-req-lb',
-        4: dbLane,
-        5: 'packet-res-cache',
-        6: 'packet-res-right',
-        7: 'packet-res-left',
-        8: 'packet-res-worker',
-      };
-  return { cardId: owners[hop] ?? 'node-browser', laneId: lanes[hop] ?? 'packet-req-left' };
-}
-
-function activeHopTarget(snapshot) {
-  const hop = snapshot.trace?.hop ?? 0;
-  if (snapshot.stage === 6) {
-    if (!snapshot.trace?.host) return stage5HopTarget(snapshot, hop);
-    if (hop <= 2) {
-      // Hops 1-2 of the hosted shape: the browser asks DNS 10.60 and the
-      // ledger answers on its wire lane; NX and resolved answers share the
-      // lanes (both write the packet-res-dns answer lane at hop 2). There
-      // is no card highlight before hop 1's ask — no GET exists on the wire
-      // yet.
-      const owners = { 1: 'node-dns', 2: 'node-browser' };
-      const lanes = { 1: 'packet-req-dns', 2: 'packet-res-dns' };
-      return { cardId: owners[hop], laneId: lanes[hop] };
-    }
-    // The resolved chain replays the stage-5 cards two hops deeper.
-    return stage5HopTarget(snapshot, hop - 2);
-  }
-  if (snapshot.stage === 5) {
-    return stage5HopTarget(snapshot, hop);
-  }
-  if (snapshot.stage === 4) {
-    const backendCard =
-      snapshot.trace?.targetServer === '10.12' ? 'node-webserver-2' : 'node-webserver';
-    const dbLane = snapshot.trace?.dbOp === 'WRITE' ? 'packet-req-db' : 'packet-res-db';
-    const owners = {
-      1: 'node-browser',
-      2: 'node-network',
-      3: 'node-lb',
-      4: 'node-cache',
-      5: 'node-db',
-      6: backendCard,
-      7: 'node-browser',
-    };
-    const lanes = {
-      1: 'packet-req-left',
-      2: 'packet-req-right',
-      3: 'packet-req-lb',
-      4: 'packet-req-cache',
-      5: dbLane,
-      6: 'packet-res-cache',
-      7: 'packet-res-left',
-    };
-    return { cardId: owners[hop], laneId: lanes[hop] };
-  }
-  if (snapshot.stage === 3) {
-    const backendCard =
-      snapshot.trace?.targetServer === '10.12' ? 'node-webserver-2' : 'node-webserver';
-    const owners = {
-      1: 'node-browser',
-      2: 'node-network',
-      3: 'node-lb',
-      4: 'node-cache',
-      5: backendCard,
-      6: 'node-browser',
-    };
-    const lanes = {
-      1: 'packet-req-left',
-      2: 'packet-req-right',
-      3: 'packet-req-lb',
-      4: 'packet-req-cache',
-      5: 'packet-res-cache',
-      6: 'packet-res-left',
-    };
-    return { cardId: owners[hop], laneId: lanes[hop] };
-  }
-  if (snapshot.stage === 2) {
-    const backendCard =
-      snapshot.trace?.targetServer === '10.12' ? 'node-webserver-2' : 'node-webserver';
-    const owners = {
-      1: 'node-browser',
-      2: 'node-network',
-      3: 'node-lb',
-      4: backendCard,
-      5: 'node-browser',
-    };
-    const lanes = {
-      1: 'packet-req-left',
-      2: 'packet-req-right',
-      3: 'packet-req-lb',
-      4: 'packet-res-lb',
-      5: 'packet-res-left',
-    };
-    return { cardId: owners[hop], laneId: lanes[hop] };
-  }
-  const owners = { 1: 'node-browser', 2: 'node-network', 3: 'node-webserver', 4: 'node-browser' };
-  const lanes = {
-    1: 'packet-req-left',
-    2: 'packet-req-right',
-    3: 'packet-res-right',
-    4: 'packet-res-left',
-  };
-  return { cardId: owners[hop], laneId: lanes[hop] };
 }
 
 export function renderHopHighlights(snapshot, selectedComponent) {
