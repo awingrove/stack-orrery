@@ -10,6 +10,47 @@
 # tokens_reasoning, tokens_cache_read, cost_usd, notes.
 
 entries:
+  - id: EDITABLE-FS
+    slice:
+      - SIM
+      - PANEL
+    name: 'Editable WebServer filesystem — snapshot-rendered rows, two-column grid + ellipsis, inline pencil editing'
+    brief: docs/plans/2026-10-24-editable-fs.md
+    agent: cheap
+    lead_model: opencode/glm-5.3-flash-free
+    agent_model: opencode/glm-5.3-flash-free
+    session_id: ses_e9014d003ffe6FGMbnTjwRtaDa
+    tokens_input: 142460
+    tokens_output: 15279
+    tokens_reasoning: 21133
+    tokens_cache_read: 5536832
+    cost_usd: 0
+    human_interventions: 0
+    agent_review_rounds: 0
+    guardrail_failures: 1
+    fix_commits: 0
+    defects_escaped: 0
+    notes: >-
+      One red run in-session (prettier formatting of the new e2e spec), fixed
+      before commit; verify green at commit time. Executor deviations
+      resolved against guards, not the brief's letter: fs-editor.js claimed
+      by the js/panel/** glob (explicit PANEL js entry would double-claim the
+      file; the e2e spec was added to slices explicitly), setWebFile unit
+      tests homed in test/sim/engine.test.js (the natural SIM glob home),
+      pencil absolutely positioned inside the row (two-column grid leaves no
+      grid slot; hover/focus-revealed as contracted), live input
+      element-mounted across render passes so typing/focus survive crowd
+      ticks. PR #16's alignment work (feat/fs-table-style) was merged into
+      the branch first per the brief's base-contract; e2e/webserver-fs.spec.js
+      passes unchanged. Step-3 strict probe green: pencil/inline editor
+      states incl. unchanged+empty commit gating and Escape restore, commit
+      serves new bytes through the real GET record and the browser card,
+      stage-3 shared-cache staleness (Hits 0->1, OLD body within TTL, edited
+      body after expiry, both backends pre-edited so the cache is the only
+      old-body source), two-column grid + single-line ellipsis computeds,
+      clean error surface. panel.html 550 -> 546 (headroom regained by
+      removing static lis).
+
   - id: STAGE6A-DNS-CROSSNET
     slice:
       - SIM

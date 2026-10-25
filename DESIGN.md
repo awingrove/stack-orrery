@@ -261,6 +261,15 @@ Every stage diagram panel (`panel.html`) is organized into four vertical zones:
   the mini-IP table's two-part look: the file path (`.fs-path`) carries the
   same address-column treatment as a `.mini-table` mini-IP (`var(--accent)`),
   and the served body renders `var(--text)` like the table's name column.
+  The rows are the sim's view, not static markup: each card renders its
+  server's live `fs` Map as a two-column grid (path column sized to content;
+  body single-line with ellipsis overflow and a `title` tooltip carrying the
+  full text). Rows are editable: a hover/focus-revealed pencil button swaps
+  the row into an inline `<input>` (Enter/✔ commits, Escape/✕ cancels, commit
+  disabled while the draft is unchanged or empty), and a commit writes the
+  server's `fs` Map via `engine.setWebFile`. An edit does NOT invalidate the
+  Cache — on stage 3+ a GET inside the entry's TTL still serves the old body
+  (observable cache staleness; the same rule the CDN edge obeys in stage 6b).
   Intrinsic HTTP responses (`404`, `405`) live in the server's executable
   code rather than as configured rows.
 - **DNS Resolutions & Tick-TTL Ledger (`#node-dns`, `#dns-entries-list`):** In
