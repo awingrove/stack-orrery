@@ -43,7 +43,6 @@ export const els = {
   inspectorTitle: $('inspector-title'),
   inspectorCode: $('inspector-code'),
   inspectorState: $('inspector-state'),
-  journeyLog: $('journey-log'),
   exchange: $('exchange-inspector'),
 };
 
