@@ -167,14 +167,18 @@ Every stage diagram panel (`panel.html`) is organized into four vertical zones:
      & `Worker 10.41`), Ring 3 (`Cache 10.20`), Ring 4 (`WebServer-1 10.11` &
      `WebServer-2 10.12`), Ring 5 (`LoadBalancer 10.1`), Ring 6 (`Network 10.x`),
      Ring 7 (`Browsers 10.2+`).
-   - **Stage 6 (8 rings):** Ring 1 (`Database 10.30/10.31`), Ring 2
+   - **Stage 6 (9 rings):** Ring 1 (`Database 10.30/10.31`), Ring 2
      (`WorkerQueue 10.40` & `Worker 10.41`), Ring 3 (`Cache 10.20`), Ring 4
      (`WebServer-1 10.11` & `WebServer-2 10.12`), Ring 5 (`LoadBalancer 10.1`),
-     Ring 6 (`Network 10.x`, Router side-card `10.65 ⇄ 20.1`), Ring 7
-     (`DNS 10.60`), Ring 8 (`Browsers 10.2+`). A hosted browser path
-     (`example.com/about`) rides Browser -> DNS ask -> DNS answer -> the Stage
-     5 chain; host-less paths skip DNS entirely. Cross-subnet frames take
-     exactly one Router hop.
+     Ring 6 (`Network 10.x`, Router side-card `10.65 ⇄ 20.254`), Ring 7
+     (`DNS 10.60`), Ring 8 (`CDN edge 20.1`), Ring 9 (`Browsers 10.2+`). A
+     hosted browser path (`example.com/about`) rides Browser -> DNS ask -> DNS
+     answer -> the Stage 5 chain; host-less paths skip DNS entirely. A
+     CDN-hosted path (`cd.example.com/about`, DNS -> `20.1`) rides the Router
+     to the edge: a GET inside the edge's TTL serves from the edge ledger
+     (6 hops); a miss pulls the origin through the Router into the real
+     Stage 5 chain and fills the ledger (9 hops). Cross-subnet frames take
+     exactly one Router hop per crossing (each direction counts).
      All `N` client browsers (`10.2` .. `10.(N+1)`) sit on the outermost ring: the
      currently selected browser renders as the full expanded `#node-browser` card,
      while the other `N - 1` browsers render as clickable compact `.browser-compact`
@@ -278,9 +282,21 @@ Every stage diagram panel (`panel.html`) is organized into four vertical zones:
   (`#dns-entries-list`). Unknown names resolve to `NX no record` — the browser
   card renders it, no GET is emitted.
 - **Cross-Subnet Router (`#node-router`):** Stage 6 `Router` side-card on
-  Ring 6 (`10.65 ⇄ 20.1`) joins the `10.x` and `20.x` network instances;
-  cross-subnet frames take exactly one router hop (`routed` counter), and
-  sends to unregistered `20.x` hosts fail loud.
+  Ring 6 (interfaces `10.65 ⇄ 20.254`; the edge owns `20.1`) joins the `10.x`
+  and `20.x` network instances; cross-subnet frames take exactly one router
+  hop per crossing (`routed` counter counts each direction), and sends to
+  unregistered `20.x` hosts fail loud.
+- **CDN Edge (`#node-cdn`, `#cdn-entries-list`):** In Stage 6, the CDN edge
+  (`20.1`) sits on Ring 8 — the outermost infrastructure layer, closest to the
+  clients — and displays hit/miss/fill counters (`#cdn-stats`) and its fill
+  ledger rows with remaining TTL. A GET whose DNS answer lives in subnet 20
+  crosses the Router to the edge: inside the edge TTL it serves from its fill
+  ledger (6-hop trace); a MISS pulls the origin through the Router into the
+  real Stage 5 chain (the pull does a real `lb.enqueue` + backend drain) and
+  fills the ledger. The edge is GET-only: any other method passes through to
+  the origin untouched (its ledger never sees a POST). Editing an origin file
+  does not evict the edge — stale-at-the-edge is observable until TTL expiry,
+  the same staleness rule the origin Cache obeys.
 - **Cache Entries & Tick TTL (`#node-cache`, `#cache-entries-list`):** In Stage 3,
   `Cache` (`10.20`) sits on Ring 1 (shared cache-aside tier behind `WebServer-1`
   and `WebServer-2`) and displays its hit/miss/TTL counters (`#cache-stats`) and
