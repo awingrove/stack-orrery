@@ -28,9 +28,17 @@ entries:
     human_interventions: 0
     agent_review_rounds: 0
     guardrail_failures: 15
-    fix_commits: 0
+    fix_commits: 1
     defects_escaped: 0
     notes: >-
+      fix_commits counts the post-open PR-CI fix (this slice's in-session
+      build reds are the 15 above; nothing escaped the gate). PR #18 CI
+      rejected e2e panel.spec.js 'queue depth climbing' once: slider fill
+      raced module boot on the CI box, and the deep-link boot then rewrote
+      the slider to the default 5 with the input event lost (local never
+      reproduced). Named-cause fix, no assertion weakened: the test now
+      gates on the boot render (toHaveCount(5) for the default crowd)
+      before filling; panel.spec.js sits at the 450-line cap.
       Standing per-slice deviation (pinned executor over limit) — executed on
       opencode/glm-5.3-flash-free. 15 in-session reds during build
       (convergence on new unit/e2e pins plus one real DL-2 catch: the wider

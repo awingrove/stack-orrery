@@ -7,8 +7,8 @@ import { test, expect } from '@playwright/test';
 test('should show queue depth climbing as simulated users increase', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('main').getByRole('link', { name: 'Diagram panel' }).click(); // click-through arrival
-
-  // N simulated users: the dot count mirrors the slider before the run starts.
+  // PINS: boot-render gate — the 5-dot default crowd only exists after module init, which rewrites the slider from the deep link (a pre-boot fill was silently reset: CI race).
+  await expect(page.getByTestId('user-dots').locator('> *')).toHaveCount(5);
   await page.getByTestId('users-slider').fill('20');
   await expect(page.getByTestId('user-dots').locator('> *')).toHaveCount(20);
 
