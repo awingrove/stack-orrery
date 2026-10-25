@@ -2,7 +2,7 @@
 // labels into DOM updates (queues, route tables, cache entries, load
 // balancer backend counters, and inspector panes). Stage topology and hop
 // highlights live in render-stage.js; event wiring in panel.js.
-import { describeSnapshot, orderJourneyEntries } from './model.js';
+import { describeSnapshot } from './model.js';
 import { COMPONENT_SOURCE } from './inspector-source.js';
 import { componentTitle, formatComponentState } from './inspector-state.js';
 import { renderFilesystems } from './fs-editor.js';
@@ -47,50 +47,9 @@ export const els = {
   exchange: $('exchange-inspector'),
 };
 
-// PINS: journey-log chronology — the entries render newest-run-first and,
-// inside one run, hop-ascending regardless of emission order; the ordering
-// is the pure contract in model.js (orderJourneyEntries). The cap keeps the
-// 20 newest entries (bottom tail trimmed), like the previous DOM trim, and
-// the consecutive-emission dedupe (same label + text emitted twice in a row)
-// stays: the duplicate frame is not logged (the render test pins ordering).
-const JOURNEY_CAP = 20;
-let journeyEntries = [];
-let lastEmitted = null;
-
-export function addToJourney(label, text, { run = 0, hop = 0 } = {}) {
-  if (lastEmitted && lastEmitted.label === label && lastEmitted.text === text) return;
-  lastEmitted = { label, text };
-  journeyEntries = orderJourneyEntries(journeyEntries, { label, text, run, hop }).slice(
-    0,
-    JOURNEY_CAP,
-  );
-  renderJourney();
-}
-
-// CHECKS: a trace run's stored hop denominators must be the run's FINAL hop
-// count. An NX run's estimate (`host ? 9 : 8`) bakes `hop 1/9` before the
-// answer proves the run ends at 2; once the final hop lands, relabelRun()
-// rewrites every entry of that run so the log never advertises hops the
-// run did not take (render() re-reads journeyEntries only).
-export function relabelJourneyRun(run, totalHops) {
-  journeyEntries = journeyEntries.map((entry) =>
-    entry.run === run && entry.hop > 0
-      ? { ...entry, label: `hop ${entry.hop}/${totalHops}` }
-      : entry,
-  );
-  renderJourney();
-}
-
-function renderJourney() {
-  els.journeyLog.replaceChildren(
-    ...journeyEntries.map((entry) => {
-      const item = document.createElement('li');
-      item.className = 'journey-entry';
-      item.textContent = `${entry.label} · ${entry.text}`;
-      return item;
-    }),
-  );
-}
+// The journey state (#journey-log ordering, cap, relabels) and the B-5
+// compare-tray snapshot accessor live in journey-log.js (guard-file-size
+// split); render.js keeps the snapshot->DOM rendering below it.
 
 function badgeClass(display) {
   if (!display) return '';

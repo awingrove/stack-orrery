@@ -162,3 +162,48 @@ button {
   font-variant-numeric: tabular-nums;
   font-size: 0.8rem;
 }
+
+/* Compare tray (B-5): auto-pair diff inside the log-card below the journey
+   log. Headline is one mono line; rows are an `n | left | right` grid. Cell
+   texts wrap (overflow-wrap) like .journey-entry — one per-row strategy
+   across all cells, so nothing ellipsizes and nothing spills the card. */
+#compare-tray[hidden] {
+  display: none;
+}
+
+.compare-headline {
+  margin: 0.6rem 0 0.35rem;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.compare-rows {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.1rem;
+  max-height: 12rem;
+  overflow: auto;
+}
+
+.compare-row {
+  display: grid;
+  grid-template-columns: 1.6rem minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.45rem;
+  padding: 0.2rem 0;
+  border-top: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.compare-n {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.compare-left,
+.compare-right {
+  overflow-wrap: anywhere;
+}

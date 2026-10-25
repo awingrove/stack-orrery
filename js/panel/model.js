@@ -167,6 +167,42 @@ export function orderJourneyEntries(entries, entry) {
   return ordered;
 }
 
+// PINS: compare rows align by hop index over max(left.hops, right.hops); the
+// exhausted side reads the em-dash and nothing drops (B-5 alignment). Frame
+// texts pass through byte-verbatim — the compare tray renders the journey
+// log's stored entries and never mints, rewrites, or summarizes hop frames
+// (DL-1/DL-3). Entries are read-only here; each side matches its hop-n entry
+// by the entries' own hop keys so a shorter run genuinely falls silent
+// rather than shifting cells out of position.
+export function alignCompareRows(left, right) {
+  const total = Math.max(left.hops, right.hops);
+  const textAt = (run, n) => run.entries.find((entry) => entry.hop === n)?.text ?? '—';
+  return Array.from({ length: total }, (_, i) => ({
+    n: i + 1,
+    left: textAt(left, i + 1),
+    right: textAt(right, i + 1),
+  }));
+}
+
+// PINS: the tray holds the two most recent completed trace runs (B-5 slot
+// branches). First distinct push fills A then B; a third distinct run
+// shifts A <- old B, B <- new. A completed run equal to either stored
+// slot's run id is a no-op (the tray does not duplicate a run). The
+// trace-runs-only gate rejects the tick-shaped counter-example here: a run
+// with fewer than 2 hops — no hop entries, e.g. a crowd tick — never enters
+// the slots (named counter-example pinned in test/panel/model.test.js).
+export function nextCompareSlots(slots, newRun) {
+  if (!newRun || !Array.isArray(newRun.entries) || newRun.entries.length < 2) {
+    return { a: slots?.a ?? null, b: slots?.b ?? null, changed: false };
+  }
+  if (newRun.run === slots?.a?.run || newRun.run === slots?.b?.run) {
+    return { a: slots.a, b: slots.b, changed: false };
+  }
+  if (!slots?.a) return { a: newRun, b: null, changed: true };
+  if (!slots.b) return { a: slots.a, b: newRun, changed: true };
+  return { a: slots.b, b: newRun, changed: true };
+}
+
 export function describeSnapshot(snapshot) {
   const stage = snapshot.stage ?? 1;
   const latencyMs = Math.round(snapshot.avgLatencyTicks * TICK_MS);
