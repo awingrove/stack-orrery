@@ -257,8 +257,12 @@ Every stage diagram panel (`panel.html`) is organized into four vertical zones:
 - **Filesystem & Interface Tables (`.route-list`, `.mini-table`):** Each
   `WebServer` displays the files on its local filesystem (`/` and `/about`),
   and the file served by the most recent `200` response carries
-  `.matched-route` (`var(--good-soft)`). Intrinsic HTTP responses (`404`, `405`)
-  live in the server's executable code rather than as configured rows.
+  `.matched-route` (`var(--good-soft)`). Filesystem rows (`.fs-list`) share
+  the mini-IP table's two-part look: the file path (`.fs-path`) carries the
+  same address-column treatment as a `.mini-table` mini-IP (`var(--accent)`),
+  and the served body renders `var(--text)` like the table's name column.
+  Intrinsic HTTP responses (`404`, `405`) live in the server's executable
+  code rather than as configured rows.
 - **DNS Resolutions & Tick-TTL Ledger (`#node-dns`, `#dns-entries-list`):** In
   Stage 6, `DNS` (`10.60`) sits on Ring 7 and displays its lookup/hit counters
   (`#dns-stats`) and live resolver-cache rows with remaining TTL
