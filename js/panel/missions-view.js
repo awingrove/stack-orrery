@@ -1,12 +1,15 @@
-// DOCUMENTS: the missions section of the teaching drawer (B-2) — the
-// DOM-bound module owning the section's build, per-snapshot status refresh,
-// and the verified-set lifecycle. Pure statuses come from missions.js
+// DOCUMENTS: the missions section (B-2 / Stage R1 rail) — the DOM-bound
+// module owning the section's build, per-snapshot status refresh, and the
+// verified-set lifecycle. Pure statuses come from missions.js
 // (missionStatuses); completions (mission id -> completing tick) live in
 // page memory only: a stage switch clears the whole verified set, a reload
-// starts empty. panel.html stays untouched — the section is JS-built inside
-// the existing .teaching-panel aside (the compare tray injection precedent),
-// after the per-stage narrative a later renderTeaching repaints.
+// starts empty. panel.html stays untouched — the section is JS-built into
+// .rail's missions host (the compare tray injection precedent), so the
+// update/state contracts here are unchanged from when the section rode the
+// teaching aside. Mission rows are hidden with the missions rail surface but
+// keep refreshing — chips track the sim while the surface is not shown.
 import { MISSIONS, missionStatuses } from './missions.js';
+import { getRailHost, refreshRail } from './rail.js';
 
 let stage = null;
 const verified = new Map(); // mission id -> completing sim tick
@@ -44,9 +47,10 @@ function rebuild() {
   section = null;
   chips.clear();
   const list = MISSIONS[stage] ?? [];
-  // An unknown stage renders no rows at all: no section, no empty shell.
-  const aside = list.length > 0 ? document.getElementById('teaching-panel') : null;
-  if (!aside) return;
+  // An unknown stage renders no rows at all: no section, no empty shell
+  // (the rail then shows its missions empty-state line).
+  const host = list.length > 0 ? getRailHost('missions') : null;
+  if (!host) return;
   const node = document.createElement('div');
   node.className = 'missions-section';
   node.dataset.testid = 'missions-section';
@@ -56,7 +60,8 @@ function rebuild() {
   node.append(heading);
   for (const mission of list) node.append(buildRow(mission));
   section = node;
-  aside.append(section);
+  host.append(section);
+  refreshRail(); // the host's empty-state line yields to the section
 }
 
 // CHECKS: cheap on every snapshot — rows persist across updates and a

@@ -116,18 +116,18 @@
   accent-color: var(--accent);
 }
 
-/* Legend drawer: screen-space HUD overlay below the camera HUD, explaining
-   the tick clock, the cache stats trio, the Ring 3 site chips, and the
-   wire-lane direction labels. Surface/accent tokens only (DESIGN.md camera
-   HUD drawers; no new colors). */
+/* Legend drawer (Stage R1: docked into .rail's legend host by rail.js,
+   which re-parents the static #legend-panel aside), explaining the tick
+   clock, the cache stats trio, the Ring 3 site chips, and the wire-lane
+   direction labels. Surface/accent tokens only (DESIGN.md control-room
+   rail; no new colors). */
 .legend-panel {
-  /* CHECKS: .camera-drawer containment — an at-end wheel is drawer-scroll, never page/camera. */
-  position: absolute;
-  top: 3.4rem;
-  right: 0.65rem;
-  z-index: 5;
-  width: 21rem;
-  max-width: min(80%, 21rem);
+  /* CHECKS: the surface fills its host and keeps containment — an at-end
+     wheel is rail-scroll, never page/camera; the panel lives outside
+     .orrery-viewport entirely. */
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;

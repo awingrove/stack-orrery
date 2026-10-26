@@ -83,7 +83,7 @@ activities:
               - unit: test/panel/camera.test.js::computes concentric ring coordinates and stage bounding boxes for the orrery
               - unit: test/panel/camera.test.js::maps every simulated browser to an addressable Ring 3 slot around the expanded one
               - e2e: orrery-plane::should pan and zoom the concentric orrery plane and reset with Fit to view
-              - e2e: camera-drawer::should scroll the teaching drawer with the wheel without driving the camera zoom
+              - e2e: camera-drawer::should scroll the docked rail panel with the wheel without driving the camera zoom
               - e2e: camera-drawer::should leave the camera transform untouched when a drag starts inside a drawer
               - e2e: camera-drawer::should keep wheel zoom working on the plane itself
           - title: Click any browser on Ring 3 to expand it into the full browser card
@@ -183,6 +183,13 @@ activities:
               - e2e: missions::should complete the edge-HIT mission only on a trace edge HIT, not an origin cache HIT
               - e2e: missions::should prefill the mini-browser from a mission that carries a URL (no auto-send)
               - e2e: missions::should clear verified missions on a stage switch
+          - title: Dock the teaching drawer, the missions section, and the legend drawer into the page-level right rail beside the plane — tabbed one surface at a time, tab state kept across stage switches, the plane's wheel/pan input untouched, and the rail stacking under the viewport below 1100px
+            status: done
+            priority: medium
+            tests:
+              - e2e: control-room-rail::should dock teaching, missions, and legend into the right rail with the plane unchanged
+              - e2e: control-room-rail::should keep the rail tab state across stage switches
+              - e2e: control-room-rail::should collapse the rail under the viewport below the responsive breakpoint
 
   - name: 'Stage 2 — Load balancer and duplicated servers'
     tasks:

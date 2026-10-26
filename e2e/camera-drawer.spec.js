@@ -1,23 +1,30 @@
 import { test, expect } from '@playwright/test';
 
-// PINS: camera drawers (.camera-drawer: legend, teaching) keep their own
-// scroll and text selection — a wheel or drag that starts on a drawer is
-// native drawer input, never camera zoom/pan (the pre-fix trap: the camera's
-// viewport-level wheel/pointer handlers intercepted drawer scroll and
-// preventDefault-ed it into a camera zoom). The control pin proves the plane
-// itself still zooms.
+// PINS: the control-room rail (Stage R1 remodel) hosts the teaching,
+// missions, and legend surfaces OUT of the camera viewport — a wheel or
+// drag that starts on a docked rail surface is rail scroll input, never
+// camera zoom/pan (the pre-fix trap: the camera's viewport-level wheel/
+// pointer handlers intercepted drawer scroll and preventDefault-ed it into
+// a camera zoom). The structural paydown: nothing scrollable is a
+// descendant of .orrery-viewport any more, so the plane's own gestures stay
+// camera input by construction — the control pin proves the plane still
+// zooms.
 
 async function drawerOpen(page) {
-  await page.goto('/panel.html?stage=6'); // longest narrative: the drawer can scroll
+  await page.goto('/panel.html?stage=6'); // longest narrative: the panel can scroll
   await page.getByTestId('teaching-toggle').click();
   await expect(page.getByTestId('teaching-panel')).toBeVisible();
 }
 
-test('should scroll the teaching drawer with the wheel without driving the camera zoom', async ({
+test('should scroll the docked rail panel with the wheel without driving the camera zoom', async ({
   page,
 }) => {
   await drawerOpen(page);
   const panel = page.getByTestId('teaching-panel');
+  // NEW host pin (Stage R1): the scrolled surface is rail-docked, so the
+  // wheel below lands outside the camera viewport entirely.
+  expect(await panel.evaluate((el) => Boolean(el.closest('.rail')))).toBe(true);
+
   const scrollBefore = await panel.evaluate((el) => el.scrollTop);
   const zoomBefore = await page.getByTestId('zoom-status').textContent();
 

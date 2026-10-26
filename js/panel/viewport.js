@@ -15,11 +15,12 @@ import { drawOrrery } from './orrery-svg.js';
 const DEFAULT_ZOOM_STEP = 1.2;
 const DEFAULT_RING_GAP = 400;
 const PAN_PX = 48;
-// CHECKS: camera drawers (legend, teaching) host their own scrollers — a wheel
-// or drag STARTING on one is drawer input, never camera input.
-// PINS: e2e/camera-drawer.spec.js (scroll w/o zoom; drag no-op; plane wheel).
-const INTERACTIVE_TARGETS = 'button, input, select, a, .node-card, .camera-hud, .camera-drawer';
-const CAMERA_DRAWERS = '.camera-drawer';
+// CHECKS: since the Stage R1 remodel nothing scrollable is mounted on the
+// plane — the teaching/missions/legend surfaces dock into the page rail, so
+// the wheel/pointer handlers below own the camera alone; a rail gesture is
+// not a viewport descendant, so it fails to reach these handlers at all.
+// PINS: e2e/camera-drawer.spec.js + e2e/control-room-rail.spec.js.
+const INTERACTIVE_TARGETS = 'button, input, select, a, .node-card, .camera-hud';
 
 const KEY_PANS = {
   ArrowLeft: [-PAN_PX, 0],
@@ -194,7 +195,7 @@ export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers, g
   });
 
   let dragPoint = null;
-  // CHECKS: a drag starting on a drawer is drawer text-select, not a pan.
+  // CHECKS: pointerdown inside the viewport only pans — rail gestures are not viewport descendants.
   viewportEl.addEventListener('pointerdown', (e) => {
     if (e.button !== 0 || e.target.closest(INTERACTIVE_TARGETS)) return;
     autoRefit.cancel(); // a drag pan is a manual camera action
@@ -219,7 +220,6 @@ export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers, g
   viewportEl.addEventListener(
     'wheel',
     (e) => {
-      if (e.target.closest(CAMERA_DRAWERS)) return;
       e.preventDefault();
       autoRefit.cancel(); // wheel zoom is a manual camera action
       const rect = viewportEl.getBoundingClientRect();

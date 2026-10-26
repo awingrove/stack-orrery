@@ -4,6 +4,7 @@
 // cap; behavior stays addEventListener-only (AGENTS.md CSP rule) and all
 // content comes from textContent/attributes — no inline styles, no innerHTML.
 import { describeStageTeaching } from './teaching.js';
+import { getRailHost, setRailTab, refreshRail } from './rail.js';
 
 // CHECKS: the drawer renders the entry for the *current* stage — panel.js
 // calls renderTeaching at boot and on every stage switch, so the stage-3
@@ -28,15 +29,24 @@ export function initTeachingDrawer() {
   teachingPanel = document.createElement('aside');
   teachingPanel.id = 'teaching-panel';
   teachingPanel.dataset.testid = 'teaching-panel';
-  teachingPanel.className = 'teaching-panel camera-drawer';
+  teachingPanel.className = 'teaching-panel';
   teachingPanel.hidden = true; // closed by default: the first view is the orrery
   teachingPanel.setAttribute('aria-label', 'Teaching notes');
-  document.getElementById('legend-panel').after(teachingPanel);
+  // Stage R1: the aside docks into .rail's own teach host (a rail node, no
+  // camera-viewport descendant); the legacy fallback keeps the aside beside
+  // the legend panel if the rail chrome is absent.
+  const teachHost = getRailHost('teach');
+  if (teachHost) teachHost.append(teachingPanel);
+  else document.getElementById('legend-panel')?.after(teachingPanel);
 
   teachingToggle.addEventListener('click', () => {
     const open = teachingPanel.hidden;
     teachingPanel.hidden = !open;
     teachingToggle.setAttribute('aria-expanded', String(open));
+    // Opening docks the teach rail surface (railTab state); closing keeps
+    // the tab and yields to the host's empty-state line.
+    if (open) setRailTab('teach');
+    refreshRail();
   });
 }
 

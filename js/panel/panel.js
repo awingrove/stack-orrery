@@ -14,6 +14,7 @@ import { ensureStage6Dom } from './stage6-registry.js';
 import { initFilesystemEditor } from './fs-editor.js';
 import { initViewport } from './viewport.js';
 import { initTeachingDrawer, renderTeaching } from './teaching-drawer.js';
+import { initRail } from './rail.js';
 
 // Stage-6 topology DOM (DNS/Router cards, wire columns, inspector tabs) is
 // injected before the wiring loops below so every getElementById resolves.
@@ -247,19 +248,15 @@ document.querySelectorAll('.comp-tab').forEach((tab) => {
   tab.addEventListener('click', () => selectComponent(tab.dataset.select));
 });
 
-// CHECKS: the legend drawer toggles closed by default and reveals the app's
-// own glossary (tick clock, cache stats trio, Ring 3 site chips, wire-lane
-// direction labels); aria-expanded tracks visibility for assistive tech.
-$('legend-toggle').addEventListener('click', () => {
-  const panel = document.getElementById('legend-panel');
-  const open = panel.hidden;
-  panel.hidden = !open;
-  $('legend-toggle').setAttribute('aria-expanded', String(open));
-});
+// CHECKS: the docked rail hosts the legend drawer's surface; rail.js also
+// wires the #legend-toggle click that docks the legend surface (the panel
+// itself stays static in panel.html, moved only re-parent-wise). initRail
+// runs first so the teaching/missions modules find their rail hosts.
+initRail();
 
 // CHECKS: the teaching drawer lives in js/panel/teaching-drawer.js; panel.js
-// hands it the current stage at boot and on every switch (see also the
-// legend drawer above for the toggle pattern).
+// hands it the current stage at boot and on every switch (see also rail.js
+// above for the legend surface's docked toggle pattern).
 initTeachingDrawer();
 
 // CHECKS: the filesystem lists are the sim's own view — the editor module

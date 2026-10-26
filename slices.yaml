@@ -88,6 +88,7 @@ slices:
         - e2e/teaching.spec.js
         - e2e/missions.spec.js
         - e2e/compare.spec.js
+        - e2e/control-room-rail.spec.js
     owns:
       - panel.html
     calls:
@@ -176,6 +177,9 @@ slices:
       - e2e: panel-stage6::should keep GET /about on Stage 6 at the Stage 5 hop story
       - e2e: panel-stage6::should render the NX card on Stage 6 for a missing host without emitting a GET
       - e2e: panel-stage6::should deep-link ?stage=6 into the DNS topology
+      - e2e: control-room-rail::should dock teaching, missions, and legend into the right rail with the plane unchanged
+      - e2e: control-room-rail::should keep the rail tab state across stage switches
+      - e2e: control-room-rail::should collapse the rail under the viewport below the responsive breakpoint
     entry_point: index.html -> Diagram Panel link
 
 allowlist:
