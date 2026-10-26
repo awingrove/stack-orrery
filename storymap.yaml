@@ -6,7 +6,7 @@ meta:
     A runnable orrery of a web stack: simulated components driven by a
     discrete tick queue, making scaling dynamics visible instead of
     described.
-  last_updated: 2026-10-25
+  last_updated: 2026-10-26
 
 activities:
   - name: 'Stage 1 — Single server under load'
@@ -167,6 +167,22 @@ activities:
               - unit: test/panel/teaching.test.js::unknown stages degrade to a pending-entries placeholder, not a crash
               - e2e: teaching::should open the teaching drawer, trace it across stage switches, and show stage-1 content only on stage 1
               - e2e: teaching::should link to the system-design-primer section for the active stage
+          - title: Work per-stage missions in the teaching drawer — the sim auto-verifies them from real snapshots, URL missions prefill the mini-browser without auto-send, and a stage switch clears the verified set
+            status: done
+            priority: medium
+            tests:
+              - unit: test/panel/missions.test.js::every shipped stage carries two to three missions with id, goal, detect, and progress
+              - unit: test/panel/missions.test.js::the stage-1 404 mission completes only on a real 404 — a 405 does not
+              - unit: test/panel/missions.test.js::the stage-6 edge-HIT mission completes only on trace edgeStatus HIT — an origin cache HIT does not
+              - unit: 'test/panel/missions.test.js::verification latches: a done mission does not un-verify while the clock runs'
+              - unit: test/panel/missions.test.js::a fresh verified set flips missions back to pending and the completing tick is forgotten
+              - unit: test/panel/missions.test.js::pending progress text reads the snapshot field the detector reads
+              - unit: test/panel/missions.test.js::an unknown stage returns an empty list without throwing
+              - e2e: 'missions::should verify a mission automatically from real sim state (stage 1: 404)'
+              - e2e: missions::should not complete the 404 mission on a 405
+              - e2e: missions::should complete the edge-HIT mission only on a trace edge HIT, not an origin cache HIT
+              - e2e: missions::should prefill the mini-browser from a mission that carries a URL (no auto-send)
+              - e2e: missions::should clear verified missions on a stage switch
 
   - name: 'Stage 2 — Load balancer and duplicated servers'
     tasks:

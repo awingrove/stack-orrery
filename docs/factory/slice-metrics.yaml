@@ -10,6 +10,50 @@
 # tokens_reasoning, tokens_cache_read, cost_usd, notes.
 
 entries:
+  - id: B2-MISSIONS
+    slice:
+      - PANEL
+    name: 'B-2 missions — per-stage tasks auto-verified by detectors over real sim state (sim is the referee; session-only, cleared on stage switch)'
+    brief: docs/plans/2026-10-26-b2-missions.md
+    agent: cheap
+    lead_model: opencode/glm-5.3-flash-free
+    agent_model: opencode/glm-5.3-flash-free
+    session_id: ses_e88ed6692ffehKHhFvzdjB2Gz4
+    tokens_input: 167263
+    tokens_output: 14788
+    tokens_reasoning: 34952
+    tokens_cache_read: 5313792
+    cost_usd: 0
+    human_interventions: 0
+    agent_review_rounds: 0
+    guardrail_failures: 3
+    fix_commits: 0
+    defects_escaped: 0
+    notes: >-
+      Standing per-slice deviation (pinned executor over limit) — executed on
+      opencode/glm-5.3-flash-free. 3 in-session reds (slices/story-refs YAML
+      quoting shape; an untagged claim-vocabulary word in an e2e comment),
+      each fixed per named cause, no gate rejected twice, nothing escaped.
+      Executor adaptation recorded, not escaped: panel.js sits at 299/300 so
+      the per-snapshot update hook rides render()'s existing
+      renderFilesystems call site and stage switches are detected inside
+      missions-view from snapshot.stage — the brief's literal
+      clear-from-switchStage call is superseded by an equivalent funnel
+      (every snapshot path reaches updateMissions; verified by probe).
+      missionStatuses' return shape carries id/goal/url beside the
+      contracted fields (the view renders from it). Progress-text rule
+      implemented per the brief's own example (edge mission pending shows
+      fills: n from cdn.fills) with same-field pins on m6-dns/m1-404 /
+      queue-climb. Grounding note recorded: users.js cycles /missing, so a
+      crowd tick can honestly complete the stage-1 404 mission from real
+      sim state (referee rule, not a defect). Story placed under PANEL-1
+      (row owns the teaching drawer). Step-3 strict probe green: prefill is
+      input-only (url filled, no run fired); pending chips render; the 404
+      mission auto-completes on a real 404; the done chip is byte-stable
+      through crowd ticks; the 405 mission completes on a real 405 while
+      the 404 chip stays latched; stage switch both ways clears the
+      verified set; stage-6 edge mission completes only on the true edge
+      HIT; clean error surface.
   - id: B5-COMPARE-TRAY
     slice:
       - PANEL

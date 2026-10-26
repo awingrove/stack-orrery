@@ -201,8 +201,7 @@ Every stage diagram panel (`panel.html`) is organized into four vertical zones:
      which paints over its last tab).
    - **Wire Journey Log (`.log-card`):** Reverse-chronological hop and tick
      history (`#exchange-inspector` headline + `#journey-log` list).
-   - **Compare Tray (`#compare-tray`, 2026-10-25):** Auto-pair diff inside the
-     log-card: a JS-built list (no static markup) that always compares the
+   - **Compare Tray (`#compare-tray`, 2026-10-25):** Auto-pair diff inside the log-card: a JS-built list (no static markup) that always compares the
      **two most recent completed trace runs**, hop-aligned (`n · left frame ·
 right frame`, em-dash where one run ended sooner) with a `9 vs 6 hops ·
 <left path> vs <right path>` headline. Frames are verbatim journey-log
@@ -257,6 +256,18 @@ right frame`, em-dash where one run ended sooner) with a `9 vs 6 hops ·
   `try` / `watchFor` lists, a trade-off line, and one outbound
   system-design-primer link per stage (`.accent` link, new-tab anchor).
   Closed by default; state persists across stage switches within the page.
+- **Missions section (`MISSIONS`, 2026-10-26):** Inside the teaching drawer,
+  a JS-built list of per-stage missions (2–3 each, registry in
+  `js/panel/missions.js`), each `M-<n>` row carrying its goal and a live
+  check chip (`○` pending with a progress readout, `✓ done · tick N`).
+  The sim is the referee: a mission completes only when its
+  `detect(snapshot)` predicate reads the real engine state — never on a
+  button click, and the teaching-drawer copy must be able to mislead
+  without a mission firing (named counter-examples live in the registry
+  tests: a 405 does not complete the 404 mission; an origin cache HIT does
+  not complete the edge-HIT mission). Clicking a mission that carries a
+  request pre-fills the mini-browser URL (input fill only, no auto-send);
+  verified missions clear on stage switch and reload.
 
 ### Interactive Mini-Browser (`.mini-browser` & `.browser-compact`)
 
