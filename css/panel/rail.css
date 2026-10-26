@@ -95,10 +95,20 @@
   display: grid;
 }
 
-/* One docked surface at a time: the tab state hides the other hosts. */
+/* One docked surface at a time: the tab state hides the other hosts.
+   CHECKS: DL-5 containment moved with the surfaces — the host is the rail's
+   own scroller (overflow auto), and overscroll-behavior: contain stops an
+   at-end-or-short-content wheel from chaining into the PAGE's scroll. An
+   overflow: hidden host would not scroll at all, so the wheel would escape
+   to the document and slide the plane out from under the wheel (the R1
+   probe defect). */
+
+/* PINS: e2e/camera-drawer.spec.js asserts window.scrollY stays put across a
+   rail wheel. */
 .rail-host {
   min-height: 0;
-  overflow: hidden;
+  overflow: auto;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
 }

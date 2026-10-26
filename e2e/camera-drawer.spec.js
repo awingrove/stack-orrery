@@ -30,8 +30,14 @@ test('should scroll the docked rail panel with the wheel without driving the cam
 
   const box = await panel.boundingBox();
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+
+  // CHECKS: at-end wheel containment — the rail never chains the wheel into
+  // the document's scroll (the R1 probe defect: scrollY 300 slid the plane
+  // out from under subsequent wheel targets).
+  const pageScrollBefore = await page.evaluate(() => window.scrollY);
   await page.mouse.wheel(0, 320);
 
+  expect(await page.evaluate(() => window.scrollY)).toBe(pageScrollBefore);
   const scrollAfter = await panel.evaluate((el) => el.scrollTop);
   expect(scrollAfter).toBeGreaterThan(scrollBefore);
   await expect(page.getByTestId('zoom-status')).toHaveText(zoomBefore);
