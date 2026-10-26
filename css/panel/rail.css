@@ -1,0 +1,124 @@
+/* Control-room rail (Stage R1 brief, docs/plans/
+   2026-10-26-style2-control-room-remodel.md): the page-level two-zone grid —
+   the clipped orrery plane left, the docked-surface rail right — plus the
+   rail's own tab chrome. The teaching/legend/missions surfaces keep their
+   surface styles (teaching.css / canvas.css); this file only hosts them.
+   Palette, spacing, and radius tokens only (DESIGN.md; no new colors). */
+
+/* CHECKS: the two-zone template places the plane and the rail side by side
+   while .control-strip, .stats and .bottom-panels span both columns — the
+   sections below the viewport stay exactly where they were. */
+.container {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 20rem;
+  grid-template-areas:
+    'strip strip'
+    'plane rail'
+    'stats stats'
+    'bottom bottom';
+  column-gap: 1rem;
+  align-items: start;
+}
+
+.control-strip {
+  grid-area: strip;
+}
+
+.orrery-viewport {
+  grid-area: plane;
+}
+
+.rail {
+  grid-area: rail;
+}
+
+.stats {
+  grid-area: stats;
+}
+
+.bottom-panels {
+  grid-area: bottom;
+}
+
+/* Responsive contract (the brief's named breakpoint): below 1100px the rail
+   stacks UNDER the plane in the page flow — single column, layout holds.
+   Pinned by e2e/control-room-rail.spec.js collapse test. */
+@media (max-width: 1100px) {
+  .container {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'strip'
+      'plane'
+      'rail'
+      'stats'
+      'bottom';
+  }
+}
+
+/* Rail chrome: tab row on top, one docked surface below. The rail matches
+   the plane's 36rem cell so the two zones align top. */
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  height: 36rem;
+  padding: 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 0.7rem;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.rail-tabs {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.rail-tab {
+  flex: 1;
+  padding: 0.3rem 0.5rem;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-weight: 400;
+  font-size: 0.78rem;
+}
+
+.rail-tab.rail-tab-active {
+  background: var(--accent-soft);
+  color: var(--text);
+  font-weight: 700;
+}
+
+.rail-hosts {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+}
+
+/* One docked surface at a time: the tab state hides the other hosts.
+   CHECKS: DL-5 containment moved with the surfaces — the host is the rail's
+   own scroller (overflow auto), and overscroll-behavior: contain stops an
+   at-end-or-short-content wheel from chaining into the PAGE's scroll. An
+   overflow: hidden host would not scroll at all, so the wheel would escape
+   to the document and slide the plane out from under the wheel (the R1
+   probe defect). */
+
+/* PINS: e2e/camera-drawer.spec.js asserts window.scrollY stays put across a
+   rail wheel. */
+.rail-host {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+}
+
+.rail-host[hidden] {
+  display: none;
+}
+
+.rail-empty {
+  margin: 0.35rem 0.2rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}

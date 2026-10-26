@@ -564,3 +564,47 @@ entries:
       (opencode-go/glm-5.3-flash). The original entry's zeros understated
       the slice's true rework; metric corrections applied here rather than
       as a separate slice.
+
+  - id: R1-CONTROL-ROOM
+    slice:
+      - PANEL
+    name: >-
+      Stage R1 control-room remodel — two-zone page: teaching/missions/legend
+      dock into a page-level rail beside the plane (nothing scrollable inside
+      the camera viewport; DL-5 structural paydown)
+    brief: docs/plans/2026-10-26-style2-control-room-remodel.md
+    agent: cheap
+    lead_model: opencode/glm-5.3-flash-free
+    agent_model: opencode/glm-5.3-flash-free
+    session_id: ses_e85d2061affeiq6iXuDJFMBPmh
+    tokens_input: 189520
+    tokens_output: 19028
+    tokens_reasoning: 27799
+    tokens_cache_read: 8788864
+    cost_usd: 0
+    human_interventions: 0
+    agent_review_rounds: 0
+    guardrail_failures: 1
+    fix_commits: 0
+    defects_escaped: 0
+    notes: >-
+      Standing per-slice deviation (pinned executor over limit) — executed
+      cold from the brief in 4fc23f9 with 1 in-session red gate
+      (file-size guard while trimming viewport.js), then green at 105 unit /
+      47 e2e. Executor adaptations recorded, not escaped: HUD toggles keep
+      their camera-HUD slots and drive railTab; legend re-parented into the
+      rail via JS mount with testids intact; the .camera-drawer fence
+      removed from viewport.js with the DESIGN.md input-contract note
+      rewritten in the same change (brief-sanctioned lever, reported).
+      Defects_escaped: 0 because the Step-3 acceptance probe caught 1 real
+      defect before any human review: a rail wheel chained into the PAGE's
+      scroll — the moved surfaces lost the DL-5 containment context
+      (.rail-host was overflow:hidden, not user-scrollable, so the wheel
+      exited the rail and slid the plane out from under later wheel
+      targets; surfaced as intermittent dead camera input) — fixed in this
+      slice's follow-up commit 508746d (.rail-host becomes the rail's own
+      contained scroller; scrollY pin added to e2e/camera-drawer.spec.js
+      title 1, byte-stable). Probe-side assert bugs (tab-label comparison,
+      page-absolute wheel coords gone stale after scroll, a wheel pair that
+      cancelled itself) were corrected in the probe script only — no
+      product-code change implied by them.

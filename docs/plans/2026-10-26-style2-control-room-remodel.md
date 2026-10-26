@@ -63,5 +63,5 @@ camera zoom` (same testids, new host), the drag pin and plane-wheel control
 ## Execution steps
 
 - [x] Step 1 (Lead session): human sign-off recorded (Style 2 chosen 2026-10-26 among four styles; bug-fence stopgap already landed on main in the same day's fix/camera-drawer-fence change) committed in this brief.
-- [ ] Step 2 (Executor sub-agent): cold implementation, unit & e2e tests, manifest updates, green `npm run verify`, tick and commit (screenshots in the report for the human visual gate).
-- [ ] Step 3 (Lead session): strict probe (rail layout live, footer unchanged, responsive fallback, DL-5 gap closed by construction), metrics extraction, ledger entry, tick Step 3, commit.
+- [x] Step 2 (Executor sub-agent): cold implementation, unit & e2e tests, manifest updates, green `npm run verify`, tick and commit (screenshots in the report for the human visual gate).
+- [x] Step 3 (Lead session): strict probe (rail layout live, footer unchanged, responsive fallback, DL-5 gap closed by construction), metrics extraction, ledger entry, tick Step 3, commit.

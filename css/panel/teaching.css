@@ -1,20 +1,21 @@
-/* Teaching drawer (Camera HUD drawer, bottom-right so it stacks below the
-   legend drawer's top-right slot): the per-stage narrative from
-   js/panel/teaching.js — heading-section headline, teaches / try /
-   watch-for lists, the trade-off line, and one outbound primer link.
-   Palette + spacing tokens only (DESIGN.md camera HUD drawers). */
+/* Teaching drawer (Stage R1: docked into .rail's teach host by
+   teaching-drawer.js): the per-stage narrative from js/panel/teaching.js —
+   heading-section headline, teaches / try / watch-for lists, the trade-off
+   line, and one outbound primer link. Palette + spacing tokens only
+   (DESIGN.md control-room rail). */
 
 .teaching-panel {
-  position: absolute;
-  bottom: 0.65rem;
-  right: 0.65rem;
-  z-index: 5;
-  width: 22rem;
-  max-width: min(85%, 22rem);
-  max-height: 27rem;
+  /* CHECKS: the surface fills its host and scrolls its own content — a wheel
+     starting on the docked panel is rail scroll input, never camera input
+     (the panel lives outside .orrery-viewport entirely). */
+  flex: 1;
+  /* CHECKS: a 24rem cap keeps the docked narrative its own scroller — the
+     wheel-over-rail pin (e2e/camera-drawer.spec.js) always has overflow. */
+  max-height: 24rem;
+  min-height: 0;
   overflow: auto;
-  /* CHECKS: containment keeps drawer-scroll from chaining into the page's own
-     scroll once the drawer is at its end (the camera input trap context). */
+  /* CHECKS: containment keeps rail-scroll from chaining into the page's own
+     scroll once the panel is at its end. */
   overscroll-behavior: contain;
   display: flex;
   flex-direction: column;

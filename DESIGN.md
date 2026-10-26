@@ -148,7 +148,9 @@ Every stage diagram panel (`panel.html`) is organized into four vertical zones:
      simulated browsers on the outer ring, `Start` / `Pause` (`#start-button`),
      and `Step 1 tick` (`#step-button`).
 3. **Orrery Plane & Camera Viewport (`.orrery-viewport` / `.orrery-canvas`):**
-   A pannable and zoomable 2D world plane (`.orrery-world`) inside a clipped
+   The clipped, pannable left zone of a two-zone page grid (the control-room
+   rail owns the right zone). The plane is a pannable and zoomable 2D world
+   plane (`.orrery-world`) inside a clipped
    viewport (`.orrery-viewport`) with concentric orbital rings etched in SVG
    (`#orrery-svg`). Each stage renders one concentric ring (`r_k = k * ringGap`,
    default `ringGap = 400px`) per architectural layer, and every component sits
@@ -192,7 +194,13 @@ Every stage diagram panel (`panel.html`) is organized into four vertical zones:
      (`#zoom-speed-slider`, `1.01x–1.50x` step `0.01`, + `#zoom-speed-value`). Supports
      pointer drag to pan, wheel/pinch zoom toward the cursor, and keyboard
      shortcuts (`Arrow` keys to pan, `+`/`-` to zoom, `0` to fit).
-4. **Bottom Split (`.bottom-panels`):**
+4. **Control-Room Rail (`.rail`, 2026-10-26 Stage R1):** In page-flow order,
+   a ~20rem right column of the two-zone grid spanning the same rows as the
+   plane: a tab row (Teach / Missions / Legend) plus per-tab docked
+   surfaces (see Docked Rail Surfaces below for their contracts). Below the
+   named 1100px breakpoint the grid stacks the rail under the plane
+   (single-column fallback, page never breaks).
+5. **Bottom Split (`.bottom-panels`):**
    - **Component Code & State Inspector (`.inspector-card`):** Side-by-side view
      of the selected component's executable JS source code (`#inspector-code`)
      and its live internal state JSON (`#inspector-state`). The component tab
@@ -232,34 +240,61 @@ right frame`, em-dash where one run ended sooner) with a `9 vs 6 hops ·
 - During a hop-by-hop trace, the component executing the current hop carries
   `.active-hop` (`var(--good)` border glow).
 
-### Camera HUD Drawers (`.legend-panel`, `.teaching-panel`)
+### Docked Rail Surfaces (control-room rail, `.rail` — `#teaching-panel` + `#legend-panel` + `#missions-section`, 2026-10-26 Stage R1)
 
-- **Input contract (2026-10-26 fence):** both drawers carry `.camera-drawer` —
-  a wheel or pointer gesture that **starts on a drawer is drawer input**
-  (native scroll/text-select, `overscroll-behavior: contain` so an
-  at-end wheel never chains into the page), never camera zoom/pan. The
-  camera's viewport-level handlers return before `preventDefault` when the
-  event target is inside a drawer (pinned in `e2e/camera-drawer.spec.js`,
-  including the control pin that the plane's own wheel still zooms). The
-  structural paydown — no scroller inside the camera viewport at all — is
-  the two-zone control-room remodel (docs/plans/2026-10-26-style2-control-room-remodel.md).
+- **Input contract (Stage R1 remodel, replaces the 2026-10-26 drawer fence):**
+  the teaching drawer, the missions section, and the legend drawer dock into
+  the page-level `.rail` beside the orrery plane — they are NOT descendants
+  of `.orrery-viewport`, so nothing scrollable is mounted on the plane at
+  all (the systemic gap the two-zone layout pays down by construction). The
+  camera's wheel/pointer handlers were therefore unguarded: the old
+  `.camera-drawer` fence (`closest()` bail-outs in `viewport.js`) is removed;
+  a gesture on the plane is camera input, a gesture on the rail is rail
+  scroll input (`.teaching-panel` keeps `overscroll-behavior: contain` so an
+  at-end wheel never chains into the page). Pinned in
+  `e2e/camera-drawer.spec.js` (wheel over the docked rail never drives the
+  camera zoom; a drag inside a docked surface leaves the camera transform
+  untouched; the plane's own wheel still zooms) and
+  `e2e/control-room-rail.spec.js` (the surfaces dock inside `.rail`, the
+  plane's node cards/rings/HUD stay mounted on the viewport).
+
+- **Rail chrome (`js/panel/rail.js`, `css/panel/rail.css`):** the rail is a
+  ~20rem column in a two-zone page grid (plane left, rail right; below the
+  named 1100px breakpoint it stacks UNDER the plane in the page flow). Its
+  tab row holds three buttons — Teach / Missions / Legend
+  (`rail-tab-teach` / `rail-tab-missions` / `rail-tab-legend`) — and the
+  `railTab` state (`'teach' | 'missions' | 'legend'`, default `'teach'`)
+  shows one docked surface at a time and persists across stage switches;
+  an active tab whose surface is closed renders the host's muted
+  empty-state line. Tab switches never touch the camera or the snapshot
+  pipeline. The camera HUD keeps `#teaching-toggle` and `#legend-toggle` in
+  their HUD slots as the surface toggles: open docks that surface's rail
+  tab (opening Teach or Legend hides the mission host while shown, and vice
+  versa), close flips the panel's own `hidden` (the legend toggle stays a
+  real toggle). A follow-up slice may dock inspector/log into the rail;
+  separate design gate. The teaching/legend surfaces lose their absolute
+  HUD-overlay positioning; the static `#legend-panel` aside is re-parented
+  into the rail by `rail.js` with its testids intact.
 
 - **Legend drawer:** `#legend-toggle` sits in `.camera-hud`; the drawer
-  (`.legend-panel`) explains the tick-to-ms mapping (`TICK_MS = 100` in
+  (`.legend-panel`, docked) explains the tick-to-ms mapping (`TICK_MS = 100` in
   `js/panel/model.js`), the cache stats trio (`Hits / Misses / TTL-remaining`),
   the `site` chips on Ring 3 browser nodes, and wire-lane direction labels
   (`request =>`, `<- response`, `enqueue =>`, `write =>`). All protocol strings
   in `var(--mono)`; surface tokens only.
-- **Teaching drawer:** `#teaching-toggle` and a `.teaching-panel` aside render
+- **Teaching drawer:** `#teaching-toggle` and the `.teaching-panel` aside
+  (docked into the rail's teach host) render
   the per-stage narrative from `js/panel/teaching.js` (`STAGE_TEACHING`,
   `describeStageTeaching(stage)`): a `heading-section` headline, `teaches` /
   `try` / `watchFor` lists, a trade-off line, and one outbound
   system-design-primer link per stage (`.accent` link, new-tab anchor).
   Closed by default; state persists across stage switches within the page.
-- **Missions section (`MISSIONS`, 2026-10-26):** Inside the teaching drawer,
-  a JS-built list of per-stage missions (2–3 each, registry in
+- **Missions section (`MISSIONS`, 2026-10-26):** a JS-built list of
+  per-stage missions (2–3 each, registry in
   `js/panel/missions.js`), each `M-<n>` row carrying its goal and a live
-  check chip (`○` pending with a progress readout, `✓ done · tick N`).
+  check chip (`○` pending with a progress readout, `✓ done · tick N`),
+  docked into the rail's missions host (`rail-tab-missions`) with its own
+  testids (`missions-section`, `mission-item`, `mission-status`).
   The sim is the referee: a mission completes only when its
   `detect(snapshot)` predicate reads the real engine state — never on a
   button click, and the teaching-drawer copy must be able to mislead

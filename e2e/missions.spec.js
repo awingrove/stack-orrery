@@ -9,6 +9,9 @@ import { test, expect } from '@playwright/test';
 const openDrawer = async (page) => {
   await page.getByTestId('teaching-toggle').click();
   await expect(page.getByTestId('teaching-panel')).toBeVisible();
+  // Stage R1: missions is its own docked rail surface — dock it before
+  // reading the rows (the teach dock opened first, tab state persists).
+  await page.getByTestId('rail-tab-missions').click();
 };
 
 const mission = (page, goalText) => page.getByTestId('mission-item').filter({ hasText: goalText });
