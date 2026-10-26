@@ -135,3 +135,16 @@ fail-closed sentinel). Runbook:
 Agents push feature branches and open PRs — never approve, merge, delete,
 or force-push (server-side rulesets, human-only bypass). Closing the agent's
 own PRs is permitted.
+
+## PR handling (user-directed, 2026-10-26)
+
+- **Reviewer assignment:** every PR the agent opens requests `awingrove` as
+  a reviewer at creation time. The agent token has `repo` scope only, so
+  `gh pr edit --add-reviewer` fails on GraphQL `read:org`; use the REST call
+  instead (this is how PR #21's review was requested):
+  `gh api repos/awingrove/stack-orrery/pulls/<n>/requested_reviewers -X POST -f 'reviewers[]=awingrove'`
+- **Fixes ride open PRs:** while one of our PRs is still open, fixes to code
+  in its scope land on its branch in a follow-up commit (full `npm run verify`
+  green before the commit, same as any commit), not as a separate PR. A
+  separate PR is warranted only when the fix is unrelated to the open PR's
+  content.
