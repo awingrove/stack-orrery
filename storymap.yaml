@@ -83,6 +83,9 @@ activities:
               - unit: test/panel/camera.test.js::computes concentric ring coordinates and stage bounding boxes for the orrery
               - unit: test/panel/camera.test.js::maps every simulated browser to an addressable Ring 3 slot around the expanded one
               - e2e: orrery-plane::should pan and zoom the concentric orrery plane and reset with Fit to view
+              - e2e: camera-drawer::should scroll the teaching drawer with the wheel without driving the camera zoom
+              - e2e: camera-drawer::should leave the camera transform untouched when a drag starts inside a drawer
+              - e2e: camera-drawer::should keep wheel zoom working on the plane itself
           - title: Click any browser on Ring 3 to expand it into the full browser card
             status: done
             priority: high

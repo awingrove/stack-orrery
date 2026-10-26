@@ -13,6 +13,9 @@
   max-width: min(85%, 22rem);
   max-height: 27rem;
   overflow: auto;
+  /* CHECKS: containment keeps drawer-scroll from chaining into the page's own
+     scroll once the drawer is at its end (the camera input trap context). */
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   gap: 0.45rem;

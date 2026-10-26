@@ -132,3 +132,32 @@ defects:
       trace fields they describe, render-stage.js hop highlighting follows
       the same branch, and unit + e2e pins cover both the async POST /jobs
       and a plain GET with the worker idle.
+  - id: DL-5
+    title: >-
+      Camera drawers sat inside the camera viewport, so wheel/drag over the teaching or legend
+      drawer was intercepted as camera zoom/pan and the drawer could not scroll itself
+    found: 2026-10-26
+    injection_stage: >-
+      The teaching-drawer slice's overlay-in-viewport layout (teaching panel
+      positioned inside #orrery-viewport, css/panel/teaching.css)
+    detection_stage: >-
+      Human exploratory check on panel.html — wheel over the open Teach box
+      zoomed the orrery plane instead of scrolling the drawer
+    what: >-
+      viewport.js bound the wheel-zoom and drag-pan handlers on #orrery-viewport
+      itself; .teaching-panel and .legend-panel are children of that viewport, so
+      their events bubbled into the camera handlers whose
+      e.preventDefault() turned drawer-scroll intent into camera zoom.
+    systemic_gap: >-
+      Overlays mounted inside the camera viewport inherit its input handlers;
+      input ownership was defined by DOM tree position, not by intent surface.
+      The fence (this change, .camera-drawer) restores intent locally; the
+      structural paydown — no scroller inside the camera viewport at all — is
+      the two-zone control-room remodel, docs/plans/2026-10-26-style2-control-room-remodel.md.
+    closed_in: >-
+      The camera-drawer fence in this change: wheel handler returns before
+      preventDefault when the target is inside .camera-drawer, pointerdown
+      ignores drags starting there, both drawers gain the class plus
+      overscroll-behavior: contain, and e2e/camera-drawer.spec.js pins
+      drawer-scroll-without-zoom, drag-touches-nothing, and the control pin
+      that the plane's own wheel still zooms.

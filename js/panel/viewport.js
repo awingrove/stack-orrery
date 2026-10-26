@@ -1,8 +1,7 @@
 // DOCUMENTS: viewport controller — owns the camera, positions node cards and
-// wire lanes in world coordinates, draws the concentric orrery rings/spokes/
-// satellites into SVG, and wires all camera interactions with addEventListener
-// only (no inline handlers — AGENTS.md CSP rule). Camera math lives in
-// camera.js, geometry in layout.js; both are pure and unit-pinned.
+// wire lanes in world coordinates, draws the orrery rings/spokes/satellites
+// into SVG, wires all camera interactions (addEventListener only — CSP rule);
+// camera math lives in camera.js, geometry in layout.js.
 import { computeStageLayout } from './layout.js';
 import {
   panCamera,
@@ -16,8 +15,11 @@ import { drawOrrery } from './orrery-svg.js';
 const DEFAULT_ZOOM_STEP = 1.2;
 const DEFAULT_RING_GAP = 400;
 const PAN_PX = 48;
-// Drag-start targets that own their pointer events (.camera-hud excluded).
-const INTERACTIVE_TARGETS = 'button, input, select, a, .node-card, .camera-hud';
+// CHECKS: camera drawers (legend, teaching) host their own scrollers — a wheel
+// or drag STARTING on one is drawer input, never camera input.
+// PINS: e2e/camera-drawer.spec.js (scroll w/o zoom; drag no-op; plane wheel).
+const INTERACTIVE_TARGETS = 'button, input, select, a, .node-card, .camera-hud, .camera-drawer';
+const CAMERA_DRAWERS = '.camera-drawer';
 
 const KEY_PANS = {
   ArrowLeft: [-PAN_PX, 0],
@@ -92,8 +94,8 @@ export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers, g
   let lastStage = null;
   let lastUsers = null;
   let zoomStep = DEFAULT_ZOOM_STEP;
-  // CHECKS: manual camera actions cancel the pending auto-refit; only a
-  // stage or user-count change re-arms it (contracts in camera.js).
+  // CHECKS: manual actions cancel the pending auto-refit; a stage or
+  // user-count change re-arms it (camera.js).
   const autoRefit = createAutoRefit();
   const activeAddress = () => getActiveBrowser?.() ?? '10.2';
 
@@ -113,8 +115,7 @@ export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers, g
     zoomStatus.textContent = `${Math.round(camera.zoom * 100)}%`;
   }
 
-  // Repositions cards/lanes/SVG from the current layout (used by stage sync
-  // and by live ring-gap tuning).
+  // Repositions cards/lanes/SVG from the current layout (stage sync, ring-gap
   function positionParts() {
     for (const node of Object.values(layout.nodes)) {
       const card = byId(node.id);
@@ -144,8 +145,7 @@ export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers, g
     drawOrrery(svgEl, layout);
   }
 
-  // Rebuilds stage layout and repositions cards/lanes/SVG; refits the camera
-  // on a stage change or a grown bounding box (autoRefit, camera.js).
+  // Rebuilds stage layout; refits the camera on a stage change (autoRefit).
   function syncLayout() {
     const { w, h } = viewSize();
     // CHECKS: the current slider gap feeds stage sync too — stage switches,
@@ -174,8 +174,8 @@ export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers, g
   }
 
   // --- interactions ---------------------------------------------------------
-  // Every manual camera action cancels the pending auto-refit; only a stage
-  // or user-count change re-arms it (camera.js contract).
+  // Manual camera actions cancel the pending auto-refit; only a stage or
+  // user-count change re-arms it (104-105 contract).
   byId('btn-zoom-in').addEventListener('click', () => {
     autoRefit.cancel();
     camera = zoomCameraAt(camera, zoomStep, 0, 0);
@@ -193,8 +193,8 @@ export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers, g
     apply();
   });
 
-  // Pointer drag pans the plane; manual actions cancel the pending refit.
   let dragPoint = null;
+  // CHECKS: a drag starting on a drawer is drawer text-select, not a pan.
   viewportEl.addEventListener('pointerdown', (e) => {
     if (e.button !== 0 || e.target.closest(INTERACTIVE_TARGETS)) return;
     autoRefit.cancel(); // a drag pan is a manual camera action
@@ -219,6 +219,7 @@ export function initViewport({ viewportEl, worldEl, svgEl, getStage, getUsers, g
   viewportEl.addEventListener(
     'wheel',
     (e) => {
+      if (e.target.closest(CAMERA_DRAWERS)) return;
       e.preventDefault();
       autoRefit.cancel(); // wheel zoom is a manual camera action
       const rect = viewportEl.getBoundingClientRect();

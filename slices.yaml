@@ -84,6 +84,7 @@ slices:
         - e2e/panel-stage6.spec.js
         - e2e/cdn-edge.spec.js
         - e2e/orrery-plane.spec.js
+        - e2e/camera-drawer.spec.js
         - e2e/teaching.spec.js
         - e2e/compare.spec.js
     owns:
