@@ -85,6 +85,7 @@ slices:
         - e2e/cdn-edge.spec.js
         - e2e/orrery-plane.spec.js
         - e2e/teaching.spec.js
+        - e2e/missions.spec.js
         - e2e/compare.spec.js
     owns:
       - panel.html
@@ -133,6 +134,18 @@ slices:
       - unit: test/panel/teaching.test.js::describes all shipped stages with a headline, three lists, a tradeoff, and a primerLink
       - unit: test/panel/teaching.test.js::stage 1 content never mentions cache TTL names
       - unit: test/panel/teaching.test.js::unknown stages degrade to a pending-entries placeholder, not a crash
+      - unit: test/panel/missions.test.js::every shipped stage carries two to three missions with id, goal, detect, and progress
+      - unit: test/panel/missions.test.js::the stage-1 404 mission completes only on a real 404 — a 405 does not
+      - unit: test/panel/missions.test.js::the stage-6 edge-HIT mission completes only on trace edgeStatus HIT — an origin cache HIT does not
+      - unit: 'test/panel/missions.test.js::verification latches: a done mission does not un-verify while the clock runs'
+      - unit: test/panel/missions.test.js::a fresh verified set flips missions back to pending and the completing tick is forgotten
+      - unit: test/panel/missions.test.js::pending progress text reads the snapshot field the detector reads
+      - unit: test/panel/missions.test.js::an unknown stage returns an empty list without throwing
+      - e2e: 'missions::should verify a mission automatically from real sim state (stage 1: 404)'
+      - e2e: missions::should not complete the 404 mission on a 405
+      - e2e: missions::should complete the edge-HIT mission only on a trace edge HIT, not an origin cache HIT
+      - e2e: missions::should prefill the mini-browser from a mission that carries a URL (no auto-send)
+      - e2e: missions::should clear verified missions on a stage switch
       - unit: test/panel/model-stage6.test.js::describes the hosted 9-hop trace with the DNS ask/answer prelude and ledger labels
       - unit: test/panel/model-stage6.test.js::keeps a host-less /about trace at the byte-identical stage-5 sentences
       - unit: test/panel/model-stage6.test.js::ends the NX narrative at the answer hop with no GET emitted

@@ -70,3 +70,54 @@
   color: var(--accent);
   text-decoration: underline;
 }
+
+/* Missions section (DESIGN.md teaching drawer, 2026-10-26): a per-stage
+   list of `M-<n>` rows — mono goal text plus a live check chip (`○` /
+   `✓`). Palette, spacing, and radius tokens only. */
+
+.missions-section {
+  margin-top: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.mission-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 0.3rem;
+  background: var(--surface-2);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.mission-item:hover {
+  border-color: var(--accent);
+}
+
+.mission-goal {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+
+.mission-chip {
+  flex: none;
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.3rem;
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.mission-chip.mission-done {
+  background: var(--good-soft);
+  color: var(--good);
+}
