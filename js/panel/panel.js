@@ -6,7 +6,9 @@
 import { createEngine } from '../sim/engine.js';
 import { TICK_MS } from './model.js';
 import { COMPONENT_SOURCE } from './inspector-source.js';
-import { $, els, addToJourney, relabelJourneyRun, render, renderInspector } from './render.js';
+import { $, els, render, renderInspector } from './render.js';
+import { addToJourney, relabelJourneyRun, getRunEntries } from './journey-log.js';
+import { initCompareTray, pushTraceRun, clearCompare } from './compare.js';
 import { renderStageTopology, onStageRendered } from './render-stage.js';
 import { ensureStage6Dom } from './stage6-registry.js';
 import { initFilesystemEditor } from './fs-editor.js';
@@ -99,6 +101,7 @@ function pause() {
 function switchStage(stage) {
   if (timer) pause();
   currentStage = stage;
+  clearCompare(); // cross-stage shapes are not comparable
   renderStageTopology(currentStage);
   engine = createEngineFromControls();
   syncUrlState();
@@ -191,6 +194,7 @@ function stepOneHop() {
   });
   if (snapshot.trace.hop === traceFinalHop(snapshot, snapshot.stage)) {
     relabelJourneyRun(traceRunId, totalHops);
+    pushTraceRun(traceRunId, snapshot.trace, getRunEntries(traceRunId)); // B-5 snapshot
   }
   updateView(snapshot);
   return snapshot;
@@ -289,6 +293,7 @@ const viewport = initViewport({
   getActiveBrowser: () => activeBrowserAddress,
 });
 onStageRendered(() => viewport.syncLayout());
+initCompareTray();
 selectComponent('browser');
 renderTeaching(currentStage);
 updateView(engine.snapshot());

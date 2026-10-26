@@ -102,6 +102,21 @@ activities:
               - unit: test/panel/render.test.js::within one run, hop entries order ascending regardless of emission order
               - unit: test/panel/render.test.js::a newer run floats above an older one; entries stay whole per run
               - e2e: panel::should render a full-trace journey log with hop 1/4 to 4/4 in ascending order
+          - title: Compare the two most recent completed trace runs hop-by-hop in the log-card compare tray — verbatim frames, em-dash where a run ended sooner, cleared on a stage switch
+            status: done
+            priority: medium
+            tests:
+              - unit: test/panel/model-compare.test.js::unequal runs align over the longer side and pad the exhausted side with em-dashes
+              - unit: test/panel/model-compare.test.js::equal runs align hop-for-hop with no em-dash padding
+              - unit: test/panel/model-compare.test.js::alignment passes entry texts through byte-verbatim without mutating the entries
+              - unit: test/panel/model-compare.test.js::first push fills A then B, a third distinct run shifts A <- old B, B <- new
+              - unit: test/panel/model-compare.test.js::a repeat push of an already-stored run is a no-op, not a duplicate or a shift
+              - unit: test/panel/model-compare.test.js::a tick-shaped run (hops 0, no hop entries) is rejected — crowd ticks never enter the tray
+              - unit: "test/panel/model-compare.test.js::alignment is driven by the entries' hop keys, not their array order"
+              - e2e: compare::should compare the last two trace runs hop-by-hop in the compare tray
+              - e2e: compare::should show em-dash rows where one run is shorter (9 vs 6)
+              - e2e: compare::should never compare crowd-tick runs into the tray
+              - e2e: compare::should clear the compare tray on a stage switch
           - title: Edit any WebServer file inline and read the sim's live fs Map — bytes served on the next GET, stale only inside the cache TTL
             status: done
             priority: medium

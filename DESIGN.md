@@ -201,6 +201,14 @@ Every stage diagram panel (`panel.html`) is organized into four vertical zones:
      which paints over its last tab).
    - **Wire Journey Log (`.log-card`):** Reverse-chronological hop and tick
      history (`#exchange-inspector` headline + `#journey-log` list).
+   - **Compare Tray (`#compare-tray`, 2026-10-25):** Auto-pair diff inside the
+     log-card: a JS-built list (no static markup) that always compares the
+     **two most recent completed trace runs**, hop-aligned (`n · left frame ·
+right frame`, em-dash where one run ended sooner) with a `9 vs 6 hops ·
+<left path> vs <right path>` headline. Frames are verbatim journey-log
+     entries (compare never mints hop text); crowd-tick runs never enter; a
+     run joins at its final render hop with an entry snapshot (immune to the
+     journey-log 20-entry cap); switching stages clears the tray.
 
 ## Components
 

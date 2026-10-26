@@ -10,6 +10,48 @@
 # tokens_reasoning, tokens_cache_read, cost_usd, notes.
 
 entries:
+  - id: B5-COMPARE-TRAY
+    slice:
+      - PANEL
+    name: 'B-5 compare tray — auto-pair diff of the two most recent completed trace runs (verbatim frames, hop-aligned, em-dash on the exhausted side)'
+    brief: docs/plans/2026-10-25-b5-compare-tray.md
+    agent: cheap
+    lead_model: opencode/glm-5.3-flash-free
+    agent_model: opencode/glm-5.3-flash-free
+    session_id: ses_e8ac597c0ffeV5012tyPdapBX1
+    tokens_input: 160626
+    tokens_output: 17312
+    tokens_reasoning: 23801
+    tokens_cache_read: 6371328
+    cost_usd: 0
+    human_interventions: 0
+    agent_review_rounds: 0
+    guardrail_failures: 3
+    fix_commits: 1
+    defects_escaped: 0
+    notes: >-
+      Standing per-slice deviation (pinned executor over limit) — executed on
+      opencode/glm-5.3-flash-free. 3 in-session reds converging (format/lint
+      and a file-size miss before the extraction landed), no gate rejected
+      twice, nothing escaped. Executor adaptations recorded, not escaped:
+      journey-log state extracted out of render.js into journey-log.js (62
+      lines; render.js would have breached the 300 cap with a plain
+      getRunEntries addition) with the B-5 snapshot guard PINS beside it;
+      storymap story placed under the PANEL-1 task (the row that owns the
+      log-card) because the tray is cross-stage; compare e2e pinned 6-by-6 on
+      stage 3 and the 9-by-6 em-dash pin on stage 6 (stage-3 traces are 6
+      hops); label sourced from the trace snapshot (host+path —
+      trace.request is re-pointed by the stage-6 DNS answer and cannot
+      distinguish the pair), falling back to the URL input only if a trace is
+      absent, which cannot happen on the completion branch. Lead review: one
+      dead reference (render els.journeyLog) removed in this change; brief's
+      pushCompareRun export kept (named by the brief, wrapped by
+      pushTraceRun). Step-3 strict probe green: tray hidden before any run
+      and after a single run; 9 vs 9 pair headline verbatim; third distinct
+      run shifts A <- old B, B <- new (9 vs 6 with em-dash rows 7-9); tray
+      cells byte-verbatim journey entries (15 cells checked); crowd ticks
+      never move the tray (headline and row count unchanged while the crowd
+      ran); stage switch empties the tray; clean error surface.
   - id: STAGE6B-CDN-EDGE
     slice:
       - SIM
