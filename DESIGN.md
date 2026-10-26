@@ -234,6 +234,16 @@ right frame`, em-dash where one run ended sooner) with a `9 vs 6 hops ·
 
 ### Camera HUD Drawers (`.legend-panel`, `.teaching-panel`)
 
+- **Input contract (2026-10-26 fence):** both drawers carry `.camera-drawer` —
+  a wheel or pointer gesture that **starts on a drawer is drawer input**
+  (native scroll/text-select, `overscroll-behavior: contain` so an
+  at-end wheel never chains into the page), never camera zoom/pan. The
+  camera's viewport-level handlers return before `preventDefault` when the
+  event target is inside a drawer (pinned in `e2e/camera-drawer.spec.js`,
+  including the control pin that the plane's own wheel still zooms). The
+  structural paydown — no scroller inside the camera viewport at all — is
+  the two-zone control-room remodel (docs/plans/2026-10-26-style2-control-room-remodel.md).
+
 - **Legend drawer:** `#legend-toggle` sits in `.camera-hud`; the drawer
   (`.legend-panel`) explains the tick-to-ms mapping (`TICK_MS = 100` in
   `js/panel/model.js`), the cache stats trio (`Hits / Misses / TTL-remaining`),

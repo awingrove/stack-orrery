@@ -1,8 +1,6 @@
 /* Orrery plane viewport (PANEL slice): the clipped, pannable camera viewport
-   and the world plane it contains. Clickable component nodes, wire columns,
-   the mini-IP table, queue pills, and the route list are positioned in world
-   coordinates by js/panel/viewport.js (left/top = layout.js geometry). All
-   colors come from the shell tokens. */
+   and the world plane it contains — nodes, wire columns, tables positioned in
+   world coordinates by viewport.js; colors from the shell tokens. */
 
 /* Screen-space: the camera viewport clips the world and hosts the HUD. */
 .orrery-viewport {
@@ -123,6 +121,7 @@
    wire-lane direction labels. Surface/accent tokens only (DESIGN.md camera
    HUD drawers; no new colors). */
 .legend-panel {
+  /* CHECKS: .camera-drawer containment — an at-end wheel is drawer-scroll, never page/camera. */
   position: absolute;
   top: 3.4rem;
   right: 0.65rem;
@@ -139,6 +138,7 @@
   color: var(--text);
   font-size: 0.78rem;
   line-height: 1.45;
+  overscroll-behavior: contain;
 }
 
 .legend-panel[hidden] {

@@ -28,7 +28,7 @@ export function initTeachingDrawer() {
   teachingPanel = document.createElement('aside');
   teachingPanel.id = 'teaching-panel';
   teachingPanel.dataset.testid = 'teaching-panel';
-  teachingPanel.className = 'teaching-panel';
+  teachingPanel.className = 'teaching-panel camera-drawer';
   teachingPanel.hidden = true; // closed by default: the first view is the orrery
   teachingPanel.setAttribute('aria-label', 'Teaching notes');
   document.getElementById('legend-panel').after(teachingPanel);
