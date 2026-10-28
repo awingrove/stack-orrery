@@ -14,6 +14,8 @@ import { ensureStage6Dom } from './stage6-registry.js';
 import { initFilesystemEditor } from './fs-editor.js';
 import { initViewport } from './viewport.js';
 import { initTeachingDrawer, renderTeaching } from './teaching-drawer.js';
+import { initFaultConsole } from './fault-console.js';
+import { readDeepLink, syncUrlState } from './url-state.js';
 import { initRail } from './rail.js';
 
 // Stage-6 topology DOM (DNS/Router cards, wire columns, inspector tabs) is
@@ -39,9 +41,11 @@ const totalHopsFor = (stage) => TOTAL_HOPS[stage] ?? TOTAL_HOPS[1];
 // is (nx ? 2 : cdn ? (edgeStatus === 'HIT' ? 6 : 9) : host ? 9 : 8)
 // (mirroring trace-stage6.js), so a host-less trace stops at its normal
 // stage-5 count, an NX answer stops at the answer hop, and a CDN GET stops
-// at 6 only after the answer proved an edge HIT; other stages use
+// at 6 only after the answer proved an edge HIT. Stage-1's B-6 refused
+// shape stops at the deliver hop (2), mirroring trace.js. Other stages use
 // TOTAL_HOPS.
 const traceFinalHop = (snapshot, stage) => {
+  if (snapshot.stage === 1 && snapshot.trace?.refused) return 2;
   if (snapshot.stage === 6 && snapshot.trace) {
     if (snapshot.trace.nx) return 2;
     if (snapshot.trace.cdn) return snapshot.trace.edgeStatus === 'HIT' ? 6 : 9;
@@ -105,36 +109,14 @@ function switchStage(stage) {
   clearCompare(); // cross-stage shapes are not comparable
   renderStageTopology(currentStage);
   engine = createEngineFromControls();
-  syncUrlState();
+  syncUrlState(currentStage, $('users-slider').value);
   renderTeaching(currentStage);
   updateView(engine.snapshot());
 }
 
-// CHECKS: deep-linked state reads exactly once at load — ?stage=N selects a
-// live stage 1-6 and ?users=U clamps into the slider's 1-50 range; anything
-// unknown, out of range, or non-numeric falls back to the fresh-load
-// defaults (Stage 1, five users) without a console error. Named
-// counter-example (pinned in e2e/panel.spec.js): ?stage=9 renders Stage 1 —
-// out-of-range values must not crash or half-select a pill.
-function readDeepLink() {
-  const params = new URLSearchParams(window.location.search);
-  const stage = Number.parseInt(params.get('stage') ?? '', 10);
-  const users = Number.parseFloat(params.get('users') ?? '');
-  return {
-    stage: stage >= 1 && stage <= 6 ? stage : 1,
-    users: Number.isFinite(users) ? Math.min(50, Math.max(1, Math.round(users))) : 5,
-  };
-}
-
-// CHECKS: stage-pill clicks and user-slider commits rewrite the URL in place
-// via history.replaceState — the shareable state tracks the panel without
-// pushing history entries (no history spam). Existing params are preserved.
-function syncUrlState() {
-  const params = new URLSearchParams(window.location.search);
-  params.set('stage', String(currentStage));
-  params.set('users', $('users-slider').value);
-  window.history.replaceState(null, '', `${window.location.pathname}?${params}`);
-}
+// CHECKS: deep-linked state reads exactly once at load — the pure contract
+// lives in js/panel/url-state.js (guard-file-size split); panel.js wires it
+// to the engine at boot and on every stage slider commit.
 
 $('start-button').addEventListener('click', () => {
   if (timer) pause();
@@ -158,7 +140,7 @@ $('users-slider').addEventListener('input', () => {
   const host = Number(String(activeBrowserAddress).split('.')[1]);
   if (host > users + 1) activeBrowserAddress = '10.2';
   viewport.syncLayout(); // browser slots + crowd satellites re-space on Ring 3
-  syncUrlState(); // user-count changes stay shareable
+  syncUrlState(currentStage, $('users-slider').value); // user-count changes stay shareable
   updateView(engine.snapshot());
 });
 
@@ -258,6 +240,13 @@ initRail();
 // hands it the current stage at boot and on every switch (see also rail.js
 // above for the legend surface's docked toggle pattern).
 initTeachingDrawer();
+
+// CHECKS: the B-6 fault console mounts into the rail's faults host; panel.js
+// supplies only the engine accessor and the re-render callback (the
+// fs-editor pattern) — the switch writes real component state through
+// engine.setServerDown and every visible fault state reads back from the
+// fresh snapshot. Display refresh rides render.js's per-snapshot call.
+initFaultConsole({ getEngine: () => engine, rerender: (snapshot) => updateView(snapshot) });
 
 // CHECKS: the filesystem lists are the sim's own view — the editor module
 // (fs-editor.js) renders both cards' rows from snapshot.servers[i].files and

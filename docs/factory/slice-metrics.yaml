@@ -608,3 +608,48 @@ entries:
       page-absolute wheel coords gone stale after scroll, a wheel pair that
       cancelled itself) were corrected in the probe script only — no
       product-code change implied by them.
+
+  - id: B6-FAULT-CONSOLE
+    slice:
+      - SIM
+      - PANEL
+    name: >-
+      B-6 fault console (slice 1) — the rail's fourth tab flips REAL component
+      fault state; WebServer down is refused by the transport before dispatch,
+      with a DL-3 counter-example that refusals satisfy no HTTP detector
+    brief: docs/plans/2026-10-27-b6-fault-console.md
+    agent: cheap
+    lead_model: opencode/glm-5.3-flash-free
+    agent_model: opencode/glm-5.3-flash-free
+    session_id: ses_e7eb058ecffeQeO2mXzugoFiKf
+    tokens_input: 559125
+    tokens_output: 38958
+    tokens_reasoning: 38895
+    tokens_cache_read: 15654144
+    cost_usd: 0
+    human_interventions: 0
+    agent_review_rounds: 0
+    guardrail_failures: 3
+    fix_commits: 0
+    defects_escaped: 0
+    notes: >-
+      Standing per-slice deviation (pinned executor over limit) — executed
+      cold from the brief in 578507c with 3 in-session red gates (a YAML
+      title containing a colon broke both format:check and the manifest
+      story-refs shape, then two guard-claims rounds on bare guarantee
+      words / colon-less CHECKS headers), each fixed per named cause, then
+      green at 117 unit / 50 e2e. One executor deviation flagged to Step-3
+      review, accepted: test/panel/missions.test.js pinned stage 1 to
+      <= 3 missions while the committed contract mandates a 4th (the B-6
+      recovery mission), so the B-2-era count pin was extended to
+      stage === 1 ? 4 : 3 in the same change with its byte-stable title
+      mirrored in slices.yaml + storymap.yaml — a contract-vs-pin
+      contradiction resolved toward the contract, not by weakening the
+      manifest rule. executor extracts noted: engine-stage6.js (49L) and
+      url-state.js (29L) exist only to keep engine.js (298) and panel.js
+      (285) under cap, no behavior change. Defects_escaped: 0 — the strict
+      Step-3 probe walked 17 contracts green incl. the DL-3 cross-mission
+      counter-example (a refusal satisfies neither the 404 nor the 405
+      detector; lastStatus stays null); the probe's own 3 FAIL rounds were
+      probe-side bugs (stale replay URL /missing, wrong visible-host
+      locator), corrected in the probe script only.

@@ -304,6 +304,30 @@ right frame`, em-dash where one run ended sooner) with a `9 vs 6 hops ·
   request pre-fills the mini-browser URL (input fill only, no auto-send);
   verified missions clear on stage switch and reload.
 
+### Fault Console (fourth rail tab, 2026-10-27 B-6)
+
+- **The rail gains a `Faults` tab** (`data-testid="rail-tab-faults"`, JS host
+  like the other surfaces): per-stage fault switches, one fault per stage —
+  the README ladder's "one failure mode per stage" made explicit. Slice 1
+  ships only the stage-1 fault (**WebServer down**); later slices append a
+  stage's fault the same way, so unknown tabs/stages render the console's
+  empty-state line, never blank space.
+- **Failure is real component state, not narration:** a fault toggle sets a
+  flag the component owns (webserver `setDown`); the transport consults the
+  flag and gives the sender a **connection refused** — no HTTP response
+  exists on the wire. Traces, journey log, and node cards narrate the
+  refusal from that same record (DL-3/DL-4 rule: UI text never invents a
+  status the sim did not record; a refusal is never rendered as a
+  `"<status> <body>"` HTTP string).
+- **Down-state visual:** an affected `.node-card` with the fault active
+  carries a `DOWN` chip in `var(--danger)` on `var(--danger-soft)` (wired
+  chips keep `var(--good)`); the card stays in place — a down component is
+  still addressable, it just refuses.
+- **Recovery is part of the teaching:** toggling the fault back restores
+  service with nothing else changed; the per-stage missions registry gains
+  the recovery mission so the console and the B-2 detectors verify the same
+  lived sequence (kill → refused crowd/trace → restore → served 200).
+
 ### Interactive Mini-Browser (`.mini-browser` & `.browser-compact`)
 
 - Every simulated browser (`10.2` .. `10.(N+1)`) on Ring 3 is an addressable

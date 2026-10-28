@@ -52,11 +52,34 @@ export function createBrowser({ name = 'Browser-1', address = '10.2', network = 
       return lastDisplay;
     },
 
+    // B-6: a transport refusal is the page the browser shows for this
+    // request — no HTTP exchange exists on the wire (response: null), so
+    // this is a connection-refused error state, not a rendered "<status>
+    // <body>" page.
+    receiveRefusal(request = 'GET /', to = null) {
+      lastDisplay = {
+        request,
+        response: null,
+        to,
+        status: 'REFUSED',
+        body: 'connection refused — the browser shows its error page',
+      };
+      return lastDisplay;
+    },
+
     get(targetAddress, path = '/', method = 'GET') {
       if (!network) throw new Error('browser: no network attached');
       const request = this.createRequest(path, method);
-      const { response } = network.send({ from: address, to: targetAddress, request });
-      return this.receiveResponse({ from: address, to: targetAddress, request, response });
+      const record = network.send({ from: address, to: targetAddress, request });
+      // CHECKS: a refused send hands the browser its refusal card — the
+      // null response is not parsed into an invented HTTP status.
+      if (record.refused) return this.receiveRefusal(request, targetAddress);
+      return this.receiveResponse({
+        from: address,
+        to: targetAddress,
+        request,
+        response: record.response,
+      });
     },
 
     last() {

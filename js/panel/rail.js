@@ -1,9 +1,10 @@
 // DOCUMENTS: the control-room rail (Stage R1 brief,
 // docs/plans/2026-10-26-style2-control-room-remodel.md) — the page-level
-// right rail that docks the teaching drawer, the missions section, and the
-// legend drawer beside the orrery plane, one surface visible at a time. The
-// module owns the railTab state ('teach' | 'missions' | 'legend', default
-// 'teach'), the tab chrome, and the per-host empty-state lines. It holds no
+// right rail that docks the teaching drawer, the missions section, the
+// legend drawer, and the B-6 fault console beside the orrery plane, one
+// surface visible at a time. The module owns the railTab state ('teach' |
+// 'missions' | 'legend' | 'faults', default 'teach'), the tab chrome, and
+// the per-host empty-state lines. It holds no
 // engine access — the camera and the snapshot pipeline stay with panel.js;
 // the plane's geometry is page-level CSS only (css/panel/rail.css owns the
 // two-zone grid and the 1100px stacking breakpoint). Rail chrome is JS-built
@@ -12,11 +13,12 @@
 // mountpoint precedent from the compare tray). All behavior is
 // addEventListener-only and content writes are textContent/attributes —
 // strict CSP (AGENTS.md).
-const TABS = ['teach', 'missions', 'legend'];
+const TABS = ['teach', 'missions', 'legend', 'faults'];
 const RAIL_EMPTY = {
   teach: 'Teaching notes closed — press Teach in the camera HUD.',
   missions: 'No missions registered for this stage.',
   legend: 'Legend closed — press Legend in the camera HUD.',
+  faults: 'No faults for this stage yet.',
 };
 
 let railTab = 'teach';
@@ -25,7 +27,9 @@ const hosts = new Map(); // tab -> .rail-host section node
 const tabs = new Map(); // tab -> .rail-tab button node
 
 function surfaceOf(tab) {
-  const el = hosts.get(tab)?.querySelector('.teaching-panel, .legend-panel, .missions-section');
+  const el = hosts
+    .get(tab)
+    ?.querySelector('.teaching-panel, .legend-panel, .missions-section, .faults-section');
   return Boolean(el && !el.hidden); // a closed panel yields to the empty line
 }
 

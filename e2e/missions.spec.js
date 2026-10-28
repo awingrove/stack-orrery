@@ -35,7 +35,7 @@ test('should verify a mission automatically from real sim state (stage 1: 404)',
   await openDrawer(page);
   await expect(page.getByTestId('missions-section')).toBeVisible();
   const items = page.getByTestId('mission-item');
-  await expect(items).toHaveCount(3); // 2-3 missions per stage; stage 1 carries three
+  await expect(items).toHaveCount(4); // stage 1 carries 4 since the B-6 recovery mission
   await expect(chipOf(page, 'Get a 404')).toContainText('○');
 
   // The learner's own trace moves the sim; nobody clicked the mission chip.
@@ -142,7 +142,7 @@ test('should clear verified missions on a stage switch', async ({ page }) => {
   // its completing tick were forgotten with the switch.
   await page.getByTestId('stage-pill-1').click();
   const items = page.getByTestId('mission-item');
-  await expect(items).toHaveCount(3);
+  await expect(items).toHaveCount(4); // stage 1 carries 4 since the B-6 recovery mission
   await expect(chipOf(page, 'Get a 404')).toContainText('○ last:');
   await expect(chipOf(page, 'Get a 404')).not.toContainText('✓');
 });

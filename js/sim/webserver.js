@@ -1,27 +1,23 @@
 // DOCUMENTS: the first real component — a single simulated web server.
-// Fixed service capacity per tick, FIFO queue, and an in-memory filesystem
-// (`fs`, a Map of URL path -> file contents). Deterministic by construction:
-// no clock, no RNG — time arrives as the `currentTick` argument. Requests
-// arrive as wire records (from/to mini-IP + "GET /path"); responses leave as
-// "<status> <body>".
+// Fixed service capacity per tick, FIFO queue, and an in-memory fs Map of
+// path -> contents. Deterministic by construction: no clock, no RNG — time
+// arrives as the `currentTick` argument. Requests arrive as wire records
+// (from/to mini-IP + "GET /path"); responses leave as "<status> <body>".
 //
-// Stage 3: with a Cache attached, GETs resolve through the cache-aside
-// lookup (`resolveRequest`) and step() spends a per-tick work budget — a
-// warm GET cache hit costs 1 unit, a miss or non-GET costs 2 — so a warm
-// server serves up to serviceRate * 2 requests per tick. With no cache
-// attached the component is unchanged Stage 1/2 behavior.
+// Stage 3: with a Cache attached, GETs resolve through cache-aside lookup
+// (`resolveRequest`) and step() spends a work budget — a warm GET hit costs
+// 1 unit, a miss or non-GET costs 2. Stage 4: POSTs write through to the
+// primary and invalidate the cached path; a cache MISS fills from the read
+// replica — stale replica reads are served but not cached.
 //
-// Stage 4: with a Database attached, POSTs write through to the primary and
-// invalidate the cached path, and a cache MISS fills from the read replica —
-// a stale replica read is served but not cached, so the entry only warms
-// from rows the replica has already caught up to.
+// Editable fs: writeFile(path, body) mutates the fs Map. An edit is NOT a
+// POST: it invalidates nothing — cached copies age out by their TTL only.
 //
-// Editable fs: writeFile(path, body) mutates this server's fs Map (the panel
-// filesystem rows are the sim's own view). An edit is explicitly NOT a POST:
-// it invalidates nothing — cached copies age out by their TTL only.
-//
-// CHECKS: constructor rejects a non-positive/non-integer serviceRate
-// (fail-loud over silent-slow).
+// B-6 fault state: setDown stores a real on/off flag (isDown() reads it
+// back) and changes NOTHING about handleRequest, enqueue, or step — the
+// transport consults isDown() before dispatch, so a down server answers
+// no wire traffic at all. CHECKS: constructor rejects a non-positive
+// serviceRate and setDown rejects a non-boolean flag (fail-loud).
 const DEFAULT_FILES = {
   '/': 'Welcome to the home page',
   '/about': 'This is the about page',
@@ -54,6 +50,7 @@ export function createWebServer({
   const fs = new Map(Object.entries(files));
   let queue = [];
   let served = 0;
+  let down = false;
   const latencyWindow = []; // rolling: last 50 response latencies, in ticks
   const WINDOW = 50;
 
@@ -79,13 +76,12 @@ export function createWebServer({
     return matchRoute(request).response;
   }
 
-  // Cache-aside resolution: GETs consult the Cache first and fall through to
-  // the filesystem only on a miss, then fill the cache from the 200 response.
-  // With a Database attached (Stage 4), POSTs write through to the primary
-  // and invalidate the cached path, and a miss fills from the read replica —
+  // Cache-aside resolution: GETs consult the Cache first and fall through
+  // to the filesystem only on a miss, then fill the cache from the 200
+  // response. With a Database attached (Stage 4), POSTs write through and
+  // invalidate the cached path, and a miss fills from the read replica —
   // stale rows are served but not cached, so the cache only warms from
-  // replica rows that have already caught up. Everything else bypasses
-  // untouched.
+  // replica rows already caught up. Non-matching requests bypass untouched.
   function resolveRequest(request = 'GET /', currentTick = 0) {
     if (!cache && !database && !workerQueue) return { ...matchRoute(request), cacheStatus: null };
     const { method, path } = parseRequest(request);
@@ -208,8 +204,21 @@ export function createWebServer({
       fs.set(path, body);
     },
 
-    // `isYou` marks the learner's own interactive-browser request so
-    // visible queue rows can highlight it (DESIGN.md queue-pill-you).
+    // CHECKS: setDown validates its argument as a real boolean ON/OFF state
+    // and throws otherwise; it flips only the component's own flag (the
+    // transport refuses before dispatch — this method changes nothing else).
+    setDown(nextDown) {
+      if (typeof nextDown !== 'boolean') {
+        throw new Error(`webserver: setDown — down must be a boolean, got ${nextDown}`);
+      }
+      down = nextDown;
+    },
+
+    isDown() {
+      return down;
+    },
+
+    // `isYou` marks the learner's own interactive-browser request.
     enqueue({ id, atTick, from = '10.2', to = address, request = 'GET /', isYou = false }) {
       queue.push({ id, atTick, from, to, request, isYou });
     },

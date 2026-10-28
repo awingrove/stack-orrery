@@ -13,6 +13,7 @@ export const STAGE_TEACHING = {
       "Every browser request lands in WebServer 10.1's FIFO queue and waits for the 4-requests-per-tick service rate.",
       'When arrivals per tick exceed service, queue depth keeps climbing and avg latency rises — a performance problem, not yet a scalability fix.',
       'The wire speaks the slim protocol: "GET /about" out, "200 …" back, and the server\'s own "404 …" / "405 …" for unknown paths and methods.',
+      'Flip the Faults rail tab switch to take WebServer 10.1 down — sends come back as connection refused, nothing enters the FIFO queue, and the next trace refuses too until you restore it.',
     ],
     try: [
       'Drag Browsers up to 50 and press Start — queue depth must climb past the service rate.',

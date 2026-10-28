@@ -1,5 +1,6 @@
 // DOCUMENTS: the B-2 mission registry — per-stage missions (2–3 each for
-// the shipped stages 1–6) whose checks are pure snapshot predicates. Each
+// the shipped stages 1–6, plus B-6's stage-1 recovery mission) whose checks
+// are pure snapshot predicates. Each
 // entry is { id, goal, url?, detect(snapshot) -> boolean, progress(snapshot)
 // -> string }; goals derive from the stage's try / watchFor copy in
 // teaching.js (that file stays untouched), and every predicate ground a
@@ -43,6 +44,17 @@ export const MISSIONS = {
       goal: 'Drag the crowd up — arrivals outrun service and queue depth climbs past 8',
       detect: (s) => (s.queueDepth ?? 0) >= 8,
       progress: (s) => `depth: ${s.queueDepth ?? 0}`,
+    },
+    {
+      id: 'm1-refuse-recover',
+      goal: 'Take the webserver down, watch the refusal, restore it and read a 200',
+      // CHECKS (B-6, DL-3 counter-example): a served 200 AFTER a refusal.
+      // The refusal itself satisfies neither leg — lastStatus stays null
+      // across a refusal (the transport record carries no HTTP status), so
+      // the m1-404/m1-405 detectors cannot be satisfied by one either; a
+      // 200 with no refusal behind it fails the first leg.
+      detect: (s) => (s.refusedCount ?? 0) > 0 && lastStatus(s) === 200,
+      progress: (s) => `refusals: ${s.refusedCount ?? 0} · last: ${lastStatus(s) ?? '—'}`,
     },
   ],
   2: [
