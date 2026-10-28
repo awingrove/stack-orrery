@@ -101,6 +101,11 @@ back makes `10.12` rejoin the rotation.
       brief.
 - [x] Step 2 (Executor sub-agent): cold implementation, unit & e2e tests, manifest updates,
       green `npm run verify`, tick and commit (DEMO screenshots for the human visual gate).
-- [ ] Step 3 (Lead session): strict acceptance probe over every boundary contract
+- [x] Step 3 (Lead session): strict acceptance probe over every boundary contract
       (including the all-down fail-out branch), metrics extraction, ledger entry, tick
-      Step 3, commit.
+      Step 3, commit. ERRATA (Step 3): the Step-1 line claimed stage 2 pre-carried
+      three missions ('gives stage 2 a 4th'); it pre-carried TWO — `m2-failover` is
+      stage 2's THIRD, so the unit cap became two-to-three-per-stages-2..6 (stage 1
+      stays 4) with e2e counts set to the real 3 (executor call committed, verified
+      here); the cap-extension contract itself (`stage === 1 || stage === 2 ? 4 : 3`)
+      was implemented as written.
