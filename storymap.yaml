@@ -181,7 +181,7 @@ activities:
             status: done
             priority: medium
             tests:
-              - unit: test/panel/missions.test.js::stages 2-6 carry two to three missions and stage 1 carries four (B-6 recovery mission)
+              - unit: test/panel/missions.test.js::stage 1 carries four missions and stages 2-6 carry two to three (B-6 recovery + B-6b failover)
               - unit: test/panel/missions.test.js::the stage-1 404 mission completes only on a real 404 — a 405 does not
               - unit: test/panel/missions.test.js::the stage-6 edge-HIT mission completes only on trace edgeStatus HIT — an origin cache HIT does not
               - unit: 'test/panel/missions.test.js::verification latches: a done mission does not un-verify while the clock runs'
@@ -221,6 +221,17 @@ activities:
             tests:
               - unit: test/sim/loadbalancer.test.js::distributes requests strictly round-robin across backend mini-IPs
               - unit: test/sim/loadbalancer.test.js::stage 2 engine splits load across 10.11 and 10.12 and doubles service capacity
+          - title: Skip a down backend in the round-robin — the cursor re-seats on the healthy pool with the skips tallied on the snapshot, an all-down pool rides the slice-1 refusal funnel, and the fault-off replay stays byte-identical
+            status: done
+            priority: high
+            tests:
+              - unit: test/sim/loadbalancer-failover.test.js::selectBackend skips a down backend — the cursor lands on the healthy backend, skips tally, rotation resumes
+              - unit: test/sim/loadbalancer-failover.test.js::the down address is never sent to or delivered to while the pool skips it
+              - unit: test/sim/loadbalancer-failover.test.js::all backends down hands back the slice-1 refusal record and refusals tally with nothing enqueued
+              - unit: test/sim/loadbalancer-failover.test.js::an all-down pool aborts the stage-2 trace at the LB hop with the refusal record
+              - unit: test/sim/loadbalancer-failover.test.js::stage-2 engine snapshot carries skippedCount
+              - unit: test/sim/loadbalancer-failover.test.js::distribution lopsides while 10.12 is down and rejoins the rotation after restore (deterministic)
+              - unit: test/sim/loadbalancer-failover.test.js::same seed replays the identical tick sequence with the fault off (stage 2)
 
       - id: PANEL-2
         name: Switch to Stage 2 and trace through the load balancer
@@ -232,6 +243,14 @@ activities:
             tests:
               - unit: test/panel/model.test.js::describes Stage 2 5-hop load-balancer trace labels and loadbalancer inspector state
               - e2e: panel::should switch to Stage 2, alternate requests across 10.11 and 10.12 via the load balancer, and inspect its code
+          - title: Flip the Faults tab to take backend 10.12 down and up — the LB cursor skips it while the crowd stays served, the trace narrates the skip without aborting the served story, and the failover mission verifies only after skip and rejoin
+            status: done
+            priority: high
+            tests:
+              - e2e: fault-console::should skip the down backend in the round-robin and keep the crowd served
+              - e2e: fault-console::should narrate the skip in the stage-2 trace without aborting the served story
+              - e2e: fault-console::should verify the stage-2 failover mission only after skip and rejoin
+              - unit: test/panel/missions.test.js::the stage-2 failover mission completes only after a skip AND 10.12 serves again — either leg alone stays pending
 
   - name: 'Stage 3 — Cache (TTL, cache-aside)'
     tasks:

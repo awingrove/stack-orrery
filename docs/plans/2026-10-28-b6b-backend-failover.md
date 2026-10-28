@@ -99,7 +99,7 @@ back makes `10.12` rejoin the rotation.
 - [x] Step 1 (Lead session): human direction "make it so" recorded 2026-10-28 — slice 2
       pre-approved on the slice-1 pattern; DESIGN.md backend-down bullet committed with this
       brief.
-- [ ] Step 2 (Executor sub-agent): cold implementation, unit & e2e tests, manifest updates,
+- [x] Step 2 (Executor sub-agent): cold implementation, unit & e2e tests, manifest updates,
       green `npm run verify`, tick and commit (DEMO screenshots for the human visual gate).
 - [ ] Step 3 (Lead session): strict acceptance probe over every boundary contract
       (including the all-down fail-out branch), metrics extraction, ledger entry, tick

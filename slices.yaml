@@ -39,6 +39,13 @@ slices:
       - unit: test/sim/webserver.test.js::handleRequest routes slim GET paths to 200 or 404 and rejects non-GET with 405
       - unit: test/sim/loadbalancer.test.js::distributes requests strictly round-robin across backend mini-IPs
       - unit: test/sim/loadbalancer.test.js::stage 2 engine splits load across 10.11 and 10.12 and doubles service capacity
+      - unit: test/sim/loadbalancer-failover.test.js::selectBackend skips a down backend — the cursor lands on the healthy backend, skips tally, rotation resumes
+      - unit: test/sim/loadbalancer-failover.test.js::the down address is never sent to or delivered to while the pool skips it
+      - unit: test/sim/loadbalancer-failover.test.js::all backends down hands back the slice-1 refusal record and refusals tally with nothing enqueued
+      - unit: test/sim/loadbalancer-failover.test.js::an all-down pool aborts the stage-2 trace at the LB hop with the refusal record
+      - unit: test/sim/loadbalancer-failover.test.js::stage-2 engine snapshot carries skippedCount
+      - unit: test/sim/loadbalancer-failover.test.js::distribution lopsides while 10.12 is down and rejoins the rotation after restore (deterministic)
+      - unit: test/sim/loadbalancer-failover.test.js::same seed replays the identical tick sequence with the fault off (stage 2)
       - unit: test/sim/cache.test.js::serves cache hits before TTL expiry and evicts entries once ttlTicks elapse
       - unit: test/sim/cache.test.js::stage 3 engine shares cache-aside entries across 10.11 and 10.12
       - unit: test/sim/database.test.js::replicates primary writes to the read replica after replicationLagTicks and tracks stale reads
@@ -143,9 +150,10 @@ slices:
       - unit: test/panel/teaching.test.js::describes all shipped stages with a headline, three lists, a tradeoff, and a primerLink
       - unit: test/panel/teaching.test.js::stage 1 content never mentions cache TTL names
       - unit: test/panel/teaching.test.js::unknown stages degrade to a pending-entries placeholder, not a crash
-      - unit: test/panel/missions.test.js::stages 2-6 carry two to three missions and stage 1 carries four (B-6 recovery mission)
+      - unit: test/panel/missions.test.js::stage 1 carries four missions and stages 2-6 carry two to three (B-6 recovery + B-6b failover)
       - unit: test/panel/missions.test.js::the stage-1 404 mission completes only on a real 404 — a 405 does not
       - unit: test/panel/missions.test.js::the stage-1 recovery mission completes only after a refusal AND a served 200 — a refusal alone satisfies neither leg
+      - unit: test/panel/missions.test.js::the stage-2 failover mission completes only after a skip AND 10.12 serves again — either leg alone stays pending
       - unit: test/panel/missions.test.js::the stage-6 edge-HIT mission completes only on trace edgeStatus HIT — an origin cache HIT does not
       - unit: 'test/panel/missions.test.js::verification latches: a done mission does not un-verify while the clock runs'
       - unit: test/panel/missions.test.js::a fresh verified set flips missions back to pending and the completing tick is forgotten
@@ -191,6 +199,9 @@ slices:
       - e2e: fault-console::should toggle the webserver fault from the rail console and read connection refused in the trace
       - e2e: fault-console::should keep crowd sends refused while down and restore a 200 after toggle-back
       - e2e: fault-console::should verify the stage-1 recovery mission only after refusal and recovery
+      - e2e: fault-console::should skip the down backend in the round-robin and keep the crowd served
+      - e2e: fault-console::should narrate the skip in the stage-2 trace without aborting the served story
+      - e2e: fault-console::should verify the stage-2 failover mission only after skip and rejoin
     entry_point: index.html -> Diagram Panel link
 
 allowlist:

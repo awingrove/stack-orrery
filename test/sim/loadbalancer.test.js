@@ -36,12 +36,14 @@ describe('createLoadBalancer', () => {
 
     expect(s1.metrics().queueDepth).toBe(2);
     expect(s2.metrics().queueDepth).toBe(1);
+    // B-6b: the health-skip tally rides the snapshot too — 0 with the fault off.
     expect(lb.snapshot()).toEqual({
       address: '10.1',
       algorithm: 'round-robin',
       backends: ['10.11', '10.12'],
       nextBackend: '10.12',
       forwarded: 3,
+      skippedCount: 0,
       lastTarget: '10.11',
       perBackend: { 10.11: 2, 10.12: 1 },
     });

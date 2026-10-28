@@ -64,7 +64,8 @@ test('should keep the rail tab state across stage switches', async ({ page }) =>
   await page.goto('/panel.html');
 
   // Dock missions, then switch stages: the tab survives and the missions
-  // section rebuilds per stage registry (stage 2 carries two missions).
+  // section rebuilds per stage registry (stage 2 carries three — the B-6b
+  // failover mission joined the round-robin + forwarded pair).
   await page.getByTestId('teaching-toggle').click();
   await page.getByTestId('rail-tab-missions').click();
   await expect(page.getByTestId('missions-section')).toBeVisible();
@@ -72,7 +73,7 @@ test('should keep the rail tab state across stage switches', async ({ page }) =>
   await page.getByTestId('stage-pill-2').click();
   await expect(page.getByTestId('node-lb')).toBeVisible();
   await expect(page.getByTestId('missions-section')).toBeVisible();
-  await expect(page.getByTestId('mission-item')).toHaveCount(2);
+  await expect(page.getByTestId('mission-item')).toHaveCount(3);
   expect(await page.locator('.rail-tab.rail-tab-active').textContent()).toBe('Missions');
 
   // Start/step a tick — the camera pipeline leaves the rail tab untouched.

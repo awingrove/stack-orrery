@@ -38,6 +38,7 @@ export const STAGE_TEACHING = {
       'WebServer-1 (10.11) and WebServer-2 (10.12) are identical clones behind the LoadBalancer VIP 10.1.',
       'The LoadBalancer deals requests strictly round-robin — Next -> alternates 10.11, 10.12, 10.11…',
       "Each duplicated backend serves half the arrivals, so each queue drains twice as fast as Stage 1's single queue.",
+      'Fault #2 on the Faults tab shows graceful degradation: take 10.12 down and the pool keeps serving on 10.11 while the cursor skips it — restore and the rotation takes 10.12 back.',
     ],
     try: [
       "Double the Browsers slider and compare each backend's queue with Stage 1 at half the user count — depth ends up the same per server.",

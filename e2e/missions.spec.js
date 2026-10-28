@@ -133,9 +133,11 @@ test('should clear verified missions on a stage switch', async ({ page }) => {
   await expect(chipOf(page, 'Get a 404')).toContainText(/✓ done · tick \d+/);
 
   // Stage 2 rebuilds the list per its own registry: fresh rows, none done.
+  // Stage 2 carries three since the B-6b failover mission joined the
+  // round-robin and forwarded pair.
   await page.getByTestId('stage-pill-2').click();
   await expect(page.getByTestId('node-lb')).toBeVisible();
-  await expect(page.getByTestId('mission-item')).toHaveCount(2);
+  await expect(page.getByTestId('mission-item')).toHaveCount(3);
   await expect(chipOf(page, 'Next -> flip')).toContainText('○');
 
   // Back on stage 1 the 404 mission is pending again: the verified set and

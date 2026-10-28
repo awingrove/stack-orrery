@@ -11,17 +11,17 @@ const FIRST = (stage, snapshot, verified) =>
   missionStatuses(stage, snapshot, verified).find((s) => s.id === 'm1-404');
 
 describe('missions registry and statuses', () => {
-  // B-6 (docs/plans/2026-10-27-b6-fault-console.md): the human design gate
-  // added the stage-1 recovery mission (m1-refuse-recover), so stage 1
-  // carries four; every other stage stays inside the B-2 two-to-three shape.
-  it('stages 2-6 carry two to three missions and stage 1 carries four (B-6 recovery mission)', () => {
+  // B-6 (stage-1 recovery) and B-6b (stage-2 failover): stage 1 carries
+  // four; the failover mission raises stage 2 from two to three, and the
+  // stage-2 cap extends to four in the same change.
+  it('stage 1 carries four missions and stages 2-6 carry two to three (B-6 recovery + B-6b failover)', () => {
     expect(Object.keys(MISSIONS).map(Number).sort()).toEqual([1, 2, 3, 4, 5, 6]);
     for (const stage of [1, 2, 3, 4, 5, 6]) {
       expect(MISSIONS[stage].length, `stage ${stage} mission count floor`).toBeGreaterThanOrEqual(
         2,
       );
       expect(MISSIONS[stage].length, `stage ${stage} mission count cap`).toBeLessThanOrEqual(
-        stage === 1 ? 4 : 3,
+        stage === 1 || stage === 2 ? 4 : 3,
       );
       expect(new Set(MISSIONS[stage].map((m) => m.id)).size, `stage ${stage} unique ids`).toBe(
         MISSIONS[stage].length,
@@ -81,6 +81,34 @@ describe('missions registry and statuses', () => {
         verified,
       ).find((s) => s.id === 'm1-404').done,
     ).toBe(false);
+  });
+
+  // CHECKS (B-6b): the failover mission's two legs — the snapshot counted a
+  // real skip AND 10.12 is serving again after it; either leg alone keeps
+  // the chip pending (a served count from before the fault is not a rejoin
+  // the detector can credit while the skip leg is zero, and while the
+  // backend is down its count cannot grow).
+  it('the stage-2 failover mission completes only after a skip AND 10.12 serves again — either leg alone stays pending', () => {
+    const verified = new Map();
+    const skipOnly = missionStatuses(
+      2,
+      { tick: 5, skippedCount: 2, loadBalancer: { perBackend: { 10.11: 3, 10.12: 0 } } },
+      verified,
+    );
+    expect(skipOnly.find((s) => s.id === 'm2-failover').done).toBe(false);
+    const servedNoSkip = missionStatuses(
+      2,
+      { tick: 6, skippedCount: 0, loadBalancer: { perBackend: { 10.11: 1, 10.12: 2 } } },
+      verified,
+    );
+    expect(servedNoSkip.find((s) => s.id === 'm2-failover').done).toBe(false);
+    const done = missionStatuses(
+      2,
+      { tick: 9, skippedCount: 2, loadBalancer: { perBackend: { 10.11: 3, 10.12: 1 } } },
+      verified,
+    );
+    expect(done.find((s) => s.id === 'm2-failover').done).toBe(true);
+    expect(done.find((s) => s.id === 'm2-failover').completedTick).toBe(9);
   });
 
   it('the stage-6 edge-HIT mission completes only on trace edgeStatus HIT — an origin cache HIT does not', () => {
