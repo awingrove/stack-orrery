@@ -92,5 +92,5 @@ failure mode per stage" becomes explicit switches.
       brief and the DESIGN.md Fault Console amendment.
 - [x] Step 2 (Executor sub-agent): cold implementation, unit & e2e tests, manifest updates,
       green `npm run verify`, tick and commit (DEMO screenshots for the human visual gate).
-- [ ] Step 3 (Lead session): strict acceptance probe over every boundary contract
+- [x] Step 3 (Lead session): strict acceptance probe over every boundary contract
       (including the DL-3 counter-example), metrics extraction, ledger entry, tick Step 3, commit.
