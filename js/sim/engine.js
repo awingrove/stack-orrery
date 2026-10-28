@@ -13,11 +13,9 @@
 // in test/sim/engine.test.js.
 //
 // CHECKS: constructor validates config ranges via its components (seed is
-// coerced uint32; arrivalProb must be within [0, 1]; stage must be within
-// 1-6). Stage 6 instantiates DNS 10.60, the cross-subnet Router (10.65 ⇄
-// 20.254 — Stage 6b re-seat; the edge owns 20.1) and the CDN edge on the
-// right network at 20.1; hosted paths add the DNS ask/answer hops and CDN
-// ones ride the Router + edge.
+// coerced uint32; arrivalProb must be within [0, 1]; stage within 1-6). Stage 6
+// instantiates DNS 10.60, the cross-subnet Router (10.65 ⇄ 20.254 — Stage
+// 6b re-seat; the edge owns 20.1) and the CDN edge at 20.1.
 import { createRng } from './rng.js';
 import { createNetwork } from './network.js';
 import { createBrowser } from './browser.js';
@@ -26,9 +24,7 @@ import { createLoadBalancer } from './loadbalancer.js';
 import { createCache } from './cache.js';
 import { createDatabase } from './database.js';
 import { createWorkerQueue } from './queue.js';
-import { createDns } from './dns.js';
-import { createRouter } from './router.js';
-import { createCdnEdge } from './cdn.js';
+import { createStage6Fabric } from './engine-stage6.js';
 import { createBrowserSeatRegistry } from './browser-seat.js';
 import { createUsers } from './users.js';
 import { createTraceMachine } from './trace.js';
@@ -83,20 +79,25 @@ export function createEngine({
           jobDurationTicks,
         })
       : null;
-  // Stage 6: the authoritative DNS (10.60, tick-TTL ledger) and the
-  // cross-subnet Router that joins the flat 10.x registry with a 20.x one
-  // (from Stage 6b the router sits 10.65 ⇄ 20.254; the edge owns 20.1).
-  const dns = stage >= 6 ? createDns({ address: dnsAddress, ttlTicks: dnsTtlTicks }) : null;
-  const rightNetwork = stage >= 6 ? createNetwork() : null;
-  const router =
+  // CHECKS: the stage-6 fabric (DNS 10.60, Router 10.65 ⇄ 20.254, CDN
+  // edge) assembles in engine-stage6.js (file-size split, same wiring and
+  // registration order); stages 1-5 carry nulls.
+  const fabric =
     stage >= 6
-      ? createRouter({
-          leftAddress: routerLeftAddress,
-          rightAddress: routerRightAddress,
+      ? createStage6Fabric({
+          serverAddress,
+          dnsAddress,
+          dnsTtlTicks,
+          routerLeftAddress,
+          routerRightAddress,
+          cdnAddress,
+          edgeTtlTicks,
           leftNetwork: network,
-          rightNetwork,
         })
       : null;
+  const dns = fabric ? fabric.dns : null;
+  const router = fabric ? fabric.router : null;
+  const edge = fabric ? fabric.edge : null;
   let servers;
   let lb = null;
   if (stage === 1) {
@@ -113,25 +114,6 @@ export function createEngine({
     for (const s of servers) network.registerServer(s.address, s);
     lb = createLoadBalancer({ address: serverAddress, backends: backendAddresses, network });
     network.registerServer(serverAddress, lb);
-  }
-  // CHECKS (Stage 6b): the CDN edge instantiates on the right network at
-  // `cdnAddress` (default 20.1) next to the router's re-seated right-side
-  // seat. The edge's seat receives the frames the Router delivers into
-  // subnet 20 (the same seat pattern the router itself uses); the real
-  // ledger decision runs through edge.lookup inside the trace machine.
-  const edge =
-    stage >= 6
-      ? createCdnEdge({
-          address: cdnAddress,
-          ttlTicks: edgeTtlTicks,
-          originAddress: serverAddress,
-        })
-      : null;
-  if (edge) {
-    rightNetwork.registerServer(cdnAddress, {
-      handleRequest: () => `200 CDN edge ${cdnAddress}`,
-      enqueue: (frame) => frame,
-    });
   }
   // The learner's own interactive client shares the crowd's network and
   // server pool but keeps its own browser and address; users.js keeps its
@@ -181,6 +163,12 @@ export function createEngine({
     onDnsFail: (record) => {
       if (record.from === '10.2') clientBrowser.receiveDnsFailure(record.request);
     },
+    // B-6 negative branch: a transport refusal renders the connection-
+    // refused card on the browser and no exchange finishes (no onFinish,
+    // no onServe — lastExchange and trace.status stay untouched).
+    onRefusal: (record) => {
+      if (record.from === '10.2') clientBrowser.receiveRefusal(record.request, record.to);
+    },
   });
 
   return {
@@ -220,15 +208,12 @@ export function createEngine({
     },
 
     // One hop per call, delegated to the trace machine: 4 hops in Stage 1
-    // (emit, route, serve, render); 5 in Stage 2 (LB round-robin between
-    // route and serve); 6 in Stage 3 (cache check, then response emit);
-    // 7 in Stage 4 (the database hop inserted after the cache check); 8 in
-    // Stage 5 (the async worker tail); 9 in Stage 6 for hosted paths (the
-    // DNS ask/answer prelude, the stage-5 chain minus its emit hop) and 8
-    // for host-less ones; 6 for CDN edge HITs, 9 for CDN MISS and pass
-    // through (Stage 6b).
-    // `from` is the mini-IP of the browser the trace originates from
-    // (default the learner's own 10.2).
+    // (emit, route, serve, render), 5 in Stage 2 (LB hop), 6 in Stage 3
+    // (cache check + response emit), 7 in Stage 4 (database hop), 8 in
+    // Stage 5 (worker tail); Stage 6: 9 hops on hosted paths (DNS
+    // ask/answer prelude), 8 host-less; 6 for CDN HITs, 9 for CDN MISS
+    // and pass through (Stage 6b). `from` is the originating browser's
+    // mini-IP (default the learner's own 10.2).
     traceHop({ method = 'GET', path = '/about', from = '10.2' } = {}) {
       // CHECKS (Stage 6b): a CDN response frame crosses BACK through the
       // Router into the originating browser, so the browser needs a real
@@ -243,11 +228,10 @@ export function createEngine({
       userPool.setCount(n);
     },
 
-    // CHECKS: setWebFile routes an fs edit to the server whose address
-    // matches — an unknown mini-IP throws (fail-loud over a silent no-op)
-    // and nothing else moves (no snapshot-shape change: servers[i].files
-    // already carries the fs Map). The edit itself invalidates nothing, so
-    // a stage-3+ cache keeps serving its OLD body until the TTL expires.
+    // CHECKS: setWebFile routes an fs edit to the matching server address
+    // — unknown mini-IP throws (fail-loud) and nothing else moves. The
+    // edit invalidates nothing, so a stage-3+ cache keeps its OLD body
+    // until the TTL expires.
     setWebFile(address, path, body) {
       const server = servers.find((s) => s.address === address);
       if (!server) {
@@ -256,10 +240,23 @@ export function createEngine({
       server.writeFile(path, body);
     },
 
+    // CHECKS: setServerDown routes the B-6 fault flip to the matching
+    // server address — unknown mini-IP throws (same rule as setWebFile);
+    // the boolean is validated by webserver.setDown. The transport consults
+    // the flag on the next wire crossing only.
+    setServerDown(address, down) {
+      const server = servers.find((s) => s.address === address);
+      if (!server) {
+        throw new Error(`engine: setServerDown — no server at mini-IP ${address}`);
+      }
+      server.setDown(down);
+    },
+
     snapshot() {
       const serverSnapshots = servers.map((s) => ({
         address: s.address,
         ...s.metrics(),
+        down: s.isDown(),
         queue: s.queueSnapshot(),
         files: s.filesSnapshot(),
       }));
@@ -278,6 +275,7 @@ export function createEngine({
         queueDepth,
         served,
         avgLatencyTicks,
+        refusedCount: network.refusedCount(),
         lastExchange,
         queue: serverSnapshots[0].queue,
         files: serverSnapshots[0].files,

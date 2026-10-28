@@ -55,6 +55,12 @@ slices:
       - unit: test/sim/cdn.test.js::evicts an expired entry and never answers from the ledger past expiry
       - unit: test/sim/cdn.test.js::rejects an empty or non-string fill path/body (fail-loud)
       - unit: test/sim/cdn.test.js::keeps a pass-through edge untouched — no lookup, no counters, no row
+      - unit: test/sim/webserver-fault.test.js::setDown validates a boolean off/on flag and isDown reads it back (fail loud)
+      - unit: test/sim/webserver-fault.test.js::network send and deliverToQueue both refuse a registered-but-down host with the refusal-record shape
+      - unit: test/sim/webserver-fault.test.js::refused deliveries never enqueue — the down host queue depth stays flat and refusals tally
+      - unit: test/sim/webserver-fault.test.js::the engine counts refusals (refusedCount) and never enqueues crowd sends while down
+      - unit: test/sim/webserver-fault.test.js::DL-3 counter-example — lastStatus stays null across a refusal, no mission detector can be satisfied
+      - unit: test/sim/webserver-fault.test.js::same seed replays the identical tick sequence with the fault off
       - unit: test/sim/engine.test.js::rejects a stage outside 1..6
       - unit: test/sim/engine.test.js::traces example.com/about through the DNS ask/answer prelude into the stage-5 chain
       - unit: test/sim/engine.test.js::keeps a host-less /about trace at the stage-5 hop story on stage 6
@@ -89,6 +95,7 @@ slices:
         - e2e/missions.spec.js
         - e2e/compare.spec.js
         - e2e/control-room-rail.spec.js
+        - e2e/fault-console.spec.js
     owns:
       - panel.html
     calls:
@@ -136,8 +143,9 @@ slices:
       - unit: test/panel/teaching.test.js::describes all shipped stages with a headline, three lists, a tradeoff, and a primerLink
       - unit: test/panel/teaching.test.js::stage 1 content never mentions cache TTL names
       - unit: test/panel/teaching.test.js::unknown stages degrade to a pending-entries placeholder, not a crash
-      - unit: test/panel/missions.test.js::every shipped stage carries two to three missions with id, goal, detect, and progress
+      - unit: test/panel/missions.test.js::stages 2-6 carry two to three missions and stage 1 carries four (B-6 recovery mission)
       - unit: test/panel/missions.test.js::the stage-1 404 mission completes only on a real 404 — a 405 does not
+      - unit: test/panel/missions.test.js::the stage-1 recovery mission completes only after a refusal AND a served 200 — a refusal alone satisfies neither leg
       - unit: test/panel/missions.test.js::the stage-6 edge-HIT mission completes only on trace edgeStatus HIT — an origin cache HIT does not
       - unit: 'test/panel/missions.test.js::verification latches: a done mission does not un-verify while the clock runs'
       - unit: test/panel/missions.test.js::a fresh verified set flips missions back to pending and the completing tick is forgotten
@@ -180,6 +188,9 @@ slices:
       - e2e: control-room-rail::should dock teaching, missions, and legend into the right rail with the plane unchanged
       - e2e: control-room-rail::should keep the rail tab state across stage switches
       - e2e: control-room-rail::should collapse the rail under the viewport below the responsive breakpoint
+      - e2e: fault-console::should toggle the webserver fault from the rail console and read connection refused in the trace
+      - e2e: fault-console::should keep crowd sends refused while down and restore a 200 after toggle-back
+      - e2e: fault-console::should verify the stage-1 recovery mission only after refusal and recovery
     entry_point: index.html -> Diagram Panel link
 
 allowlist:

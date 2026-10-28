@@ -7,6 +7,7 @@ import { COMPONENT_SOURCE } from './inspector-source.js';
 import { componentTitle, formatComponentState } from './inspector-state.js';
 import { renderFilesystems } from './fs-editor.js';
 import { updateMissions } from './missions-view.js';
+import { updateFaultConsole } from './fault-console.js';
 import { renderHopHighlights, renderDots, renderRingBrowsers } from './render-stage.js';
 
 export const $ = (id) => document.getElementById(id);
@@ -247,8 +248,10 @@ export function render(snapshot, selectedComponent, { layout, activeAddress = '1
   // DOCUMENTS: the missions section (B-2) rides this per-snapshot call —
   // the same existing hook renderFilesystems uses — with panel.js at its
   // 300-line cap; stage switches are detected inside missions-view from
-  // the snapshot's stage.
+  // the snapshot's stage. The B-6 fault console rides the same hook: its
+  // chips and the down card's DOWN chip read every fresh snapshot.
   updateMissions(snapshot);
+  updateFaultConsole(snapshot);
   renderHopHighlights(snapshot, selectedComponent);
   renderDots(snapshot.users);
   renderRingBrowsers(layout?.browserSlots ?? [], activeAddress);

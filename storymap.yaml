@@ -41,6 +41,16 @@ activities:
             tests:
               - unit: test/sim/network.test.js::browser sends slim GET over network mini-IP and parses 200 and 404 responses
               - unit: test/sim/webserver.test.js::handleRequest routes slim GET paths to 200 or 404 and rejects non-GET with 405
+          - title: Take the webserver down and watch the transport refuse both entry points — refused sends never enqueue, the refusal tally rides the one choke point, restore serves a 200 again, and the fault-off replay stays byte-identical
+            status: done
+            priority: high
+            tests:
+              - unit: test/sim/webserver-fault.test.js::setDown validates a boolean off/on flag and isDown reads it back (fail loud)
+              - unit: test/sim/webserver-fault.test.js::network send and deliverToQueue both refuse a registered-but-down host with the refusal-record shape
+              - unit: test/sim/webserver-fault.test.js::refused deliveries never enqueue — the down host queue depth stays flat and refusals tally
+              - unit: test/sim/webserver-fault.test.js::the engine counts refusals (refusedCount) and never enqueues crowd sends while down
+              - unit: test/sim/webserver-fault.test.js::DL-3 counter-example — lastStatus stays null across a refusal, no mission detector can be satisfied
+              - unit: test/sim/webserver-fault.test.js::same seed replays the identical tick sequence with the fault off
 
       - id: PANEL-1
         name: Watch a simulated web server under load
@@ -171,7 +181,7 @@ activities:
             status: done
             priority: medium
             tests:
-              - unit: test/panel/missions.test.js::every shipped stage carries two to three missions with id, goal, detect, and progress
+              - unit: test/panel/missions.test.js::stages 2-6 carry two to three missions and stage 1 carries four (B-6 recovery mission)
               - unit: test/panel/missions.test.js::the stage-1 404 mission completes only on a real 404 — a 405 does not
               - unit: test/panel/missions.test.js::the stage-6 edge-HIT mission completes only on trace edgeStatus HIT — an origin cache HIT does not
               - unit: 'test/panel/missions.test.js::verification latches: a done mission does not un-verify while the clock runs'
@@ -190,6 +200,14 @@ activities:
               - e2e: control-room-rail::should dock teaching, missions, and legend into the right rail with the plane unchanged
               - e2e: control-room-rail::should keep the rail tab state across stage switches
               - e2e: control-room-rail::should collapse the rail under the viewport below the responsive breakpoint
+          - title: Flip the rail's fourth Faults tab to take WebServer 10.1 down and up — the 10.1 card carries the DOWN chip, the trace aborts at the deliver hop with connection refused (crowd sends stay refused while down), and the stage-1 recovery mission verifies only after a refusal AND a restored 200
+            status: done
+            priority: high
+            tests:
+              - e2e: fault-console::should toggle the webserver fault from the rail console and read connection refused in the trace
+              - e2e: fault-console::should keep crowd sends refused while down and restore a 200 after toggle-back
+              - e2e: fault-console::should verify the stage-1 recovery mission only after refusal and recovery
+              - unit: test/panel/missions.test.js::the stage-1 recovery mission completes only after a refusal AND a served 200 — a refusal alone satisfies neither leg
 
   - name: 'Stage 2 — Load balancer and duplicated servers'
     tasks:

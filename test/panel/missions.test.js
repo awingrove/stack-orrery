@@ -11,13 +11,18 @@ const FIRST = (stage, snapshot, verified) =>
   missionStatuses(stage, snapshot, verified).find((s) => s.id === 'm1-404');
 
 describe('missions registry and statuses', () => {
-  it('every shipped stage carries two to three missions with id, goal, detect, and progress', () => {
+  // B-6 (docs/plans/2026-10-27-b6-fault-console.md): the human design gate
+  // added the stage-1 recovery mission (m1-refuse-recover), so stage 1
+  // carries four; every other stage stays inside the B-2 two-to-three shape.
+  it('stages 2-6 carry two to three missions and stage 1 carries four (B-6 recovery mission)', () => {
     expect(Object.keys(MISSIONS).map(Number).sort()).toEqual([1, 2, 3, 4, 5, 6]);
     for (const stage of [1, 2, 3, 4, 5, 6]) {
       expect(MISSIONS[stage].length, `stage ${stage} mission count floor`).toBeGreaterThanOrEqual(
         2,
       );
-      expect(MISSIONS[stage].length, `stage ${stage} mission count cap`).toBeLessThanOrEqual(3);
+      expect(MISSIONS[stage].length, `stage ${stage} mission count cap`).toBeLessThanOrEqual(
+        stage === 1 ? 4 : 3,
+      );
       expect(new Set(MISSIONS[stage].map((m) => m.id)).size, `stage ${stage} unique ids`).toBe(
         MISSIONS[stage].length,
       );
@@ -118,6 +123,41 @@ describe('missions registry and statuses', () => {
     ).find((s) => s.id === 'm6-edge-hit');
     expect(hit.done).toBe(true);
     expect(hit.completedTick).toBe(14);
+  });
+
+  // CHECKS (B-6 named counter-example): the recovery mission completes only
+  // on a served 200 AFTER a refusal — the refusal alone satisfies neither
+  // leg (the sim's lastStatus stays null across a refusal), and a 200
+  // without a refusal behind it fails the refusedCount leg.
+  it('the stage-1 recovery mission completes only after a refusal AND a served 200 — a refusal alone satisfies neither leg', () => {
+    const verified = new Map();
+    const RECOVERY = 'm1-refuse-recover';
+    // A refusal record carries no HTTP status, so the existing 404/405
+    // detectors cannot be satisfied by one either.
+    const refusedOnly = missionStatuses(
+      1,
+      { tick: 5, refusedCount: 2, lastExchange: null },
+      verified,
+    );
+    expect(refusedOnly.find((s) => s.id === RECOVERY).done).toBe(false);
+    expect(refusedOnly.find((s) => s.id === 'm1-404').done).toBe(false);
+    expect(refusedOnly.find((s) => s.id === 'm1-405').done).toBe(false);
+    // Positive on both legs is required: a 200 with no refusal behind it
+    // fails the refusedCount leg.
+    expect(
+      missionStatuses(
+        1,
+        { tick: 8, refusedCount: 0, lastExchange: { status: 200, request: 'GET /' } },
+        verified,
+      ).find((s) => s.id === RECOVERY).done,
+    ).toBe(false);
+    const done = missionStatuses(
+      1,
+      { tick: 9, refusedCount: 2, lastExchange: { status: 200, request: 'GET /' } },
+      verified,
+    ).find((s) => s.id === RECOVERY);
+    expect(done.done).toBe(true);
+    expect(done.completedTick).toBe(9);
   });
 
   it('verification latches: a done mission does not un-verify while the clock runs', () => {

@@ -84,6 +84,20 @@ function hopSentences(stage, snapshot, from, serverAddress) {
   const t = snapshot.trace ?? {};
   const target = t.targetServer ?? '10.11';
   if (stage === 6) return stage6Sentences(snapshot, from, serverAddress);
+  if (stage === 1 && t.refused) {
+    // CHECKS: B-6 counter-example — the refusal shape is 2 hops, the emit
+    // and the transport's connection refused. It is not a renumber of the
+    // 4-hop served story: no queue sentence, no served body sentence, and
+    // no render sentence appears, so the refusal cannot read as a
+    // completed delivery.
+    return withHopPrefix(
+      [
+        `Browser (${from}) emits "${t.request}"`,
+        `Network (10.x) -> WebServer (${serverAddress}): connection refused — nothing enqueued, nothing served`,
+      ],
+      2,
+    );
+  }
   if (stage === 5) {
     return withHopPrefix(stage5ChainParts(snapshot, from, serverAddress), 8);
   }

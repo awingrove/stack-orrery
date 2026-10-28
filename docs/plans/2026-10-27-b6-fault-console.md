@@ -90,7 +90,7 @@ failure mode per stage" becomes explicit switches.
 - [x] Step 1 (Lead session): human design sign-off recorded (fault console / one fault one
       stage / fourth rail tab / recovery mission, answered 2026-10-27) committed with this
       brief and the DESIGN.md Fault Console amendment.
-- [ ] Step 2 (Executor sub-agent): cold implementation, unit & e2e tests, manifest updates,
+- [x] Step 2 (Executor sub-agent): cold implementation, unit & e2e tests, manifest updates,
       green `npm run verify`, tick and commit (DEMO screenshots for the human visual gate).
 - [ ] Step 3 (Lead session): strict acceptance probe over every boundary contract
       (including the DL-3 counter-example), metrics extraction, ledger entry, tick Step 3, commit.

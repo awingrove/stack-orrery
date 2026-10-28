@@ -12,6 +12,9 @@
 // callbacks below. Stage 6 is delegated to its own machine in
 // trace-stage6.js (a DNS ask/answer prelude in front of the byte-identical
 // stage-5 chain), so the stage-1-to-5 conditions below are untouched.
+// B-6 adds the stage-1 refusal branch: with the webserver down the
+// transport refuses at the deliver hop and the story ends there — a 2-hop
+// aborted narrative built from the refusal record itself.
 import { createStage6Trace } from './trace-stage6.js';
 import { drainUntilYou, backendFor, serveInto, finishTo } from './trace-helpers.js';
 
@@ -34,6 +37,7 @@ export function createTraceMachine({
   onServe,
   onFinish,
   onDnsFail = null,
+  onRefusal = null,
 }) {
   if (stage !== 1 && stage !== 2 && stage !== 3 && stage !== 4 && stage !== 5 && stage !== 6) {
     throw new Error(`trace: stage must be 1, 2, 3, 4, 5, or 6, got ${stage}`);
@@ -75,14 +79,19 @@ export function createTraceMachine({
       status: null,
       body: null,
       routeId: null,
+      refused: false,
     };
   }
 
   return {
     // One hop per call. Returns the hop's lastFrame string, or null when
-    // nothing moved (the engine keeps its previous frame then).
+    // nothing moved (the engine keeps its previous frame then). The stage-1
+    // final hop reads from the live trace shape: a refused delivery ends
+    // the story at the deliver hop (2), the served shape walks to 4.
     step({ method = 'GET', path = '/about', from = '10.2' } = {}) {
-      const finalHop = stage === 5 ? 8 : stage === 4 ? 7 : stage === 3 ? 6 : stage === 2 ? 5 : 4;
+      const finalStageHop =
+        stage === 5 ? 8 : stage === 4 ? 7 : stage === 3 ? 6 : stage === 2 ? 5 : 4;
+      const finalHop = stage === 1 && trace.refused ? 2 : finalStageHop;
       let frame = null;
       if (trace.hop === 0 || trace.hop >= finalHop) {
         const request = `${method} ${path}`;
@@ -100,13 +109,14 @@ export function createTraceMachine({
           status: null,
           body: null,
           routeId: null,
+          refused: false,
         };
         served = null;
         frame = `${from} -> ${serverAddress} | ${request}`;
       } else if (stage === 1 && trace.hop === 1) {
         trace.hop = 2;
         const atTick = bumpTick();
-        network.deliverToQueue({
+        const refusal = network.deliverToQueue({
           id: `you:${atTick}`,
           from: trace.from,
           to: serverAddress,
@@ -114,7 +124,20 @@ export function createTraceMachine({
           atTick,
           isYou: true,
         });
-        frame = `routed ${trace.from} -> ${serverAddress} (${trace.request}) into queue`;
+        if (refusal?.refused) {
+          // CHECKS: B-6 counter-example, DL-3 — the refusal record ABORTS
+          // the stage-1 story at the deliver hop: no queue entry (the
+          // transport refused before enqueue), no served record, and the
+          // response fields stay null so trace.status carries no inherited
+          // 200/404 and lastExchange satisfies no mission detector. The
+          // frame narrates the refusal itself, not an HTTP
+          // status string.
+          trace.refused = true;
+          onRefusal?.(refusal);
+          frame = `${trace.from} -> ${serverAddress} | ${trace.request} => connection refused (nothing enqueued)`;
+        } else {
+          frame = `routed ${trace.from} -> ${serverAddress} (${trace.request}) into queue`;
+        }
       } else if (stage === 1 && trace.hop === 2) {
         trace.hop = 3;
         const you = drainUntilYou(servers[0], getTick);
