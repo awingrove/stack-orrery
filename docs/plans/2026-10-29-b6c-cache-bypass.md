@@ -101,6 +101,10 @@ serverSnapshots[0]?.bypassedCount?.() ?? 0` — the WEBSERVER counts routes it t
       cache-bypass bullet committed with this brief.
 - [x] Step 2 (Executor sub-agent): cold implementation, unit & e2e tests, manifest updates,
       green `npm run verify`, tick and commit (DEMO screenshots for the human visual gate).
-- [ ] Step 3 (Lead session): strict acceptance probe over every boundary contract
+- [x] Step 3 (Lead session): strict acceptance probe over every boundary contract
       (including the cold-rejoin and non-GET counter-examples), metrics extraction, ledger
-      entry, tick Step 3, commit.
+      entry, tick Step 3, commit. NOTE: the probe's first pass showed 4 FAILs that
+      looked like a DL-4 narration defect (bypassed GET read `cache MISS` while
+      counters froze) — bisected node-side: the sim is CORRECT; the probe had mis-read
+      whole-log textContent without run-scoping (new journey runs float ABOVE older
+      ones) and placed one assertion before the lookup that unmutes. Probe-only fix.
