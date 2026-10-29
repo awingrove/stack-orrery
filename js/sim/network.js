@@ -54,11 +54,18 @@ export function createNetwork() {
 
     // CHECKS: crowd and trace sends alike cross this single choke point —
     // the down host's handleRequest is not consulted while it is down.
+    // B-6b: a handled host (the healthy LB) whose selection reached a
+    // refused hop downstream returns the record it received as-is, so the
+    // sender gets the same refusal shape without a second tally — the
+    // count was taken where the refusal was recorded.
     send({ from, to, request }) {
       validate(from);
       const server = resolve(to);
       if (server.isDown?.()) return refusalOf({ from, to, request });
       const response = server.handleRequest(request);
+      if (response?.refused === true) {
+        return { from, to, request, response: null, refused: true };
+      }
       return { from, to, request, response };
     },
 

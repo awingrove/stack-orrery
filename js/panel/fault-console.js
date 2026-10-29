@@ -1,19 +1,20 @@
 // DOCUMENTS: the B-6 fault console — the rail's fourth docked surface
 // (rail tab 'faults', host built by rail.js). Per-stage fault switches, one
 // fault per stage (DESIGN.md Fault Console): slice 1 ships the stage-1
-// WebServer-down switch. The switch writes real component state through
-// engine.setServerDown (webserver.setDown validates the boolean, fail-loud)
-// and every visible fault state — the console row's DOWN/off chip and the
-// staged server card's DOWN chip — reads back from the fresh snapshot, not
-// from local UI memory. panel.html sits at its 550-line cap, so the console
-// and the card chip are JS-built: textContent/attributes only,
+// WebServer-down switch and B-6b appends the stage-2 Backend-10.12 row. The
+// switch writes real component state through engine.setServerDown
+// (webserver.setDown validates the boolean, fail-loud) and every visible
+// fault state — the console row's DOWN/off chip and the staged server
+// card's DOWN chip — reads back from the fresh snapshot, not from local UI
+// memory. panel.html sits at its 550-line cap, so the console and the card
+// chip are JS-built: textContent/attributes only,
 // addEventListener only (AGENTS.md CSP rule). Stages without faults render
 // no section — the rail shows its own empty-state line, not blank space.
 import { getRailHost, refreshRail } from './rail.js';
 
 // One fault per stage. serverAddress names the component the fault downs
-// (stage 1's single server) and cardId the node card whose DOWN chip
-// reflects the component's live state.
+// (stage 1's single server, stage 2's backend 10.12) and cardId the node
+// card whose DOWN chip reflects the component's live state.
 const FAULTS = {
   1: [
     {
@@ -23,6 +24,18 @@ const FAULTS = {
       chipId: 'fault-state-webserver',
       serverAddress: '10.1',
       cardId: 'node-webserver',
+    },
+  ],
+  2: [
+    // B-6b: the slice-1 pattern verbatim — the flip is component state, and
+    // the LB cursor's health-aware skip is what keeps the pool serving.
+    {
+      id: 'backend-10-12-down',
+      label: 'Backend 10.12 down',
+      switchId: 'fault-toggle-backend-10-12',
+      chipId: 'fault-state-backend-10-12',
+      serverAddress: '10.12',
+      cardId: 'node-webserver-2',
     },
   ],
 };

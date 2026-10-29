@@ -30,9 +30,16 @@ test('should toggle the webserver fault from the rail console and read connectio
   await expect(page.getByTestId('faults-section')).toBeVisible();
   await expect(stateChip(page)).toHaveText('off');
   await expect(toggle(page)).toHaveAttribute('aria-pressed', 'false');
-  await expect(page.getByTestId('node-down-chip')).toBeHidden();
+  // B-6b: both fault cards mount their DOWN chip shells now — the stage-1
+  // assertions scope to the 10.1 card.
+  await expect(page.locator('#node-webserver [data-testid="node-down-chip"]')).toBeHidden();
 
   await page.getByTestId('stage-pill-2').click();
+  // B-6b: stage 2 now owns the backend-10.12 row — the console shows it,
+  // still reading component state, and stage 3 carries the empty-state.
+  await expect(page.getByTestId('fault-toggle-backend-10-12')).toBeVisible();
+  await expect(page.getByTestId('fault-state-backend-10-12')).toHaveText('off');
+  await page.getByTestId('stage-pill-3').click();
   await expect(page.locator('.rail-host:not([hidden]) .rail-empty')).toHaveText(
     'No faults for this stage yet.',
   );
@@ -45,8 +52,9 @@ test('should toggle the webserver fault from the rail console and read connectio
   await toggle(page).click();
   await expect(stateChip(page)).toHaveText('DOWN');
   await expect(toggle(page)).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByTestId('node-down-chip')).toBeVisible();
-  await expect(page.getByTestId('node-down-chip')).toHaveText('DOWN');
+  await expect(page.locator('#node-webserver [data-testid="node-down-chip"]')).toBeVisible();
+  await expect(page.locator('#node-webserver [data-testid="node-down-chip"]')).toHaveText('DOWN');
+  await expect(page.locator('#node-webserver-2 [data-testid="node-down-chip"]')).toBeHidden();
 
   // The trace aborts at the deliver hop with the transport's own verdict:
   // hop 2/2, no served record, the browser shows its refusal error page.
@@ -66,7 +74,7 @@ test('should toggle the webserver fault from the rail console and read connectio
   // Toggling back restores normal service — the same switch, nothing else.
   await toggle(page).click();
   await expect(stateChip(page)).toHaveText('off');
-  await expect(page.getByTestId('node-down-chip')).toBeHidden();
+  await expect(page.locator('#node-webserver [data-testid="node-down-chip"]')).toBeHidden();
 });
 
 test('should keep crowd sends refused while down and restore a 200 after toggle-back', async ({
@@ -125,4 +133,133 @@ test('should verify the stage-1 recovery mission only after refusal and recovery
   await page.getByTestId('btn-url-go').click();
   await expect(page.getByTestId('browser-status-badge')).toContainText(/^200 /);
   await expect(recoveryChip(page)).toContainText(/✓ done · tick \d+/);
+});
+
+// B-6b (docs/plans/2026-10-28-b6b-backend-failover.md): on stage 2 the down
+// backend is not a refusal story — the LB cursor skips it and the pool
+// keeps serving. Titles are manifest pins — do not reword.
+
+const backendToggle = (page) => page.getByTestId('fault-toggle-backend-10-12');
+
+const backendChip = (page) => page.getByTestId('fault-state-backend-10-12');
+
+const failoverChip = (page) =>
+  page.getByTestId('mission-item').filter({ hasText: 'rejoin' }).getByTestId('mission-status');
+
+test('should skip the down backend in the round-robin and keep the crowd served', async ({
+  page,
+}) => {
+  await page.goto('/panel.html');
+  await page.getByTestId('stage-pill-2').click();
+  await expect(page.getByTestId('node-lb')).toBeVisible();
+  await page.getByTestId('rail-tab-faults').click();
+  // Take 10.12 down before anything is sent, so its per-backend count is
+  // still zero and the failover mission cannot latch off a warm count.
+  await backendToggle(page).click();
+  await expect(backendChip(page)).toHaveText('DOWN');
+  await expect(backendToggle(page)).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('fault-toggle-webserver')).toHaveCount(0);
+  // Exactly one DOWN chip on the page — the 10.12 card's; 10.11 stays normal.
+  const down12 = page.locator('#node-webserver-2 [data-testid="node-down-chip"]');
+  await expect(down12).toBeVisible();
+  await expect(down12).toHaveText('DOWN');
+  await expect(page.locator('#node-webserver [data-testid="node-down-chip"]')).toBeHidden();
+  await expect(page.locator('[data-testid="node-down-chip"]:visible')).toHaveCount(1);
+
+  // Crowd while down: served keeps flowing and 10.12's counter stays frozen.
+  for (let i = 0; i < 10; i += 1) await page.getByTestId('step-button').click();
+  await expect(page.getByTestId('served')).not.toHaveText('0');
+  const frozen = await page.getByTestId('lb-backend-2').textContent();
+  await expect(page.getByTestId('lb-backend-1')).not.toHaveText(/10\.11 WebServer-1 \(0\)/);
+  await expect(page.getByTestId('lb-backend-2')).toHaveText(frozen);
+  // The skip leg moved on the failover mission's own readout — no refusal
+  // tallies exist to watch on this stage, only skips.
+  await expect(failoverChip(page)).toContainText(/○ skips: [1-9]\d* · 10\.12: 0/);
+  await expect(failoverChip(page)).not.toContainText('✓');
+
+  // Restore: the cursor's seat was 10.12's the whole time — it rejoins on
+  // the very next forward, takes its share again, and the chip latches.
+  await backendToggle(page).click();
+  await expect(backendChip(page)).toHaveText('off');
+  await expect(down12).toBeHidden();
+  await expect(page.getByTestId('lb-next-backend')).toHaveText('Next -> 10.12');
+  for (let i = 0; i < 10; i += 1) await page.getByTestId('step-button').click();
+  await expect(page.getByTestId('lb-backend-2')).not.toHaveText(frozen);
+  await page.getByTestId('rail-tab-missions').click();
+  await expect(failoverChip(page)).toContainText(/✓ done · tick \d+/);
+});
+
+test('should narrate the skip in the stage-2 trace without aborting the served story', async ({
+  page,
+}) => {
+  await page.goto('/panel.html');
+  await page.getByTestId('stage-pill-2').click();
+  await page.getByTestId('rail-tab-faults').click();
+
+  // Warm the rotation first (fault off): one full 5-hop trace leaves the
+  // cursor seated on 10.12 — with the fresh cursor on 10.11 the first
+  // traced pick would still be a plain healthy pick with no crossed seat.
+  await page.getByTestId('url-input').fill('/about');
+  for (let hop = 0; hop < 5; hop += 1) await page.getByTestId('btn-next-hop').click();
+  await expect(page.getByTestId('hop-status')).toContainText('Hop 5/5');
+
+  await backendToggle(page).click();
+  await expect(backendChip(page)).toHaveText('DOWN');
+
+  // The full 5-hop served story runs with the skip named at the LB hop.
+  for (let hop = 0; hop < 5; hop += 1) await page.getByTestId('btn-next-hop').click();
+  await expect(page.getByTestId('hop-status')).toContainText('Hop 5/5');
+  await expect(page.getByTestId('browser-status-badge')).toContainText(/^200 /);
+  const lbHop = page.locator('.journey-log .journey-entry', { hasText: 'skipped' });
+  await expect(lbHop).toContainText(
+    'hop 3/5 · LB 10.1 -> 10.11 (GET /about) queued — 10.12 is down — skipped',
+  );
+  await expect(
+    page.locator('.journey-log .journey-entry', { hasText: 'connection refused' }),
+  ).toHaveCount(0);
+  // Both finished runs read a served 200 story from 10.11 — the down trace
+  // kept the full served story, the skip noted in its LB hop only.
+  await expect(
+    page.locator('.journey-log .journey-entry', { hasText: 'hop 4/5 · 10.11 -> 10.2 | 200' }),
+  ).toHaveCount(2);
+
+  // Toggle back — the served story keeps its byte shape again and the
+  // cursor lands on the rejoined 10.12 first.
+  await backendToggle(page).click();
+  await expect(backendChip(page)).toHaveText('off');
+  await expect(page.getByTestId('lb-next-backend')).toHaveText('Next -> 10.12');
+  for (let hop = 0; hop < 5; hop += 1) await page.getByTestId('btn-next-hop').click();
+  await expect(page.getByTestId('hop-status')).toContainText('Hop 5/5');
+  await expect(
+    page.locator('.journey-log .journey-entry', {
+      hasText: 'LB 10.1 -> 10.12 (GET /about) queued',
+    }),
+  ).toHaveCount(1);
+  await expect(
+    page.locator('.journey-log .journey-entry', { hasText: 'connection refused' }),
+  ).toHaveCount(0);
+});
+
+test('should verify the stage-2 failover mission only after skip and rejoin', async ({ page }) => {
+  await page.goto('/panel.html');
+  await page.getByTestId('rail-tab-missions').click();
+  await page.getByTestId('stage-pill-2').click();
+  await expect(page.getByTestId('mission-item')).toHaveCount(3);
+  await expect(failoverChip(page)).toContainText('○ skips: 0 · 10.12: 0');
+
+  // Phase 1 — down: skips are real (the readout moves, the crowd stays
+  // served), but 10.12 serves nothing, so the mission is NOT complete.
+  await page.getByTestId('rail-tab-faults').click();
+  await backendToggle(page).click();
+  await expect(backendChip(page)).toHaveText('DOWN');
+  for (let i = 0; i < 8; i += 1) await page.getByTestId('step-button').click();
+  await expect(page.getByTestId('served')).not.toHaveText('0');
+  await expect(failoverChip(page)).toContainText(/○ skips: [1-9]\d* · 10\.12: 0/);
+  await expect(failoverChip(page)).not.toContainText('✓');
+
+  // Phase 2 — restored: the down-phase skip behind it and a fresh 10.12
+  // forward on top; only now both legs hold and the chip latches done.
+  await backendToggle(page).click();
+  for (let i = 0; i < 8; i += 1) await page.getByTestId('step-button').click();
+  await expect(failoverChip(page)).toContainText(/✓ done · tick \d+/);
 });

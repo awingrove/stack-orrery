@@ -653,3 +653,49 @@ entries:
       detector; lastStatus stays null); the probe's own 3 FAIL rounds were
       probe-side bugs (stale replay URL /missing, wrong visible-host
       locator), corrected in the probe script only.
+
+  - id: B6B-BACKEND-FAILOVER
+    slice:
+      - SIM
+      - PANEL
+    name: >-
+      B-6b fault console slice 2 — LB backend down is a health-skip story:
+      the round-robin cursor counts skips and the pool never refuses while
+      one of two backends is down
+    brief: docs/plans/2026-10-28-b6b-backend-failover.md
+    agent: cheap
+    lead_model: opencode/glm-5.3-flash-free
+    agent_model: opencode/glm-5.3-flash-free
+    session_id: ses_e7b56fa08ffeNFhXkZuC9dpftT
+    tokens_input: 559963
+    tokens_output: 42117
+    tokens_reasoning: 70272
+    tokens_cache_read: 19162944
+    cost_usd: 0
+    human_interventions: 0
+    agent_review_rounds: 0
+    guardrail_failures: 6
+    fix_commits: 0
+    defects_escaped: 0
+    notes: >-
+      Standing per-slice deviation (pinned executor over limit) — executed
+      cold from the brief in 73d223b with 6 in-session red gate runs over 3
+      named causes (prettier on files it touched; one guard-claims bare
+      guarantee word; two e2e test-side bugs the sim did not have: a
+      single-digit skip regex plus the fresh-cursor gotcha — the first
+      traced pick after boot is a plain healthy pick, the narrated-skip
+      test needed a pre-warm run first), then green at 125 unit / 53 e2e.
+      LEAD defect recorded: the brief's Step-1 arithmetic was off by one —
+      stage 2 pre-carried TWO missions, not three; the executor implemented
+      the named contract, set e2e counts to the real 3, retitled the unit
+      cap to two-to-three-per-stages-2..6 and disclosed all four pin
+      extensions it had to make beyond the two the brief named (LB snapshot
+      pin, stage-2-empty-state pin relocated to stage 3 — the old pin
+      contradicted this slice's own stage-2 row — and chip-shell scoping
+      for stage-1 assertions). The lead's probe reproduced the SAME
+      fresh-cursor gotcha the executor had already diagnosed, pre-warming
+      before the narrated-skip walk; 16 contracts walked green including
+      the B-6b DL variant (a 404 through the skipped pool keeps the full
+      5-hop served story with the skip named and no refusal text
+      anywhere); all-down fail-out stays unit-pinned (7 test/sim pins, not
+      UI-reachable at stage 2 since the console offers one switch).

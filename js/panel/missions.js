@@ -1,5 +1,6 @@
-// DOCUMENTS: the B-2 mission registry — per-stage missions (2–3 each for
-// the shipped stages 1–6, plus B-6's stage-1 recovery mission) whose checks
+// DOCUMENTS: the B-2 mission registry — per-stage missions (2–4 each for
+// the shipped stages 1–6: stages 1 and 2 carry four with their B-6 recovery
+// and B-6b failover missions) whose checks
 // are pure snapshot predicates. Each
 // entry is { id, goal, url?, detect(snapshot) -> boolean, progress(snapshot)
 // -> string }; goals derive from the stage's try / watchFor copy in
@@ -16,7 +17,10 @@
 //     wrong-path mission checks status === 404, not non-2xx;
 //   - an origin cache HIT does not complete the stage-6 edge-HIT mission —
 //     the predicate reads the trace's edge verdict, `edgeStatus === 'HIT'`,
-//     not `cacheStatus`.
+//     not `cacheStatus`;
+//   - B-6b: a served 10.12 count alone does not complete the failover
+//     mission while the skip leg is zero, and a skip alone (backend still
+//     down) does not either.
 
 const lastStatus = (snapshot) => snapshot.lastExchange?.status ?? null;
 const perBackend = (snapshot) => snapshot.loadBalancer?.perBackend ?? {};
@@ -70,6 +74,16 @@ export const MISSIONS = {
       goal: 'Forward 6+ requests in total through the LoadBalancer VIP',
       detect: (s) => forwarded(s) >= 6,
       progress: (s) => `forwarded: ${forwarded(s)}`,
+    },
+    {
+      id: 'm2-failover',
+      goal: 'Take backend 10.12 down, keep serving, restore it and see it rejoin the rotation',
+      // CHECKS (B-6b, DL-3 counter-example): the skip leg reads the engine
+      // snapshot's own skip tally, the rejoin leg reads 10.12's per-backend
+      // count — a skip alone leaves 10.12 frozen while the fault is on, and
+      // a 10.12 count with no skip behind it satisfies neither leg.
+      detect: (s) => (s.skippedCount ?? 0) > 0 && (perBackend(s)['10.12'] ?? 0) >= 1,
+      progress: (s) => `skips: ${s.skippedCount ?? 0} · 10.12: ${perBackend(s)['10.12'] ?? 0}`,
     },
   ],
   3: [

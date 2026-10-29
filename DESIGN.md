@@ -327,6 +327,18 @@ right frame`, em-dash where one run ended sooner) with a `9 vs 6 hops ·
   service with nothing else changed; the per-stage missions registry gains
   the recovery mission so the console and the B-2 detectors verify the same
   lived sequence (kill → refused crowd/trace → restore → served 200).
+- **Fault #2 (backend down, 2026-10-28):** a backend fault is NOT a refusal
+  story — the load balancer is health-aware and **skips** the down backend
+  (round-robin cursor advances past it; skips are counted on the snapshot),
+  so the pool keeps serving: graceful degradation, visibly lopsided
+  distribution. Traces narrate the skip where the LB chose and otherwise
+  keep the full stage-2 served story — never a refusal frame, never an
+  abort. Refusal returns only when NO backend is alive (all-down falls
+  through to the slice-1 refusal semantics: counted, never enqueued,
+  nothing served). The affected backend's node card carries the same
+  `node-down-chip` (exactly one card carries it while any fault is on);
+  the console row and the per-stage recovery mission follow the
+  refuse-recover template with the skip count standing in for refusals.
 
 ### Interactive Mini-Browser (`.mini-browser` & `.browser-compact`)
 

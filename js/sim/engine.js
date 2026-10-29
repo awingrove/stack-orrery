@@ -276,6 +276,8 @@ export function createEngine({
         served,
         avgLatencyTicks,
         refusedCount: network.refusedCount(),
+        // B-6b: the failover skip tally rides the snapshot (stage-2 mission + loads).
+        skippedCount: lb?.skippedCount() ?? 0,
         lastExchange,
         queue: serverSnapshots[0].queue,
         files: serverSnapshots[0].files,
