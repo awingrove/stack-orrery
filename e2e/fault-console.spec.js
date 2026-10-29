@@ -36,10 +36,11 @@ test('should toggle the webserver fault from the rail console and read connectio
 
   await page.getByTestId('stage-pill-2').click();
   // B-6b: stage 2 now owns the backend-10.12 row — the console shows it,
-  // still reading component state, and stage 3 carries the empty-state.
+  // still reading component state. B-6c: stage 3 owns the cache-bypass row;
+  // the empty-state line moved to stage 4, the first fault-less stage.
   await expect(page.getByTestId('fault-toggle-backend-10-12')).toBeVisible();
   await expect(page.getByTestId('fault-state-backend-10-12')).toHaveText('off');
-  await page.getByTestId('stage-pill-3').click();
+  await page.getByTestId('stage-pill-4').click();
   await expect(page.locator('.rail-host:not([hidden]) .rail-empty')).toHaveText(
     'No faults for this stage yet.',
   );
@@ -262,4 +263,156 @@ test('should verify the stage-2 failover mission only after skip and rejoin', as
   await backendToggle(page).click();
   for (let i = 0; i < 8; i += 1) await page.getByTestId('step-button').click();
   await expect(failoverChip(page)).toContainText(/✓ done · tick \d+/);
+});
+
+// B-6c (docs/plans/2026-10-29-b6c-cache-bypass.md): the bypassed cache is a
+// miss storm, not a down component — the shared cache's own isBypass() flag
+// takes it out of the path, the origin serves every GET, the counters
+// freeze, and tick-based TTL keeps evicting so a long bypass rejoins cold.
+// Titles are manifest pins — do not reword.
+
+const cacheToggle = (page) => page.getByTestId('fault-toggle-cache');
+
+const cacheChip = (page) => page.getByTestId('fault-state-cache');
+
+const bypassCardChip = (page) => page.locator('#node-cache [data-testid="node-bypass-chip"]');
+
+const coldChip = (page) =>
+  page
+    .getByTestId('mission-item')
+    .filter({ hasText: 'Bypass the cache' })
+    .getByTestId('mission-status');
+
+const cacheEntryRows = (page) => page.getByTestId('cache-entries-list').locator('.route-item');
+
+const journeyHop = (page, text) => page.locator('.journey-log .journey-entry', { hasText: text });
+
+test('should bypass the cache from the rail console and watch the origin take every GET', async ({
+  page,
+}) => {
+  await page.goto('/panel.html');
+  await page.getByTestId('stage-pill-3').click();
+  await expect(page.getByTestId('node-cache')).toBeVisible();
+  await page.getByTestId('rail-tab-faults').click();
+  await expect(page.getByTestId('fault-toggle-cache')).toBeVisible();
+  await expect(cacheChip(page)).toHaveText('off');
+  await expect(cacheToggle(page)).toHaveAttribute('aria-pressed', 'false');
+  await expect(bypassCardChip(page)).toBeHidden();
+
+  // The flip is component state: the console chip reads BYPASS and the
+  // 10.20 card carries the same-paired chip — warn, not the DOWN danger.
+  await cacheToggle(page).click();
+  await expect(cacheChip(page)).toHaveText('BYPASS');
+  await expect(cacheToggle(page)).toHaveAttribute('aria-pressed', 'true');
+  await expect(bypassCardChip(page)).toBeVisible();
+  await expect(bypassCardChip(page)).toHaveText('BYPASS');
+  // Exactly one fault chip on the page at a time — no DOWN chip is showing.
+  await expect(page.locator('[data-testid="node-down-chip"]:visible')).toHaveCount(0);
+
+  // Crowd while bypassed: served keeps flowing, but every cache counter
+  // freezes (nothing consults the cache) and no entry appears.
+  for (let i = 0; i < 6; i += 1) await page.getByTestId('step-button').click();
+  await expect(page.getByTestId('served')).not.toHaveText('0');
+  await expect(page.getByTestId('cache-stats')).toHaveText('Hits: 0 · Misses: 0 · TTL: 10t');
+  await expect(cacheEntryRows(page)).toHaveCount(0);
+
+  // A traced GET narrates the bypass at the cache hop and still renders a
+  // real 200 — the origin answered.
+  await page.getByTestId('url-input').fill('/about');
+  for (let hop = 0; hop < 5; hop += 1) await page.getByTestId('btn-next-hop').click();
+  await expect(page.getByTestId('hop-status')).toContainText('cache BYPASSED');
+  await page.getByTestId('btn-next-hop').click();
+  await expect(page.getByTestId('hop-status')).toContainText('Hop 6/6');
+  await expect(page.getByTestId('browser-status-badge')).toContainText(/^200 /);
+  await expect(journeyHop(page, 'cache BYPASSED (/about)')).toContainText('hop 4/6');
+  await expect(journeyHop(page, 'connection refused')).toHaveCount(0);
+  // The traced GET filled nothing either — the counters did not move.
+  await expect(page.getByTestId('cache-stats')).toHaveText('Hits: 0 · Misses: 0 · TTL: 10t');
+
+  // Toggling off rejoins the path: the chip and card chip clear together.
+  await cacheToggle(page).click();
+  await expect(cacheChip(page)).toHaveText('off');
+  await expect(bypassCardChip(page)).toBeHidden();
+});
+
+test('should narrate the bypass in the stage-3 trace with a fresh HIT after rejoin', async ({
+  page,
+}) => {
+  await page.goto('/panel.html');
+  await page.getByTestId('stage-pill-3').click();
+  // Warm the shared cache first — the second trace is a real HIT, so the
+  // bypass has a live entry to take out of the path.
+  await page.getByTestId('url-input').fill('/about');
+  for (let hop = 0; hop < 6; hop += 1) await page.getByTestId('btn-next-hop').click();
+  await expect(page.getByTestId('cache-stats')).toHaveText('Hits: 0 · Misses: 1 · TTL: 10t');
+  for (let hop = 0; hop < 6; hop += 1) await page.getByTestId('btn-next-hop').click();
+  await expect(page.getByTestId('cache-stats')).toHaveText('Hits: 1 · Misses: 1 · TTL: 10t');
+
+  await page.getByTestId('rail-tab-faults').click();
+  await cacheToggle(page).click();
+  await expect(page.getByTestId('fault-state-cache')).toHaveText('BYPASS');
+  // The full 6-hop served story runs with the bypass named at the cache hop.
+  for (let hop = 0; hop < 6; hop += 1) await page.getByTestId('btn-next-hop').click();
+  await expect(page.getByTestId('hop-status')).toContainText('Hop 6/6');
+  await expect(page.getByTestId('browser-status-badge')).toContainText(/^200 /);
+  await expect(journeyHop(page, 'cache BYPASSED (/about)')).toContainText(
+    'hop 4/6 · 10.11 -> 10.20 | cache BYPASSED (/about)',
+  );
+  await expect(journeyHop(page, 'connection refused')).toHaveCount(0);
+
+  // A LONG bypass: the engine keeps evicting expired entries on schedule —
+  // the warmed entry ages out with nobody looking, so the ledger empties.
+  for (let i = 0; i < 11; i += 1) await page.getByTestId('step-button').click();
+  await expect(cacheEntryRows(page)).toHaveCount(0);
+
+  // Rejoin: the first GET is a fresh MISS that fills anew — no zombie warm
+  // entry is resurrected.
+  await cacheToggle(page).click();
+  await expect(page.getByTestId('fault-state-cache')).toHaveText('off');
+  await page.getByTestId('url-input').fill('/about');
+  for (let hop = 0; hop < 6; hop += 1) await page.getByTestId('btn-next-hop').click();
+  await expect(journeyHop(page, 'cache MISS (/about)')).toContainText('hop 4/6');
+  await expect(page.getByTestId('browser-status-badge')).toContainText(/^200 /);
+  // The refill is live: the very next traced GET is the fresh HIT.
+  for (let hop = 0; hop < 6; hop += 1) await page.getByTestId('btn-next-hop').click();
+  await expect(journeyHop(page, 'cache HIT (/about)')).toContainText('hop 4/6');
+  await expect(page.getByTestId('browser-status-badge')).toContainText(/^200 /);
+});
+
+test('should verify the stage-3 cold mission only after bypass and rejoin', async ({ page }) => {
+  await page.goto('/panel.html');
+  await page.getByTestId('rail-tab-missions').click();
+  await page.getByTestId('stage-pill-3').click();
+  await expect(page.getByTestId('node-cache')).toBeVisible();
+  // B-6c: stage 3 carries four since the bypass-cold mission joined the
+  // fill/hit/expire trio.
+  await expect(page.getByTestId('mission-item')).toHaveCount(4);
+  await expect(coldChip(page)).toContainText('○ bypassed: 0 · cache: —');
+
+  // Phase 1 — bypass on with the cache still cold: the origin-path tally
+  // moves while the fault is on, but no exchange is a HIT, so the mission
+  // is NOT complete.
+  await page.getByTestId('rail-tab-faults').click();
+  await cacheToggle(page).click();
+  for (let i = 0; i < 6; i += 1) await page.getByTestId('step-button').click();
+  await page.getByTestId('rail-tab-missions').click();
+  await expect(coldChip(page)).toContainText(/○ bypassed: [1-9]\d* · cache: B/);
+  await expect(coldChip(page)).not.toContainText('✓');
+
+  // Phase 2 — restore: the rejoined path is cold, so the traced GET is a
+  // MISS; the rejoin leg has no HIT yet, so the chip stays pending.
+  await page.getByTestId('rail-tab-faults').click();
+  await cacheToggle(page).click();
+  await expect(page.getByTestId('fault-state-cache')).toHaveText('off');
+  await page.getByTestId('url-input').fill('/about');
+  for (let hop = 0; hop < 6; hop += 1) await page.getByTestId('btn-next-hop').click();
+  await page.getByTestId('rail-tab-missions').click();
+  await expect(coldChip(page)).toContainText(/○ bypassed: [1-9]\d* · cache: MISS/);
+  await expect(coldChip(page)).not.toContainText('✓');
+
+  // Phase 3 — the refill answers: the next traced GET lands the fresh HIT
+  // and both legs hold — only now the chip latches done.
+  await page.getByTestId('url-input').fill('/about');
+  for (let hop = 0; hop < 6; hop += 1) await page.getByTestId('btn-next-hop').click();
+  await expect(coldChip(page)).toContainText(/✓ done · tick \d+/);
 });

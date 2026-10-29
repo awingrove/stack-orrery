@@ -327,6 +327,20 @@ right frame`, em-dash where one run ended sooner) with a `9 vs 6 hops ·
   service with nothing else changed; the per-stage missions registry gains
   the recovery mission so the console and the B-2 detectors verify the same
   lived sequence (kill → refused crowd/trace → restore → served 200).
+- **Fault #3 (cache bypassed, 2026-10-29):** a bypassed cache is a **miss
+  storm**, not a down component — GET lookups short-circuit at the cache's
+  own `isBypass()` consult (recorded `cacheStatus: 'BYPASSED'`, distinct
+  from the method-bypass `'BYPASS'` token an async-less non-GET already
+  uses), the origin serves every GET, and the cache's hit/miss counters
+  freeze (nothing consults them). Tick-based TTL is orthocritical to the
+  lesson: the engine keeps evicting expired entries on schedule, so a long
+  bypass means a **cold rejoin** — after restore the first GETs land fresh
+  misses and fill anew. The cache card's chip reads `BYPASS` on
+  `var(--warn)` (not the DOWN `var(--danger)` — a bypassed cache is not
+  down, it is out of the path); the console row and the per-stage recovery
+  mission (bypass → misses climb → restore → a fresh HIT) follow the
+  refuse-recover template. Exactly one fault chip shows at a time, as
+  with the other faults.
 - **Fault #2 (backend down, 2026-10-28):** a backend fault is NOT a refusal
   story — the load balancer is health-aware and **skips** the down backend
   (round-robin cursor advances past it; skips are counted on the snapshot),

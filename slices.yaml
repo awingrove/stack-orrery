@@ -48,6 +48,13 @@ slices:
       - unit: test/sim/loadbalancer-failover.test.js::same seed replays the identical tick sequence with the fault off (stage 2)
       - unit: test/sim/cache.test.js::serves cache hits before TTL expiry and evicts entries once ttlTicks elapse
       - unit: test/sim/cache.test.js::stage 3 engine shares cache-aside entries across 10.11 and 10.12
+      - unit: test/sim/cache-bypass.test.js::setBypass validates a boolean ON/OFF flag and isBypass reads it back (fail loud)
+      - unit: test/sim/cache-bypass.test.js::a bypassed lookup leaves the entries and the counters untouched — get hands back null with a BYPASSED record and has peers nothing
+      - unit: test/sim/cache-bypass.test.js::engine setCacheBypassed is fail-loud below stage 3 — no cache exists there
+      - unit: test/sim/cache-bypass.test.js::a bypassed stage-3 GET takes the origin path — cacheStatus BYPASSED, the cache fills nothing, bypassedCount tallies
+      - unit: test/sim/cache-bypass.test.js::rejoin cold is deterministic — entries expiring while bypassed produce fresh MISSes that refill
+      - unit: test/sim/cache-bypass.test.js::DL-3 counter-example — the bypassed story stays a full sourced 200; the non-GET frame keeps its own BYPASS token
+      - unit: test/sim/cache-bypass.test.js::same seed replays the identical tick sequence with the fault off (stage 3)
       - unit: test/sim/database.test.js::replicates primary writes to the read replica after replicationLagTicks and tracks stale reads
       - unit: test/sim/database.test.js::stage 4 engine writes to Primary 10.30, invalidates Cache 10.20, serves stale replica reads during lag, and catches up
       - unit: test/sim/queue.test.js::worker queue sim component
@@ -150,10 +157,11 @@ slices:
       - unit: test/panel/teaching.test.js::describes all shipped stages with a headline, three lists, a tradeoff, and a primerLink
       - unit: test/panel/teaching.test.js::stage 1 content never mentions cache TTL names
       - unit: test/panel/teaching.test.js::unknown stages degrade to a pending-entries placeholder, not a crash
-      - unit: test/panel/missions.test.js::stage 1 carries four missions and stages 2-6 carry two to three (B-6 recovery + B-6b failover)
+      - unit: test/panel/missions.test.js::stages 1 and 3 carry four; stages 2 and 4-6 carry two to three (B-6 recovery + B-6b failover + B-6c bypass-cold)
       - unit: test/panel/missions.test.js::the stage-1 404 mission completes only on a real 404 — a 405 does not
       - unit: test/panel/missions.test.js::the stage-1 recovery mission completes only after a refusal AND a served 200 — a refusal alone satisfies neither leg
       - unit: test/panel/missions.test.js::the stage-2 failover mission completes only after a skip AND 10.12 serves again — either leg alone stays pending
+      - unit: test/panel/missions.test.js::the stage-3 bypass-cold mission completes only after bypass AND a fresh HIT — either leg alone stays pending
       - unit: test/panel/missions.test.js::the stage-6 edge-HIT mission completes only on trace edgeStatus HIT — an origin cache HIT does not
       - unit: 'test/panel/missions.test.js::verification latches: a done mission does not un-verify while the clock runs'
       - unit: test/panel/missions.test.js::a fresh verified set flips missions back to pending and the completing tick is forgotten
@@ -202,6 +210,9 @@ slices:
       - e2e: fault-console::should skip the down backend in the round-robin and keep the crowd served
       - e2e: fault-console::should narrate the skip in the stage-2 trace without aborting the served story
       - e2e: fault-console::should verify the stage-2 failover mission only after skip and rejoin
+      - e2e: fault-console::should bypass the cache from the rail console and watch the origin take every GET
+      - e2e: fault-console::should narrate the bypass in the stage-3 trace with a fresh HIT after rejoin
+      - e2e: fault-console::should verify the stage-3 cold mission only after bypass and rejoin
     entry_point: index.html -> Diagram Panel link
 
 allowlist:

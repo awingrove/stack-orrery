@@ -18,23 +18,17 @@
 // transport consults isDown() before dispatch, so a down server answers
 // no wire traffic at all. CHECKS: constructor rejects a non-positive
 // serviceRate and setDown rejects a non-boolean flag (fail-loud).
+//
+// B-6c: with the cache bypassed, GETs take the origin path (the same branch
+// a MISS takes) and return cacheStatus 'BYPASSED' — the cache is not
+// consulted at all while the flag holds, and the origin tally counts those
+// routes per server.
+import { parseRequest, matchFsRoute, routeIdFor } from './webserver-helpers.js';
+
 const DEFAULT_FILES = {
   '/': 'Welcome to the home page',
   '/about': 'This is the about page',
 };
-
-function parseRequest(request = 'GET /') {
-  const trimmed = String(request).trim();
-  const spaceAt = trimmed.indexOf(' ');
-  return {
-    method: spaceAt === -1 ? trimmed : trimmed.slice(0, spaceAt),
-    path: spaceAt === -1 ? '' : trimmed.slice(spaceAt + 1),
-  };
-}
-
-function routeIdFor(path) {
-  return path === '/' ? 'route-home' : `route-${path.slice(1)}`;
-}
 
 export function createWebServer({
   address = '10.1',
@@ -51,25 +45,14 @@ export function createWebServer({
   let queue = [];
   let served = 0;
   let down = false;
+  let bypassedRoutes = 0; // B-6c: routes that took the origin path while the cache is bypassed
   const latencyWindow = []; // rolling: last 50 response latencies, in ticks
   const WINDOW = 50;
 
+  // The local fs is the only stateful part: the pure route helper carries
+  // none (webserver-helpers.js).
   function matchRoute(request = 'GET /') {
-    const { method, path } = parseRequest(request);
-    let response;
-    let routeId = null;
-    if (method !== 'GET') {
-      response = '405 Only GET requests are supported';
-    } else if (fs.has(path)) {
-      response = `200 ${fs.get(path)}`;
-      routeId = routeIdFor(path);
-    } else {
-      response = '404 Page not found';
-    }
-    const splitAt = response.indexOf(' ');
-    const status = Number(response.slice(0, splitAt));
-    const body = response.slice(splitAt + 1);
-    return { response, status, body, routeId };
+    return matchFsRoute(fs, request);
   }
 
   function handleRequest(request = 'GET /') {
@@ -119,7 +102,17 @@ export function createWebServer({
         dbStale: false,
       };
     }
-    if (cache) {
+    // CHECKS: B-6c — the bypass consult is the cache component's own
+    // isBypass() state, checked before the lookup. While it holds, this
+    // GET takes the origin path exactly the branch a MISS takes (Stage 4+:
+    // the replica read; Stage 3: the filesystem), returns cacheStatus
+    // 'BYPASSED', and never calls cache.get()/cache.set() — no fill while
+    // bypassed, so no zombie warm entries. The origin tally increments in
+    // this branch only; the method-level 'BYPASS' token a non-GET carries
+    // is a different record and never strays into it.
+    const bypassedCache = cache?.isBypass?.() === true;
+    if (bypassedCache) bypassedRoutes += 1;
+    if (cache && !bypassedCache) {
       const cached = cache.get(path, currentTick);
       if (cached !== null) {
         const hit = {
@@ -140,13 +133,13 @@ export function createWebServer({
     if (database) {
       const row = database.read(path, currentTick);
       if (row.found) {
-        if (!row.stale) cache?.set(path, row.value, currentTick);
+        if (!row.stale && !bypassedCache) cache?.set(path, row.value, currentTick);
         return {
           response: `200 ${row.value}`,
           status: 200,
           body: row.value,
           routeId: routeIdFor(path),
-          cacheStatus: 'MISS',
+          cacheStatus: bypassedCache ? 'BYPASSED' : 'MISS',
           dbOp: 'SELECT',
           dbTarget: database.replicaAddress,
           dbStale: row.stale,
@@ -155,15 +148,15 @@ export function createWebServer({
       const missing = matchRoute(request);
       return {
         ...missing,
-        cacheStatus: 'MISS',
+        cacheStatus: bypassedCache ? 'BYPASSED' : 'MISS',
         dbOp: 'SELECT',
         dbTarget: database.replicaAddress,
         dbStale: false,
       };
     }
     const matched = matchRoute(request);
-    if (matched.status === 200) cache.set(path, matched.body, currentTick);
-    return { ...matched, cacheStatus: 'MISS' };
+    if (matched.status === 200 && !bypassedCache) cache.set(path, matched.body, currentTick);
+    return { ...matched, cacheStatus: bypassedCache ? 'BYPASSED' : 'MISS' };
   }
 
   function pushLatency(responses) {
@@ -216,6 +209,13 @@ export function createWebServer({
 
     isDown() {
       return down;
+    },
+
+    // The B-6c read-back: how many routes this server took the origin path
+    // on because the cache is bypassed (the cache itself is not consulted,
+    // so the tally cannot live there).
+    bypassedCount() {
+      return bypassedRoutes;
     },
 
     // `isYou` marks the learner's own interactive-browser request.

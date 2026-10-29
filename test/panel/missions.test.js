@@ -13,15 +13,16 @@ const FIRST = (stage, snapshot, verified) =>
 describe('missions registry and statuses', () => {
   // B-6 (stage-1 recovery) and B-6b (stage-2 failover): stage 1 carries
   // four; the failover mission raises stage 2 from two to three, and the
-  // stage-2 cap extends to four in the same change.
-  it('stage 1 carries four missions and stages 2-6 carry two to three (B-6 recovery + B-6b failover)', () => {
+  // stage-2 cap extends to four in the same change. B-6c (cache bypass):
+  // the bypass-cold mission raises stage 3 from three to four too.
+  it('stages 1 and 3 carry four; stages 2 and 4-6 carry two to three (B-6 recovery + B-6b failover + B-6c bypass-cold)', () => {
     expect(Object.keys(MISSIONS).map(Number).sort()).toEqual([1, 2, 3, 4, 5, 6]);
     for (const stage of [1, 2, 3, 4, 5, 6]) {
       expect(MISSIONS[stage].length, `stage ${stage} mission count floor`).toBeGreaterThanOrEqual(
         2,
       );
       expect(MISSIONS[stage].length, `stage ${stage} mission count cap`).toBeLessThanOrEqual(
-        stage === 1 || stage === 2 ? 4 : 3,
+        stage === 1 || stage === 2 || stage === 3 ? 4 : 3,
       );
       expect(new Set(MISSIONS[stage].map((m) => m.id)).size, `stage ${stage} unique ids`).toBe(
         MISSIONS[stage].length,
@@ -109,6 +110,42 @@ describe('missions registry and statuses', () => {
     );
     expect(done.find((s) => s.id === 'm2-failover').done).toBe(true);
     expect(done.find((s) => s.id === 'm2-failover').completedTick).toBe(9);
+  });
+
+  // CHECKS (B-6c): the bypass-cold mission's two legs — the bypass leg
+  // reads the pool's own origin-path tally (the cache's counters freeze
+  // while bypassed, so nothing on the cache itself proves the fault ran)
+  // and the rejoin leg reads a real HIT on the newest exchange. A bypassed
+  // tally with no restored exchange behind it carries only BYPASSED
+  // verdicts while the fault is on, and a HIT with no bypass behind it
+  // fails the tally leg.
+  it('the stage-3 bypass-cold mission completes only after bypass AND a fresh HIT — either leg alone stays pending', () => {
+    const verified = new Map();
+    // A HIT with no bypass behind it fails the tally leg.
+    const hitNoBypass = missionStatuses(
+      3,
+      { tick: 4, bypassedCount: 0, lastExchange: { cacheStatus: 'HIT', status: 200 } },
+      verified,
+    );
+    expect(hitNoBypass.find((s) => s.id === 'm3-bypass-cold').done).toBe(false);
+    // While bypassed every exchange is a BYPASSED verdict — the named
+    // counter-example: the tally alone satisfies neither leg (no HIT yet).
+    const bypassOnly = missionStatuses(
+      3,
+      { tick: 7, bypassedCount: 9, lastExchange: { cacheStatus: 'BYPASSED', status: 200 } },
+      verified,
+    );
+    expect(bypassOnly.find((s) => s.id === 'm3-bypass-cold').done).toBe(false);
+    // Positive on both legs: the bypass ran earlier and the restored pool
+    // has since answered a fresh HIT — the same completed shape the B-6
+    // recovery mission latches on.
+    const completed = missionStatuses(
+      3,
+      { tick: 8, bypassedCount: 9, lastExchange: { cacheStatus: 'HIT', status: 200 } },
+      verified,
+    );
+    expect(completed.find((s) => s.id === 'm3-bypass-cold').done).toBe(true);
+    expect(completed.find((s) => s.id === 'm3-bypass-cold').completedTick).toBe(8);
   });
 
   it('the stage-6 edge-HIT mission completes only on trace edgeStatus HIT — an origin cache HIT does not', () => {

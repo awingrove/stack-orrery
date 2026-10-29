@@ -79,3 +79,28 @@
   color: var(--danger);
   border: 1px solid var(--danger);
 }
+
+/* B-6c: the bypass is a warn state, not a down state — danger stays
+   DOWN-only. The console switch/ chip read the warn pair while bypassed,
+   and the 10.20 card carries the same-paired BYPASS chip. */
+.fault-switch.fault-switch-warn {
+  border-color: var(--warn);
+  color: var(--warn);
+  background: var(--warn-soft);
+}
+
+.fault-chip.fault-bypass-on {
+  background: var(--warn-soft);
+  color: var(--warn);
+  border-color: var(--warn);
+}
+
+.bypass-chip {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  border: 1px solid var(--warn);
+}

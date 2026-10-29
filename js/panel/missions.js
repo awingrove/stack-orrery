@@ -25,6 +25,9 @@
 const lastStatus = (snapshot) => snapshot.lastExchange?.status ?? null;
 const perBackend = (snapshot) => snapshot.loadBalancer?.perBackend ?? {};
 const forwarded = (snapshot) => snapshot.loadBalancer?.forwarded ?? 0;
+// B-6c: the newest exchange's cache-side verdict — the HIT leg of the
+// bypass-cold mission reads the cache record, not the HTTP status.
+const servedCacheStatus = (snapshot) => snapshot.lastExchange?.cacheStatus ?? null;
 
 export const MISSIONS = {
   1: [
@@ -104,6 +107,19 @@ export const MISSIONS = {
       goal: 'Run the TTL out — watch the entry evict and the next lookup miss again',
       detect: (s) => (s.cache?.evictions ?? 0) >= 1,
       progress: (s) => `evictions: ${s.cache?.evictions ?? 0}`,
+    },
+    {
+      id: 'm3-bypass-cold',
+      goal: 'Bypass the cache, watch GETs miss it, restore it and read a fresh HIT',
+      // CHECKS: B-6c, evidence semantics — the bypass leg reads the engine
+      // snapshot's own pool tally (snapshot.bypassedCount — the cache's
+      // hits/misses counters freeze while bypassed, so nothing on the cache
+      // itself can prove the fault ran); the rejoin leg reads a real HIT on
+      // the newest exchange. A bypass with no restored exchange behind it
+      // carries only BYPASSED verdicts while it is on, and a HIT with no
+      // bypass behind it fails the tally leg.
+      detect: (s) => (s.bypassedCount ?? 0) > 0 && servedCacheStatus(s) === 'HIT',
+      progress: (s) => `bypassed: ${s.bypassedCount ?? 0} · cache: ${servedCacheStatus(s) ?? '—'}`,
     },
   ],
   4: [
