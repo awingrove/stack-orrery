@@ -14,7 +14,11 @@ import { getRailHost, refreshRail } from './rail.js';
 
 // One fault per stage. serverAddress names the component the fault downs
 // (stage 1's single server, stage 2's backend 10.12) and cardId the node
-// card whose DOWN chip reflects the component's live state.
+// card whose DOWN chip reflects the component's live state. The B-6c
+// stage-3 fault is a bypass, not a down: kind 'bypass' flips the shared
+// cache's own state through engine.setCacheBypassed, its console chip reads
+// BYPASS (warn tokens, not the DOWN danger pair), and the 10.20 card's chip
+// carries the node-bypass-chip testid.
 const FAULTS = {
   1: [
     {
@@ -24,6 +28,7 @@ const FAULTS = {
       chipId: 'fault-state-webserver',
       serverAddress: '10.1',
       cardId: 'node-webserver',
+      kind: 'down',
     },
   ],
   2: [
@@ -36,6 +41,18 @@ const FAULTS = {
       chipId: 'fault-state-backend-10-12',
       serverAddress: '10.12',
       cardId: 'node-webserver-2',
+      kind: 'down',
+    },
+  ],
+  3: [
+    {
+      id: 'cache-bypassed',
+      label: 'Cache bypassed — GETs go to origin',
+      switchId: 'fault-toggle-cache',
+      chipId: 'fault-state-cache',
+      serverAddress: '10.20',
+      cardId: 'node-cache',
+      kind: 'bypass',
     },
   ],
 };
@@ -46,11 +63,24 @@ const consoleRefs = { getEngine: null, rerender: null };
 const rows = new Map(); // fault id -> { fault, chipEl, switchEl }
 const cardChips = new Map(); // fault id -> node-card DOWN chip element
 
-// CHECKS: down is read from the snapshot's own server record — the card's
-// down flag the transport consults — so the UI cannot show DOWN while the
-// component is live, or off while it refuses.
+// CHECKS: each fault's ON state is read from the snapshot's own component
+// record — a DOWN flag the transport consults (down kind), or the bypass
+// flag the cache snapshot carries (bypass kind) — so the UI cannot show a
+// fault while the component is live, or off while it is misbehaving.
 const downIn = (snapshot, serverAddress) =>
   Boolean(snapshot.servers?.find((s) => s.address === serverAddress)?.down);
+
+const bypassedIn = (snapshot) => Boolean(snapshot.cache?.bypassed);
+
+const faultStateIn = (snapshot, fault) =>
+  fault.kind === 'bypass' ? bypassedIn(snapshot) : downIn(snapshot, fault.serverAddress);
+
+// The fault write goes through the engine's own fail-loud setter, exactly
+// per kind: setServerDown for a down flip, setCacheBypassed for the cache.
+const flipFault = (engine, fault, next) =>
+  fault.kind === 'bypass'
+    ? engine.setCacheBypassed(next)
+    : engine.setServerDown(fault.serverAddress, next);
 
 function nodeWith(tag, className, text, testId) {
   const n = document.createElement(tag);
@@ -60,15 +90,22 @@ function nodeWith(tag, className, text, testId) {
   return n;
 }
 
-// The DOWN chip lives on the affected node card's header (DESIGN.md: an
-// affected .node-card carries it in danger tokens; the card stays in
-// place — still addressable, simply refusing).
+// The fault chip lives on the affected node card's header: DOWN chips keep
+// the DOWN/danger pair and the node-down-chip testid; the bypass chip reads
+// BYPASS on the warn pair with the node-bypass-chip testid — the cache is
+// out of the path, not down. Exactly one fault chip on the page at a time.
+const FAULT_CHIP = {
+  down: { className: 'down-chip', text: 'DOWN', testId: 'node-down-chip' },
+  bypass: { className: 'bypass-chip', text: 'BYPASS', testId: 'node-bypass-chip' },
+};
+
 function ensureCardChip(fault) {
   let chip = cardChips.get(fault.id);
   if (chip?.isConnected) return chip;
   const card = document.getElementById(fault.cardId);
   if (!card) return null;
-  chip = nodeWith('span', 'down-chip', 'DOWN', 'node-down-chip');
+  const spec = FAULT_CHIP[fault.kind];
+  chip = nodeWith('span', spec.className, spec.text, spec.testId);
   card.querySelector('.node-head')?.append(chip);
   cardChips.set(fault.id, chip);
   return chip;
@@ -88,8 +125,7 @@ function buildRow(fault) {
   switchEl.addEventListener('click', () => {
     const engine = consoleRefs.getEngine?.();
     if (!engine) return;
-    const down = downIn(engine.snapshot(), fault.serverAddress);
-    engine.setServerDown(fault.serverAddress, !down);
+    flipFault(engine, fault, !faultStateIn(engine.snapshot(), fault));
     consoleRefs.rerender?.(engine.snapshot());
   });
   const wrap = nodeWith('div', 'fault-row-line');
@@ -122,17 +158,20 @@ function rebuild() {
 // CHECKS: cheap on every snapshot — rows persist across updates and a
 // chip's text/class/aria are written only when they change, so with the
 // fault off the console is byte-identical over crowd ticks. Card chips
-// stay hidden on stages the fault does not own.
+// stay hidden on stages the fault does not own. The ON-state classes are
+// per kind: DOWN keeps the danger pair, the bypass reads warn.
 function refresh(snapshot) {
   for (const { fault, chipEl, switchEl } of rows.values()) {
-    const isDown = downIn(snapshot, fault.serverAddress);
-    const text = isDown ? 'DOWN' : 'off';
+    const active = faultStateIn(snapshot, fault);
+    const text = active ? (fault.kind === 'bypass' ? 'BYPASS' : 'DOWN') : 'off';
     if (chipEl.textContent !== text) chipEl.textContent = text;
-    chipEl.classList.toggle('fault-down', isDown);
-    switchEl.setAttribute('aria-pressed', String(isDown));
-    switchEl.classList.toggle('fault-switch-on', isDown);
+    chipEl.classList.toggle('fault-down', fault.kind !== 'bypass' && active);
+    chipEl.classList.toggle('fault-bypass-on', fault.kind === 'bypass' && active);
+    switchEl.setAttribute('aria-pressed', String(active));
+    switchEl.classList.toggle('fault-switch-on', fault.kind !== 'bypass' && active);
+    switchEl.classList.toggle('fault-switch-warn', fault.kind === 'bypass' && active);
     const cardChip = ensureCardChip(fault);
-    if (cardChip) cardChip.hidden = !isDown;
+    if (cardChip) cardChip.hidden = !active;
   }
 }
 

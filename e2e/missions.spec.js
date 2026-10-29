@@ -147,4 +147,10 @@ test('should clear verified missions on a stage switch', async ({ page }) => {
   await expect(items).toHaveCount(4); // stage 1 carries 4 since the B-6 recovery mission
   await expect(chipOf(page, 'Get a 404')).toContainText('○ last:');
   await expect(chipOf(page, 'Get a 404')).not.toContainText('✓');
+
+  // B-6c: stage 3 carries four since the bypass-cold mission joined the
+  // fill/hit/expire trio.
+  await page.getByTestId('stage-pill-3').click();
+  await expect(page.getByTestId('node-cache')).toBeVisible();
+  await expect(page.getByTestId('mission-item')).toHaveCount(4);
 });

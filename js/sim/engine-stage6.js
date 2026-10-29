@@ -6,6 +6,9 @@
 // same wiring, same registration order: the fabric only assembles what
 // createEngine handed it (the left network) and returns the parts the
 // engine's own snapshot and trace machine consume.
+//
+// CHECKS: stages 1-5 carry table-stakes nulls — fabricForStage returns
+// null there instead of assembling an unreachable fabric.
 import { createNetwork } from './network.js';
 import { createDns } from './dns.js';
 import { createRouter } from './router.js';
@@ -46,4 +49,8 @@ export function createStage6Fabric({
     enqueue: (frame) => frame,
   });
   return { dns, rightNetwork, router, edge };
+}
+
+export function fabricForStage(stage, config) {
+  return stage >= 6 ? createStage6Fabric(config) : null;
 }

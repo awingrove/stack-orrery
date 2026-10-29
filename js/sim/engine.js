@@ -19,12 +19,11 @@
 import { createRng } from './rng.js';
 import { createNetwork } from './network.js';
 import { createBrowser } from './browser.js';
-import { createWebServer } from './webserver.js';
-import { createLoadBalancer } from './loadbalancer.js';
+import { createServerPool } from './engine-pool.js';
 import { createCache } from './cache.js';
 import { createDatabase } from './database.js';
 import { createWorkerQueue } from './queue.js';
-import { createStage6Fabric } from './engine-stage6.js';
+import { fabricForStage } from './engine-stage6.js';
 import { createBrowserSeatRegistry } from './browser-seat.js';
 import { createUsers } from './users.js';
 import { createTraceMachine } from './trace.js';
@@ -82,39 +81,31 @@ export function createEngine({
   // CHECKS: the stage-6 fabric (DNS 10.60, Router 10.65 ⇄ 20.254, CDN
   // edge) assembles in engine-stage6.js (file-size split, same wiring and
   // registration order); stages 1-5 carry nulls.
-  const fabric =
-    stage >= 6
-      ? createStage6Fabric({
-          serverAddress,
-          dnsAddress,
-          dnsTtlTicks,
-          routerLeftAddress,
-          routerRightAddress,
-          cdnAddress,
-          edgeTtlTicks,
-          leftNetwork: network,
-        })
-      : null;
+  const fabric = fabricForStage(stage, {
+    serverAddress,
+    dnsAddress,
+    dnsTtlTicks,
+    routerLeftAddress,
+    routerRightAddress,
+    cdnAddress,
+    edgeTtlTicks,
+    leftNetwork: network,
+  });
   const dns = fabric ? fabric.dns : null;
   const router = fabric ? fabric.router : null;
   const edge = fabric ? fabric.edge : null;
-  let servers;
-  let lb = null;
-  if (stage === 1) {
-    const server = createWebServer({ address: serverAddress, serviceRate });
-    network.registerServer(serverAddress, server);
-    servers = [server];
-  } else {
-    // Stage 2 wires the LB in front of two duplicated backends; Stage 3
-    // attaches the shared cache-aside Cache to both backends; Stage 4 adds
-    // the primary/replica Database; Stage 5 adds the WorkerQueue & Worker.
-    servers = backendAddresses.map((addr) =>
-      createWebServer({ address: addr, serviceRate, cache, database, workerQueue }),
-    );
-    for (const s of servers) network.registerServer(s.address, s);
-    lb = createLoadBalancer({ address: serverAddress, backends: backendAddresses, network });
-    network.registerServer(serverAddress, lb);
-  }
+  // Stage 2 wires the LB in front of two duplicated backends; Stage 3 attaches
+  // the cache, Stage 4 the Database, Stage 5 the WorkerQueue (engine-pool.js).
+  const { servers, lb } = createServerPool({
+    stage,
+    serverAddress,
+    serviceRate,
+    backendAddresses,
+    cache,
+    database,
+    workerQueue,
+    network,
+  });
   // The learner's own interactive client shares the crowd's network and
   // server pool but keeps its own browser and address; users.js keeps its
   // addresses so seeded tick sequences stay identical (PINS above).
@@ -252,6 +243,13 @@ export function createEngine({
       server.setDown(down);
     },
 
+    // CHECKS: B-6c — the fault flip routes into the cache's own setBypass;
+    // no cache exists below stage 3, so the flip fails loud there.
+    setCacheBypassed(bypassed) {
+      if (!cache) throw new Error(`engine: setCacheBypassed — stage ${stage} has no Cache`);
+      cache.setBypass(bypassed);
+    },
+
     snapshot() {
       const serverSnapshots = servers.map((s) => ({
         address: s.address,
@@ -278,6 +276,8 @@ export function createEngine({
         refusedCount: network.refusedCount(),
         // B-6b: the failover skip tally rides the snapshot (stage-2 mission + loads).
         skippedCount: lb?.skippedCount() ?? 0,
+        // B-6c: the pool's own origin-path tally (the cache is not consulted while bypassed, so it cannot tally there).
+        bypassedCount: servers.reduce((sum, s) => sum + (s.bypassedCount?.() ?? 0), 0),
         lastExchange,
         queue: serverSnapshots[0].queue,
         files: serverSnapshots[0].files,

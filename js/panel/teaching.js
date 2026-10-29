@@ -63,6 +63,7 @@ export const STAGE_TEACHING = {
       'Cache 10.20 sits behind both backends: a lookup misses, the WebServer fetches and sets, and the very next backend gets a HIT.',
       'Every entry carries a TTL counted in ticks; each tick decrements it and reaching 0 evicts the entry.',
       'That fill-on-miss pattern is cache-aside — the application checks the cache first and falls back to the origin on a miss.',
+      'Fault #3 on the Faults tab takes the cache out of the path: GETs storm the origin as BYPASSED lookups, and because TTL expiry keeps running the whole time a long bypass rejoins cold — the first GETs after restore miss and fill anew.',
     ],
     try: [
       'Trace once from 10.11: Misses goes to 1 and the /about entry shows up with a 10t TTL.',

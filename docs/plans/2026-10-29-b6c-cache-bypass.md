@@ -99,7 +99,7 @@ serverSnapshots[0]?.bypassedCount?.() ?? 0` — the WEBSERVER counts routes it t
 - [x] Step 1 (Lead session): human direction "Continue" recorded 2026-10-29 — slice 3
       pre-approved on the console pattern (cache bypass; miss storm; cold rejoin); DESIGN.md
       cache-bypass bullet committed with this brief.
-- [ ] Step 2 (Executor sub-agent): cold implementation, unit & e2e tests, manifest updates,
+- [x] Step 2 (Executor sub-agent): cold implementation, unit & e2e tests, manifest updates,
       green `npm run verify`, tick and commit (DEMO screenshots for the human visual gate).
 - [ ] Step 3 (Lead session): strict acceptance probe over every boundary contract
       (including the cold-rejoin and non-GET counter-examples), metrics extraction, ledger

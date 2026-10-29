@@ -5,6 +5,13 @@
 // happened. Deterministic by construction: no clock, no RNG — time arrives
 // as the `currentTick` argument, the same way the WebServer keeps time.
 //
+// B-6c fault state: setBypass stores a real on/off flag (isBypass() reads it
+// back). A bypassed lookup short-circuits at the component's own consult —
+// the origin serves the GET instead, the counters freeze (nothing consults
+// them), and TTL bookkeeping is untouched: evictExpired runs whenever it is
+// called, so entries keep aging out on the engine's tick while the cache is
+// off the path (the cold-rejoin lesson).
+//
 // CHECKS: the constructor rejects an address that is not a two-number
 // mini-IP and a ttlTicks that is not a positive integer (fail-loud over
 // silent mis-configuration).
@@ -21,6 +28,7 @@ export function createCache({ address = '10.20', ttlTicks = 10 } = {}) {
   let sets = 0;
   let evictions = 0;
   let lastLookup = null;
+  let bypassed = false;
 
   // An entry is stale the moment the current tick reaches its expiry:
   // cached at tick T with ttlTicks = 10 means alive through tick T + 9.
@@ -36,11 +44,23 @@ export function createCache({ address = '10.20', ttlTicks = 10 } = {}) {
   // Pure membership on the live (post-eviction) entry set — the cheap
   // probe step() uses to price a request before serving it.
   function has(key, currentTick = 0) {
+    // CHECKS: B-6c — while bypassed the probe consults nothing and returns
+    // without touching the entry table (no eviction sweep, no counter
+    // movement); a bypassed GET prices exactly like a miss (2 units).
+    if (bypassed) return false;
     evictExpired(currentTick);
     return entries.has(key);
   }
 
   function get(key, currentTick = 0) {
+    // CHECKS: B-6c — while bypassed the lookup short-circuits before the
+    // entry table and before evictExpired; hits/misses never move (nothing
+    // consults them), no fill can be served, and the lookup record itself
+    // carries the BYPASSED status at its tick.
+    if (bypassed) {
+      lastLookup = { key, status: 'BYPASSED', atTick: currentTick };
+      return null;
+    }
     evictExpired(currentTick);
     const entry = entries.get(key);
     if (entry) {
@@ -70,11 +90,27 @@ export function createCache({ address = '10.20', ttlTicks = 10 } = {}) {
     return entries.delete(key);
   }
 
+  // CHECKS: setBypass validates a real boolean ON/OFF state and throws
+  // otherwise; it flips only this component's own flag (the webserver
+  // consults isBypass() before each lookup) — the entry table, the
+  // counters, and the TTL bookkeeping are all untouched.
+  function setBypass(nextBypassed) {
+    if (typeof nextBypassed !== 'boolean') {
+      throw new Error(`cache: setBypass — bypassed must be a boolean, got ${nextBypassed}`);
+    }
+    bypassed = nextBypassed;
+  }
+
+  function isBypass() {
+    return bypassed;
+  }
+
   function snapshot(currentTick = 0) {
     evictExpired(currentTick);
     return {
       address,
       ttlTicks,
+      bypassed,
       hits,
       misses,
       sets,
@@ -99,6 +135,8 @@ export function createCache({ address = '10.20', ttlTicks = 10 } = {}) {
     get,
     set,
     del,
+    setBypass,
+    isBypass,
     snapshot,
   };
 }
