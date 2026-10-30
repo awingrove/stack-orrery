@@ -1,9 +1,8 @@
 # B-6d — Fault console slice 4: primary down — writes fail, replica reads keep serving (stage 4)
 
 **For agentic workers:** read `AGENTS.md`, `FACTORY.md`, `DESIGN.md` first —
-"### Fault Console" carries all four fault bullets. Human pre-approved this
-slice by direction (2026-10-29 rung pick, 2026-10-30 go): the ladder moves to
-stage 4.
+"### Fault Console" carries the four fault bullets. Human pre-approved (2026-10-29
+rung pick, 2026-10-30 go); the console ladder moves to stage 4.
 
 ## Target shape
 
@@ -13,8 +12,7 @@ writes through the webserver's write branch fail with a real **503**
 replica-SELECT story and async `/jobs` still 202 — the first fault where the
 GET and POST stories split on the same stage. The primary card (`10.30`)
 carries the real `node-down-chip` on `var(--danger)` (a down component,
-unlike slice 3's out-of-path `BYPASS`). Toggling off restores writes; no
-phantom version ever records the failed attempts.
+unlike slice 3's out-of-path `BYPASS`). Toggling off restores writes.
 
 ## Hard rules
 
@@ -79,8 +77,7 @@ cacheStatus: null, dbOp: 'WRITE_DOWN', dbTarget: primaryAddress }`. GET
   to 4. REPORT every other touched pin with its named cause; never weaken
   behavior pins.
 - **js/panel/teaching.js:** stage-4 narrative gains ONE sentence: with the
-  primary down, writes fail loudly while replica reads keep serving; restore
-  puts writes back.
+  primary down, writes fail loudly while replica reads keep serving.
 
 ## Tests & manifests
 
@@ -102,19 +99,22 @@ cacheStatus: null, dbOp: 'WRITE_DOWN', dbTarget: primaryAddress }`. GET
   `storymap.yaml` the primary-down story under the sim-faults activity;
   unit/e2e titles byte-identical.
 
-## Execution steps
+## Execution steps- [x] Step 1 (Lead session): human direction recorded 2026-10-29/30; DESIGN.md
 
-- [x] Step 1 (Lead session): human direction recorded 2026-10-29/30; DESIGN.md
-      primary-down bullet committed with this brief. Model ratification:
-      executor fallbacks `opencode/glm-5.3-flash-free` and
-      `opencode/mimo-v2.6-flash-free` RATIFIED when the paid tier
-      (`opencode-go/glm-5.3-flash`) is unavailable (user direction 2026-10-30,
-      recorded in `.opencode/agents/executor.md`); THIS slice executes on
-      `opencode/mimo-v2.6-flash-free` (GLM free coordinates).
+      primary-down bullet committed here. Model ratification: fallbacks
+      `opencode/glm-5.3-flash-free` + `opencode/mimo-v2.6-flash-free` RATIFIED
+      (user direction, `.opencode/agents/executor.md`); THIS slice runs on
+      `opencode/mimo-v2.6-flash-free`.
+
 - [x] Step 2 (Executor sub-agent): cold implementation, unit & e2e tests,
       manifest updates, green `npm run verify`, tick and commit (DEMO
       screenshots for the human visual gate).
-- [ ] Step 3 (Lead session): strict acceptance probe over every boundary
+- [x] Step 3 (Lead session): strict acceptance probe over every boundary
       contract (including the 503-served-arc, byte-identical-GET, and
       async-immune counter-examples), metrics extraction, ledger entry, tick
-      Step 3, commit.
+      Step 3, commit. NOTE (2026-10-30): probe green; the async-202
+      counter-example is sim-level pinned (stage-5 engine) and the fault-on
+      GET narrates a legit fresh MISS. LEAD REVIEW FIX pre-PR: replaced the
+      raw "cache null" narration with `serveCacheSuffix` plus the WRITE_DOWN
+      cache-consult branch, byte-pins updated same change; guard green
+      144 unit / 59 e2e.

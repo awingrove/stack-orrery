@@ -745,3 +745,59 @@ entries:
       all 4 FAILs were probe-side ordering/sequencing artifacts (also: an
       unmute assertion placed before the lookup that unmutes). Probe
       corrected only; real walk green on all 17 contracts.
+  - id: B6D-PRIMARY-DOWN
+    slice:
+      - SIM
+      - PANEL
+    name: >-
+      B-6d fault console slice 4 — database primary down: POST writes fail
+      with a real 503 (nothing written, nothing invalidated), GETs keep the
+      full replica-SELECT story, async /jobs stays 202 — the first fault
+      where the GET and POST stories split
+    brief: docs/plans/2026-10-30-b6d-primary-down.md
+    agent: cheap
+    lead_model: opencode-go/glm-5.3-flash
+    agent_model: opencode/mimo-v2.6-flash-free
+    session_id: ses_e744dc9b4ffe2PI9CIK5R3ysaR
+    tokens_input: 618569
+    tokens_output: 31912
+    tokens_reasoning: 65334
+    tokens_cache_read: 12628096
+    cost_usd: 0
+    human_interventions: 0
+    agent_review_rounds: 0
+    guardrail_failures: 2
+    fix_commits: 1
+    defects_escaped: 0
+    notes: >-
+      Model record: the user RATIFIED opencode/glm-5.3-flash-free and
+      opencode/mimo-v2.6-flash-free as executor fallbacks when the paid
+      tier is unavailable (recorded in .opencode/agents/executor.md,
+      2026-10-30) and directed this slice run on MiMo-2.6-Flash Free with
+      GLM-5.3-Flash Free coordinating; the paid tier returned mid-close-out
+      and the lead reverted to the standard model. First MiMo execution:
+      cold from the brief in b30d3c6 with 2 in-session red gate runs (a
+      wrong hop-4 frame expectation and a pre-dialect prettier YAML ref),
+      then green 144 unit / 59 e2e; the e2e suite was split into
+      fault-console-stage4.spec.js + helpers extract instead of breaching
+      the 450 cap, and two stale missions.js header comments were corrected
+      per named cause. Executor deviations ACCEPTED at review: primaryDown
+      and failedWrites ride the database snapshot (the brief named the
+      fields, the wiring consult-side), WRITE_DOWN gains a hop-status
+      sentence and record body/dbStale uniformity, the 10.30 card testid
+      is node-db (the brief's guessed node-db-primary does not exist).
+      Lead review fix riding the branch pre-PR (commit after b30d3c6): the
+      refused record's cacheStatus is null BY DESIGN but two frames minted
+      it verbatim ("cache null (/about)" + "(cache null)" response
+      suffixes) — narrating the record's absence as if null were a cache
+      state; trace-helpers gained serveCacheSuffix (one implementation for
+      the stage-4/5/6 response hops) and the stage-4 cache-consult hop
+      names the refusal "write refused — cache not consulted"; executor
+      byte-pins updated to the corrected frames, THEN the acceptance probe
+      walked the full stage-4 story green (503 served arc with NO refusal
+      card, cache stats frozen by the failed write, GET frames byte-intact,
+      m4-write-fail latching only after failed write + restored write).
+      Counter-example (3) emission note: async-202 immunity cannot be
+      UI-driven (no console row exists at stage 5, and at stage 4 every
+      non-GET is a write) — the executor had correctly pinned it at a
+      SIM-LEVEL stage-5 engine, which the probe accepted as the leg's pin.
