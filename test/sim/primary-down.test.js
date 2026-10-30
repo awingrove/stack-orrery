@@ -203,12 +203,12 @@ describe('database primary down (B-6d)', () => {
       '10.2 -> 10.1 | POST /about',
       'routed 10.2 -> 10.1 (POST /about) to LoadBalancer',
       'LB 10.1 -> 10.11 (POST /about) queued',
-      '10.11 -> 10.20 | cache null (/about)', // cacheStatus null — the refused record consulted nothing
+      '10.11 -> 10.20 | write refused — cache not consulted (/about)', // the refused record consulted nothing
       'Database WRITE FAILED (/about) @ 10.30 — primary down, nothing written',
-      '10.11 -> 10.2 | 503 Write unavailable (primary down) (cache null)',
+      '10.11 -> 10.2 | 503 Write unavailable (primary down)',
       // The final hop (browser render) mints no frame — the engine keeps
       // the delivery frame, as in every unfaulted stage-4 story.
-      '10.11 -> 10.2 | 503 Write unavailable (primary down) (cache null)',
+      '10.11 -> 10.2 | 503 Write unavailable (primary down)',
     ]);
   });
 

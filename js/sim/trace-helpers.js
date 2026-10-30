@@ -18,6 +18,14 @@ export function drainUntilYou(targetServer, getTick) {
   }
 }
 
+// The served-response hop's cache suffix: every real cache consult names
+// its outcome, but the B-6d WRITE_DOWN record consulted nothing, so no
+// "(cache …)" claim rides that frame — a raw "cache null" would narrate
+// the record's absence as if null were a cache state.
+export function serveCacheSuffix(trace) {
+  return trace.dbOp === 'WRITE_DOWN' ? '' : ` (cache ${trace.cacheStatus})`;
+}
+
 export function backendFor(servers, targetAddress) {
   return servers.find((s) => s.address === targetAddress) ?? servers[0];
 }

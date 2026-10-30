@@ -33,7 +33,14 @@
 // counter-example pinned: edge counters stay at their initial values, the
 // ledger row stays absent).
 import { createCdnChain } from './cdn-chain.js';
-import { drainUntilYou, backendFor, serveInto, finishTo, dbHopFrame } from './trace-helpers.js';
+import {
+  drainUntilYou,
+  backendFor,
+  serveInto,
+  finishTo,
+  dbHopFrame,
+  serveCacheSuffix,
+} from './trace-helpers.js';
 
 const subnetOf = (address) => String(address).split('.')[0];
 
@@ -148,7 +155,7 @@ export function createStage6Trace({
         serveInto(trace, served, onServe);
         return served.asyncJob
           ? `${trace.targetServer} -> ${trace.from} | ${served.response}`
-          : `${trace.targetServer} -> ${trace.from} | ${served.response} (cache ${trace.cacheStatus})`;
+          : `${trace.targetServer} -> ${trace.from} | ${served.response}${serveCacheSuffix(trace)}`;
       }
       return null;
     }

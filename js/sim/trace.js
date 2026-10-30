@@ -211,7 +211,12 @@ export function createTraceMachine({
         served = drainUntilYou(backend, getTick);
         if (served) {
           trace.cacheStatus = served.cacheStatus ?? null;
-          frame = `${backend.address} -> ${cache.address} | cache ${trace.cacheStatus} (${trace.path})`;
+          // B-6d: a refused write consults nothing — this hop names the
+          // refusal honestly instead of narrating a raw "cache null".
+          frame =
+            served.dbOp === 'WRITE_DOWN'
+              ? `${backend.address} -> ${cache.address} | write refused — cache not consulted (${trace.path})`
+              : `${backend.address} -> ${cache.address} | cache ${trace.cacheStatus} (${trace.path})`;
         }
       } else if (stage === 4 && trace.hop === 4) {
         // Hop 5/7: the database hop — hop 6's WRITE landed on Primary
@@ -228,7 +233,7 @@ export function createTraceMachine({
         trace.hop = 6;
         if (served) {
           serveInto(trace, served, onServe);
-          frame = `${trace.targetServer} -> ${trace.from} | ${served.response} (cache ${trace.cacheStatus})`;
+          frame = `${trace.targetServer} -> ${trace.from} | ${served.response}${hops.serveCacheSuffix(trace)}`;
         }
       } else if (stage === 4 && trace.hop === 6) {
         trace.hop = 7;
@@ -259,7 +264,7 @@ export function createTraceMachine({
           serveInto(trace, served, onServe);
           frame = served.asyncJob
             ? `${trace.targetServer} -> ${trace.from} | ${served.response}`
-            : `${trace.targetServer} -> ${trace.from} | ${served.response} (cache ${trace.cacheStatus})`;
+            : `${trace.targetServer} -> ${trace.from} | ${served.response}${hops.serveCacheSuffix(trace)}`;
         }
       } else if (stage === 5 && trace.hop === 5) {
         // Hop 6/8: WebServer returns its response via Network
