@@ -341,6 +341,21 @@ right frame`, em-dash where one run ended sooner) with a `9 vs 6 hops ·
   mission (bypass → misses climb → restore → a fresh HIT) follow the
   refuse-recover template. Exactly one fault chip shows at a time, as
   with the other faults.
+- **Fault #4 (primary down, 2026-10-30):** the first fault where the GET
+  story and the POST story split. The database's own state carries it
+  (`setPrimaryDown`/`isPrimaryDown`, the setBypass pattern): a failed POST
+  write lands a real **503** (`Write unavailable (primary down)`) — the
+  server is up, so this is a served response the browser renders, NOT a
+  connection refusal — and because the write never happened, the cached
+  copy is **not** invalidated and the primary never versions. GETs keep
+  the full served story (replica SELECT is untouched), async `/jobs` still
+  202 (enqueue never consults the primary), and in-flight replication
+  still applies (already-written entries land on schedule). The primary
+  card carries the real `DOWN` chip on `var(--danger)` — this one IS a
+  down component; console row follows the refuse-recover template, and
+  the recovery mission (fail a write → restore → land a real write)
+  closes the lattice: refusal, graceful skip, frozen miss storm, and now
+  asymmetric reads/writes. Exactly one fault chip at a time.
 - **Fault #2 (backend down, 2026-10-28):** a backend fault is NOT a refusal
   story — the load balancer is health-aware and **skips** the down backend
   (round-robin cursor advances past it; skips are counted on the snapshot),
