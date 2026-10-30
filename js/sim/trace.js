@@ -215,20 +215,14 @@ export function createTraceMachine({
         }
       } else if (stage === 4 && trace.hop === 4) {
         // Hop 5/7: the database hop — hop 6's WRITE landed on Primary
-        // 10.30 (replication queued toward 10.31), hop 5's SELECT read
-        // Replica 10.31 fresh or stale, and a warm cache HIT skips the
-        // database entirely.
+        // 10.30 (replication queued toward 10.31), the B-6d WRITE_DOWN
+        // narrates a refused write, hop 5's SELECT read Replica 10.31
+        // fresh or stale, and a warm cache HIT skips the database.
         trace.hop = 5;
         if (served) {
           trace.dbOp = served.dbOp ?? null;
           trace.dbStale = Boolean(served.dbStale);
-          if (trace.dbOp === 'WRITE') {
-            frame = `Database WRITE ${trace.path} @ ${database.primaryAddress} (replica ${database.replicaAddress} lags ${database.replicationLagTicks}t)`;
-          } else if (trace.dbOp === 'SELECT') {
-            frame = `Database SELECT ${trace.path} @ ${database.replicaAddress} (${trace.dbStale ? 'STALE' : 'fresh'})`;
-          } else {
-            frame = `Database SKIP ${trace.path} (warm cache HIT @ ${cache.address})`;
-          }
+          frame = hops.dbHopFrame(trace, database, cache);
         }
       } else if (stage === 4 && trace.hop === 5) {
         trace.hop = 6;
@@ -253,12 +247,8 @@ export function createTraceMachine({
           trace.asyncJob = Boolean(served.asyncJob);
           if (served.asyncJob) {
             frame = `${backend.address} -> ${workerQueue ? workerQueue.address : '10.40'} | enqueued async job (${trace.path})`;
-          } else if (trace.dbOp === 'WRITE') {
-            frame = `Database WRITE ${trace.path} @ ${database.primaryAddress} (replica ${database.replicaAddress} lags ${database.replicationLagTicks}t)`;
-          } else if (trace.dbOp === 'SELECT') {
-            frame = `Database SELECT ${trace.path} @ ${database.replicaAddress} (${trace.dbStale ? 'STALE' : 'fresh'})`;
           } else {
-            frame = `Database SKIP ${trace.path} (warm cache HIT @ ${cache.address})`;
+            frame = hops.dbHopFrame(trace, database, cache);
           }
         }
       } else if (stage === 5 && trace.hop === 4) {

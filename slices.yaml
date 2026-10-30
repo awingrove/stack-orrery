@@ -57,6 +57,16 @@ slices:
       - unit: test/sim/cache-bypass.test.js::same seed replays the identical tick sequence with the fault off (stage 3)
       - unit: test/sim/database.test.js::replicates primary writes to the read replica after replicationLagTicks and tracks stale reads
       - unit: test/sim/database.test.js::stage 4 engine writes to Primary 10.30, invalidates Cache 10.20, serves stale replica reads during lag, and catches up
+      - unit: test/sim/primary-down.test.js::setPrimaryDown validates a boolean ON/OFF flag and isPrimaryDown reads it back (fail loud)
+      - unit: test/sim/primary-down.test.js::a downed write leaves the store untouched — reads and in-flight replication stay green
+      - unit: test/sim/primary-down.test.js::engine setDatabasePrimaryDown is fail-loud below stage 4 — no database exists there
+      - unit: test/sim/primary-down.test.js::a primary-down POST answers a real 503 — the cache keeps serving the pre-fault body and the primary version holds
+      - unit: test/sim/primary-down.test.js::failedWrites tallies pool-summed across the server pool
+      - unit: test/sim/primary-down.test.js::restore puts writes back — the next write is a real 200 WRITE with the version continuing from history
+      - unit: 'test/sim/primary-down.test.js::DL-3 counter-example — the failed write keeps the full served-story arc: a real 503 rides the normal hops, no refusal'
+      - unit: test/sim/primary-down.test.js::DL-3 counter-example — same-fault GET frames stay byte-identical to the off-fault SELECT story
+      - unit: test/sim/primary-down.test.js::DL-3 counter-example — the async /jobs story stays a byte-identical 202 with the primary down (stage 5)
+      - unit: test/sim/primary-down.test.js::same seed replays the identical tick sequence with the fault off (stage 4)
       - unit: test/sim/queue.test.js::worker queue sim component
       - unit: test/sim/dns.test.js::answers the authoritative table on a miss, the ledger inside ttlTicks, and evicts on expiry
       - unit: test/sim/dns.test.js::stage 6 engine exposes DNS 10.60 and resolves example.com through the trace
@@ -110,6 +120,8 @@ slices:
         - e2e/compare.spec.js
         - e2e/control-room-rail.spec.js
         - e2e/fault-console.spec.js
+        - e2e/fault-console-helpers.js
+        - e2e/fault-console-stage4.spec.js
     owns:
       - panel.html
     calls:
@@ -157,11 +169,12 @@ slices:
       - unit: test/panel/teaching.test.js::describes all shipped stages with a headline, three lists, a tradeoff, and a primerLink
       - unit: test/panel/teaching.test.js::stage 1 content never mentions cache TTL names
       - unit: test/panel/teaching.test.js::unknown stages degrade to a pending-entries placeholder, not a crash
-      - unit: test/panel/missions.test.js::stages 1 and 3 carry four; stages 2 and 4-6 carry two to three (B-6 recovery + B-6b failover + B-6c bypass-cold)
+      - unit: test/panel/missions.test.js::stages 1, 3 and 4 carry four; stages 2, 5 and 6 carry two to three (B-6 recovery + B-6b failover + B-6c bypass-cold + B-6d write-fail)
       - unit: test/panel/missions.test.js::the stage-1 404 mission completes only on a real 404 — a 405 does not
       - unit: test/panel/missions.test.js::the stage-1 recovery mission completes only after a refusal AND a served 200 — a refusal alone satisfies neither leg
       - unit: test/panel/missions.test.js::the stage-2 failover mission completes only after a skip AND 10.12 serves again — either leg alone stays pending
       - unit: test/panel/missions.test.js::the stage-3 bypass-cold mission completes only after bypass AND a fresh HIT — either leg alone stays pending
+      - unit: test/panel/missions.test.js::the stage-4 write-fail mission completes only after a failed write AND a restored WRITE — either leg alone stays pending
       - unit: test/panel/missions.test.js::the stage-6 edge-HIT mission completes only on trace edgeStatus HIT — an origin cache HIT does not
       - unit: 'test/panel/missions.test.js::verification latches: a done mission does not un-verify while the clock runs'
       - unit: test/panel/missions.test.js::a fresh verified set flips missions back to pending and the completing tick is forgotten
@@ -213,6 +226,9 @@ slices:
       - e2e: fault-console::should bypass the cache from the rail console and watch the origin take every GET
       - e2e: fault-console::should narrate the bypass in the stage-3 trace with a fresh HIT after rejoin
       - e2e: fault-console::should verify the stage-3 cold mission only after bypass and rejoin
+      - e2e: fault-console-stage4::should down the primary from the rail console and watch writes fail while reads keep serving
+      - e2e: fault-console-stage4::should narrate the failed write as a real 503 without ever faking a WRITE frame
+      - e2e: fault-console-stage4::should verify the stage-4 write-fail mission only after failed write and restored write
     entry_point: index.html -> Diagram Panel link
 
 allowlist:

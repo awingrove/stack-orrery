@@ -6,6 +6,13 @@
 // path, not a probability. Deterministic by construction: no clock, no RNG — time
 // arrives as the `currentTick` argument, like every other sim component.
 //
+// B-6d fault state: setPrimaryDown stores a real on/off flag (isPrimaryDown()
+// reads it back) and changes NOTHING about read() or stepReplication() — the
+// webserver's write branch consults isPrimaryDown() before every write; while
+// the flag holds, write() records a WRITE_DOWN lastOp and its own failedWrites
+// tally and touches nothing else (no primary row, no version bump, no
+// replication-queue push, no writes counter).
+//
 // CHECKS: the constructor rejects a primary/replica address that is not a
 // two-number mini-IP and a replicationLagTicks that is not a positive integer
 // (fail-loud over silent mis-configuration).
@@ -45,6 +52,8 @@ export function createDatabase({
   let writes = 0;
   let staleReads = 0;
   let replicated = 0;
+  let failedWrites = 0; // B-6d: writes refused while the primary is down
+  let primaryDown = false;
   let lastOp = null;
 
   // Applies every queued entry whose applyAtTick has arrived, oldest first:
@@ -90,7 +99,18 @@ export function createDatabase({
 
   // Writes land on the primary at the current tick and enter the replication
   // queue; the replica only sees them replicationLagTicks ticks later.
+  //
+  // CHECKS: B-6d — while the primary is down a write does NOTHING to state:
+  // no stepReplication drain, no primary row, no version bump, no
+  // replication-queue push, no writes counter. Only lastOp records the
+  // refusal (op 'WRITE_DOWN' with its key and tick) and the failedWrites
+  // tally moves; read() and stepReplication() never consult the flag.
   function write(key, value, currentTick = 0) {
+    if (primaryDown) {
+      failedWrites += 1;
+      lastOp = { op: 'WRITE_DOWN', target: primaryAddress, key, atTick: currentTick };
+      return { refused: true, key, source: primaryAddress };
+    }
     stepReplication(currentTick);
     writes += 1;
     const version = (primary.get(key)?.version ?? 0) + 1;
@@ -134,10 +154,22 @@ export function createDatabase({
       writes,
       staleReads,
       replicated,
+      failedWrites,
+      primaryDown,
       lastOp,
       pendingReplication: replicationQueue.length,
       rows: rowsSnapshot(),
     };
+  }
+
+  // CHECKS: B-6d — setPrimaryDown validates a real boolean ON/OFF state and
+  // throws otherwise (fail-loud over a silently stuck consult); it flips only
+  // this component's own flag, which read()/stepReplication() do not consult.
+  function setPrimaryDown(nextDown) {
+    if (typeof nextDown !== 'boolean') {
+      throw new Error(`database: setPrimaryDown — primaryDown must be a boolean, got ${nextDown}`);
+    }
+    primaryDown = nextDown;
   }
 
   return {
@@ -150,6 +182,10 @@ export function createDatabase({
     stepReplication,
     read,
     write,
+    setPrimaryDown,
+    isPrimaryDown() {
+      return primaryDown;
+    },
     snapshot,
   };
 }

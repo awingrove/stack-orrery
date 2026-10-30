@@ -1,10 +1,10 @@
 // DOCUMENTS: the B-2 mission registry — per-stage missions (2–4 each for
-// the shipped stages 1–6: stages 1 and 2 carry four with their B-6 recovery
-// and B-6b failover missions) whose checks
+// the shipped stages 1–6: stages 1, 3 and 4 carry four with their B-6
+// recovery, B-6c bypass-cold and B-6d write-fail missions) whose checks
 // are pure snapshot predicates. Each
 // entry is { id, goal, url?, detect(snapshot) -> boolean, progress(snapshot)
-// -> string }; goals derive from the stage's try / watchFor copy in
-// teaching.js (that file stays untouched), and every predicate ground a
+// -> string }; goals mirror the stage's try / watchFor copy in
+// teaching.js (missions.js reads that copy, it does not own it), and every predicate ground a
 // real engine snapshot field (engine.snapshot()): lastExchange, the trace
 // record (stage-6 edgeStatus / nx), cache / database / workerQueue / dns /
 // router / loadBalancer counters, and queueDepth.
@@ -20,7 +20,11 @@
 //     not `cacheStatus`;
 //   - B-6b: a served 10.12 count alone does not complete the failover
 //     mission while the skip leg is zero, and a skip alone (backend still
-//     down) does not either.
+//     down) does not either;
+//   - B-6d: a failed write alone (status 503, dbOp WRITE_DOWN) does not
+//     complete the stage-4 write-fail mission, and a served 200 WRITE with
+//     no failedWrites behind it does not either — the restored leg reads a
+//     served 200 WRITE, pinning failed-write-BEFORE-restored-write.
 
 const lastStatus = (snapshot) => snapshot.lastExchange?.status ?? null;
 const perBackend = (snapshot) => snapshot.loadBalancer?.perBackend ?? {};
@@ -28,6 +32,9 @@ const forwarded = (snapshot) => snapshot.loadBalancer?.forwarded ?? 0;
 // B-6c: the newest exchange's cache-side verdict — the HIT leg of the
 // bypass-cold mission reads the cache record, not the HTTP status.
 const servedCacheStatus = (snapshot) => snapshot.lastExchange?.cacheStatus ?? null;
+// B-6d: the newest exchange's database-side verdict — the restored-write
+// leg of the write-fail mission reads the dbOp record, not the HTTP status.
+const servedDbOp = (snapshot) => snapshot.lastExchange?.dbOp ?? null;
 
 export const MISSIONS = {
   1: [
@@ -143,6 +150,21 @@ export const MISSIONS = {
         (s.database?.pendingReplication ?? 0) === 0 &&
         (s.database?.rows ?? []).every((row) => !row.lagging),
       progress: (s) => `replicated: ${s.database?.replicated ?? 0}`,
+    },
+    {
+      id: 'm4-write-fail',
+      goal: 'Down the primary, fail a write, restore it and land a REAL write',
+      // CHECKS (B-6d, DL-3): evidence semantics — a phantom write must not
+      // satisfy it. The tally leg reads the engine's pool-summed
+      // failedWrites counter (the database's own write count cannot move on
+      // a refused write), so a real write with no failure behind it fails
+      // the first leg; the restored leg requires the newest exchange to be a
+      // served 200 WRITE — a failed write alone leaves lastStatus 503 and
+      // dbOp WRITE_DOWN, pinning the failed-write-BEFORE-restored-write
+      // ordering.
+      detect: (s) =>
+        (s.failedWrites ?? 0) > 0 && lastStatus(s) === 200 && servedDbOp(s) === 'WRITE',
+      progress: (s) => `failed writes: ${s.failedWrites ?? 0} · last: ${servedDbOp(s) ?? '—'}`,
     },
   ],
   5: [

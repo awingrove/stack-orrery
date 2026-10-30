@@ -33,7 +33,7 @@
 // counter-example pinned: edge counters stay at their initial values, the
 // ledger row stays absent).
 import { createCdnChain } from './cdn-chain.js';
-import { drainUntilYou, backendFor, serveInto, finishTo } from './trace-helpers.js';
+import { drainUntilYou, backendFor, serveInto, finishTo, dbHopFrame } from './trace-helpers.js';
 
 const subnetOf = (address) => String(address).split('.')[0];
 
@@ -137,13 +137,9 @@ export function createStage6Trace({
         if (served.asyncJob) {
           return `${backend.address} -> ${workerQueue?.address ?? '10.40'} | enqueued async job (${trace.path})`;
         }
-        if (trace.dbOp === 'WRITE') {
-          return `Database WRITE ${trace.path} @ ${database.primaryAddress} (replica ${database.replicaAddress} lags ${database.replicationLagTicks}t)`;
-        }
-        if (trace.dbOp === 'SELECT') {
-          return `Database SELECT ${trace.path} @ ${database.replicaAddress} (${trace.dbStale ? 'STALE' : 'fresh'})`;
-        }
-        return `Database SKIP ${trace.path} (warm cache HIT @ ${cache.address})`;
+        // The B-6d WRITE_DOWN branch mints its refusal frame here too — the
+        // byte shape is one implementation (trace-helpers.js dbHopFrame).
+        return dbHopFrame(trace, database, cache);
       }
       return null;
     }

@@ -53,3 +53,22 @@ export function lbEnqueuedFrame(serverAddress, target, request, skippedAt) {
 export function lbRefusedFrame(serverAddress, record, request) {
   return `LB ${serverAddress} -> ${record.to} | ${request} => connection refused (nothing enqueued)`;
 }
+
+// The Stage 4+ database-hop frame, minted from the served record's own dbOp
+// (the trace machine assigns trace.dbOp from it first): WRITE to the
+// primary, the B-6d WRITE_DOWN refusal while the primary is down, a
+// fresh/stale SELECT from the replica, or the warm-cache SKIP. One
+// implementation shared by trace.js (stages 4 and 5) and trace-stage6.js's
+// chain so the byte shape cannot drift between the machines.
+export function dbHopFrame(trace, database, cache) {
+  if (trace.dbOp === 'WRITE_DOWN') {
+    return `Database WRITE FAILED (${trace.path}) @ ${database.primaryAddress} — primary down, nothing written`;
+  }
+  if (trace.dbOp === 'WRITE') {
+    return `Database WRITE ${trace.path} @ ${database.primaryAddress} (replica ${database.replicaAddress} lags ${database.replicationLagTicks}t)`;
+  }
+  if (trace.dbOp === 'SELECT') {
+    return `Database SELECT ${trace.path} @ ${database.replicaAddress} (${trace.dbStale ? 'STALE' : 'fresh'})`;
+  }
+  return `Database SKIP ${trace.path} (warm cache HIT @ ${cache.address})`;
+}

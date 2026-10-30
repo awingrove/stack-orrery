@@ -55,6 +55,20 @@ const FAULTS = {
       kind: 'bypass',
     },
   ],
+  4: [
+    // B-6d: the first fault where the GET story and the POST story split —
+    // the flip is the database's own setPrimaryDown flag, the write branch
+    // answers a real 503, and reads keep serving from the replica.
+    {
+      id: 'primary-down',
+      label: 'Database primary down — writes fail, replica reads keep serving',
+      switchId: 'fault-toggle-primary',
+      chipId: 'fault-state-primary',
+      serverAddress: '10.30',
+      cardId: 'node-db',
+      kind: 'primary',
+    },
+  ],
 };
 
 let stage = null;
@@ -72,15 +86,25 @@ const downIn = (snapshot, serverAddress) =>
 
 const bypassedIn = (snapshot) => Boolean(snapshot.cache?.bypassed);
 
+// B-6d: the primary-down flag reads off the database snapshot's own record.
+const primaryDownIn = (snapshot) => Boolean(snapshot.database?.primaryDown);
+
 const faultStateIn = (snapshot, fault) =>
-  fault.kind === 'bypass' ? bypassedIn(snapshot) : downIn(snapshot, fault.serverAddress);
+  fault.kind === 'bypass'
+    ? bypassedIn(snapshot)
+    : fault.kind === 'primary'
+      ? primaryDownIn(snapshot)
+      : downIn(snapshot, fault.serverAddress);
 
 // The fault write goes through the engine's own fail-loud setter, exactly
-// per kind: setServerDown for a down flip, setCacheBypassed for the cache.
+// per kind: setServerDown for a down flip, setCacheBypassed for the cache,
+// setDatabasePrimaryDown for the B-6d primary.
 const flipFault = (engine, fault, next) =>
   fault.kind === 'bypass'
     ? engine.setCacheBypassed(next)
-    : engine.setServerDown(fault.serverAddress, next);
+    : fault.kind === 'primary'
+      ? engine.setDatabasePrimaryDown(next)
+      : engine.setServerDown(fault.serverAddress, next);
 
 function nodeWith(tag, className, text, testId) {
   const n = document.createElement(tag);
@@ -97,6 +121,9 @@ function nodeWith(tag, className, text, testId) {
 const FAULT_CHIP = {
   down: { className: 'down-chip', text: 'DOWN', testId: 'node-down-chip' },
   bypass: { className: 'bypass-chip', text: 'BYPASS', testId: 'node-bypass-chip' },
+  // B-6d: the primary is genuinely down (a down component, not slice 3's
+  // out-of-path bypass), so it carries the real DOWN/danger chip.
+  primary: { className: 'down-chip', text: 'DOWN', testId: 'node-down-chip' },
 };
 
 function ensureCardChip(fault) {

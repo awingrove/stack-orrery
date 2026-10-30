@@ -111,7 +111,7 @@ cacheStatus: null, dbOp: 'WRITE_DOWN', dbTarget: primaryAddress }`. GET
       (`opencode-go/glm-5.3-flash`) is unavailable (user direction 2026-10-30,
       recorded in `.opencode/agents/executor.md`); THIS slice executes on
       `opencode/mimo-v2.6-flash-free` (GLM free coordinates).
-- [ ] Step 2 (Executor sub-agent): cold implementation, unit & e2e tests,
+- [x] Step 2 (Executor sub-agent): cold implementation, unit & e2e tests,
       manifest updates, green `npm run verify`, tick and commit (DEMO
       screenshots for the human visual gate).
 - [ ] Step 3 (Lead session): strict acceptance probe over every boundary
