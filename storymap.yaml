@@ -181,7 +181,7 @@ activities:
             status: done
             priority: medium
             tests:
-              - unit: test/panel/missions.test.js::stages 1, 3 and 4 carry four; stages 2, 5 and 6 carry two to three (B-6 recovery + B-6b failover + B-6c bypass-cold + B-6d write-fail)
+              - unit: test/panel/missions.test.js::stages 1, 3, 4 and 5 carry four; stages 2 and 6 carry two to three (B-6 recovery + B-6b failover + B-6c bypass-cold + B-6d write-fail + B-6e worker-crash)
               - unit: test/panel/missions.test.js::the stage-1 404 mission completes only on a real 404 — a 405 does not
               - unit: test/panel/missions.test.js::the stage-6 edge-HIT mission completes only on trace edgeStatus HIT — an origin cache HIT does not
               - unit: 'test/panel/missions.test.js::verification latches: a done mission does not un-verify while the clock runs'
@@ -356,6 +356,20 @@ activities:
             priority: high
             tests:
               - unit: test/sim/queue.test.js::worker queue sim component
+          - title: Crash the worker — while crashed the worker steps nothing and the backlog grows, a job caught ACTIVE re-queues to the HEAD and re-delivers on restore with the 202 story staying byte-identical
+            status: done
+            priority: high
+            tests:
+              - unit: test/sim/worker-crash.test.js::setCrashed validates a boolean ON/OFF flag and isCrashed reads it back (fail loud)
+              - unit: test/sim/worker-crash.test.js::a crashed step drains nothing — the backlog grows and no commit is attempted
+              - unit: 'test/sim/worker-crash.test.js::the crash flip re-queues an ACTIVE job to the head — byte-identical queued shape, redelivered bumps'
+              - unit: test/sim/worker-crash.test.js::a crash flip with no active job moves nothing — redelivered stays flat, the queue byte-holds
+              - unit: test/sim/worker-crash.test.js::restore re-delivers the re-queued job — it re-times from scratch and commits exactly once
+              - unit: test/sim/worker-crash.test.js::engine setWorkerCrashed is fail-loud below stage 5 — no worker queue exists there
+              - unit: test/sim/worker-crash.test.js::engine setWorkerCrashed routes to the queue at stage 5 — the snapshot reads it back and re-delivery commits
+              - unit: 'test/sim/worker-crash.test.js::DL-3 counter-example — a crashed worker tail narrates the crash, never a fake commit, and the 202 enqueue frames stay byte-identical'
+              - unit: 'test/sim/worker-crash.test.js::DL-3 counter-example — synchronous POST write-through and GET frames stay byte-identical with the worker crashed'
+              - unit: test/sim/worker-crash.test.js::same seed replays the identical tick sequence with the fault off (stage 5)
 
       - id: PANEL-5
         name: Switch to Stage 5 and trace asynchronous job requests
@@ -367,6 +381,14 @@ activities:
             tests:
               - unit: test/panel/model-stage5.test.js::describes Stage 5 8-hop async queue trace labels and workerqueue inspector state
               - e2e: panel::should switch to Stage 5, process an async POST /jobs job through worker 10.41, and inspect queue state
+          - title: Flip the Faults tab to crash the worker and back — the console row and card chip read DOWN, the crashed tail narrates the waiting queue with no fake commit, the 202 story keeps answering, async jobs wait visibly, and the re-delivery mission verifies only after a redelivery AND the re-delivered commit
+            status: done
+            priority: high
+            tests:
+              - unit: test/panel/missions.test.js::the stage-5 re-delivery mission completes only after a redelivery AND a re-delivered commit — either leg alone stays pending
+              - e2e: fault-console-stage5::should crash the worker from the rail console and watch async jobs wait, then re-deliver
+              - e2e: fault-console-stage5::should narrate the crashed worker without ever faking a commit
+              - e2e: fault-console-stage5::should verify the stage-5 re-delivery mission only after crash and restore
 
   - name: 'Stage 6 — DNS ledger and cross-subnet routing'
     tasks:

@@ -62,6 +62,27 @@ export function lbRefusedFrame(serverAddress, record, request) {
   return `LB ${serverAddress} -> ${record.to} | ${request} => connection refused (nothing enqueued)`;
 }
 
+// CHECKS: B-6e — the stage-5 worker-tail frame (hop 8/8), minted from the
+// live queue record: an async trace tails with the worker's commit, a
+// synchronous trace finds the worker idle. While the worker is crashed the
+// async tail reads the QUEUE's own state — the waiting count is the queue's
+// live backlog — so a crashing trace stamps no phantom "finished job"
+// commit and the 202 enqueue frames stay byte-identical; the synchronous
+// tail keeps its byte shape (the crash does not touch the story that never
+// consulted the worker). One implementation shared by trace.js and
+// trace-stage6.js's chain.
+export function workerTailFrame(trace, workerQueue, database) {
+  const dbTarget = database ? database.primaryAddress : '10.30';
+  const workerAddr = workerQueue ? workerQueue.workerAddress : '10.41';
+  if (trace.asyncJob && workerQueue?.isCrashed?.() === true) {
+    const waiting = workerQueue.pendingCount?.() ?? 0;
+    return `Worker ${workerAddr} crashed — ${waiting} job(s) waiting in the queue (nothing committed)`;
+  }
+  return trace.asyncJob
+    ? `Worker ${workerAddr} finished job and committed to Database ${dbTarget}`
+    : `Worker ${workerAddr} idle — no async jobs in this trace`;
+}
+
 // The Stage 4+ database-hop frame, minted from the served record's own dbOp
 // (the trace machine assigns trace.dbOp from it first): WRITE to the
 // primary, the B-6d WRITE_DOWN refusal while the primary is down, a

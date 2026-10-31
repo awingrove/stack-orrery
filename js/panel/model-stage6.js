@@ -1,11 +1,13 @@
 // DOCUMENTS: Stage-6 hop sentences, split from model.js by responsibility
-// (guard-file-size): model.js keeps the pure stage-5 chain parts and the
-// label assembly; this module owns the two prelude sentences and the
+// (guard-file-size): model.js keeps the label assembly and re-exports the
+// pure stage-5 chain parts (model-stage5-chain.js owns them); this module
+// owns the two prelude sentences and the
 // three hosted shapes behind the DNS answer — the plain subnet-10 chain
 // (byte-identical renumber), the Stage-6b CDN chain (HIT = 6 / MISS or
 // pass-through = 9), and the NX refusal. Exported for the narrative pins in
 // test/panel/model-stage6.test.js.
-import { stage5ChainParts, withHopPrefix } from './model.js';
+import { withHopPrefix } from './model.js';
+import { stage5ChainParts } from './model-stage5-chain.js';
 
 // The CDN chain's sentences are the miss shape, rebranched on edgeStatus:
 // the ledger-fill sentence exists only on a MISS (named counter-example,

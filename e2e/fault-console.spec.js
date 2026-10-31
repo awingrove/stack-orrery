@@ -37,14 +37,18 @@ test('should toggle the webserver fault from the rail console and read connectio
   await page.getByTestId('stage-pill-2').click();
   // B-6b: stage 2 now owns the backend-10.12 row — the console shows it,
   // still reading component state. B-6c: stage 3 owns the cache-bypass row;
-  // B-6d: stage 4 owns the primary-down row, so the empty-state line moved
-  // to stage 5, the first fault-less stage.
+  // B-6d: stage 4 owns the primary-down row. B-6e: stage 5 owns the
+  // worker-crash row, so the empty-state line moved to stage 6, the
+  // first fault-less stage.
   await expect(page.getByTestId('fault-toggle-backend-10-12')).toBeVisible();
   await expect(page.getByTestId('fault-state-backend-10-12')).toHaveText('off');
   await page.getByTestId('stage-pill-4').click();
   await expect(page.getByTestId('fault-toggle-primary')).toBeVisible();
   await expect(page.getByTestId('fault-state-primary')).toHaveText('off');
   await page.getByTestId('stage-pill-5').click();
+  await expect(page.getByTestId('fault-toggle-worker')).toBeVisible();
+  await expect(page.getByTestId('fault-state-worker')).toHaveText('off');
+  await page.getByTestId('stage-pill-6').click();
   await expect(page.locator('.rail-host:not([hidden]) .rail-empty')).toHaveText(
     'No faults for this stage yet.',
   );

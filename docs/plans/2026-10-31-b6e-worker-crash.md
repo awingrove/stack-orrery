@@ -100,7 +100,7 @@ workerQueue?.isCrashed?.() ?? false`.
 
 - [x] Step 1 (Lead session): human "good to go" 2026-10-31 after PR #26;
       DESIGN.md worker-crash bullet committed here. Executor =standard paid pin.
-- [ ] Step 2 (Executor sub-agent): cold implementation, unit & e2e tests,
+- [x] Step 2 (Executor sub-agent): cold implementation, unit & e2e tests,
       manifest updates, green `npm run verify`, tick and commit (DEMO shots).
 - [ ] Step 3 (Lead session): strict acceptance probe over every boundary
       contract (including the no-fake-commit and byte-identical-enqueue

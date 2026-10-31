@@ -40,6 +40,7 @@ import {
   finishTo,
   dbHopFrame,
   serveCacheSuffix,
+  workerTailFrame,
 } from './trace-helpers.js';
 
 const subnetOf = (address) => String(address).split('.')[0];
@@ -167,11 +168,8 @@ export function createStage6Trace({
       return `Browser ${trace.from} received and displayed ${trace.status}`;
     }
     if (s5 === 7) {
-      const dbTarget = database ? database.primaryAddress : '10.30';
-      const workerAddr = workerQueue ? workerQueue.workerAddress : '10.41';
-      return trace.asyncJob
-        ? `Worker ${workerAddr} finished job and committed to Database ${dbTarget}`
-        : `Worker ${workerAddr} idle — no async jobs in this trace`;
+      // B-6e: the crashed tail is one implementation shared with trace.js.
+      return workerTailFrame(trace, workerQueue, database);
     }
     return null;
   }

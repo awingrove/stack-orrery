@@ -3,9 +3,10 @@
 // fail-loud routes). Each setter routes to the faulted component's OWN
 // state: setServerDown to the addressed webserver's setDown, setCacheBypassed
 // to the shared cache's setBypass, setDatabasePrimaryDown (B-6d) to the
-// database's setPrimaryDown. Nothing here narrates or caches state — every
-// visible fault reads back from the fresh engine snapshot.
-export function createFaultSetters({ stage, servers, cache, database }) {
+// database's setPrimaryDown, setWorkerCrashed (B-6e) to the worker queue's
+// setCrashed. Nothing here narrates or caches state — every visible fault
+// reads back from the fresh engine snapshot.
+export function createFaultSetters({ stage, servers, cache, database, workerQueue }) {
   return {
     // CHECKS: setServerDown routes the B-6 fault flip to the matching
     // server address — unknown mini-IP throws (fail-loud, same rule as
@@ -36,6 +37,19 @@ export function createFaultSetters({ stage, servers, cache, database }) {
         throw new Error(`engine: setDatabasePrimaryDown — stage ${stage} has no Database`);
       }
       database.setPrimaryDown(down);
+    },
+
+    // CHECKS: B-6e — the flip routes into the queue's own setCrashed
+    // (boolean validated there, fail-loud); no worker queue exists below
+    // stage 5, so the flip fails loud there. The 202 enqueue branch never
+    // consults the flag: while crashed only the worker's step() pauses, the
+    // backlog grows, and a job caught ACTIVE mid-crash re-delivers on
+    // restore.
+    setWorkerCrashed(crashed) {
+      if (!workerQueue) {
+        throw new Error(`engine: setWorkerCrashed — stage ${stage} has no Worker Queue`);
+      }
+      workerQueue.setCrashed(crashed);
     },
   };
 }

@@ -1,8 +1,10 @@
 // DOCUMENTS: pure presentation model — engine snapshot in, labels and bar
 // geometry out. No DOM here: this is what the unit suite pins; panel.js and
 // render.js own all DOM writes. Stage-6 hop sentences live in
-// model-stage6.js (guard-file-size split).
+// model-stage6.js, the stage-5 async/sync chain sentences in
+// model-stage5-chain.js (guard-file-size splits — B-6e).
 import { stage6Sentences } from './model-stage6.js';
+import { stage5ChainParts } from './model-stage5-chain.js';
 import { dbOpSentence } from './model-dbop.js';
 export const TICK_MS = 100;
 const QUEUE_BAR_SATURATION = 20; // bar reads full at 20 queued requests
@@ -17,51 +19,6 @@ const HOP_START_SENTENCE = 'Idle — type a path and click Go or Step 1 Hop ->';
 function fillPercent(depth) {
   return `${Math.min(100, Math.round((depth / QUEUE_BAR_SATURATION) * 100))}%`;
 }
-
-// One hop-sentence set per Stage 5 trace shape — async POST /jobs vs the
-// synchronous cache/database story. Eight bare sentences with no "Hop n/8: "
-// prefix: stage 5 and stage 6's host-less trace wrap them identically (the
-// host-less counter-example renders byte-identically), and stage 6's hosted
-// shape renumbers the tail behind its DNS prelude.
-export function stage5ChainParts(snapshot, from, serverAddress) {
-  const t = snapshot.trace ?? {};
-  const target = t.targetServer ?? '10.11';
-  if (t.asyncJob) {
-    const worker = snapshot.workerQueue?.workerAddress ?? '10.41';
-    return [
-      `Browser (${from}) emits "${t.request}"`,
-      `Network (10.x) routes to LoadBalancer (${serverAddress})`,
-      `LoadBalancer (${serverAddress}) -> ${target} queue`,
-      `WebServer (${target}) enqueues job to WorkerQueue (10.40)`,
-      `WebServer (${target}) -> "202 Accepted"`,
-      `Network delivers 202 response to ${from}`,
-      `Browser (${from}) received and displayed 202 Accepted`,
-      `Worker (${worker}) processed job and committed to Database (10.30)`,
-    ];
-  }
-  // Requests served synchronously keep the Stage 4 cache/database story;
-  // the worker does not see them, so the tail hop reads idle.
-  const db = snapshot.database ?? {};
-  const dbOp = dbOpSentence(t.dbOp, {
-    stale: t.dbStale,
-    primary: db.primaryAddress ?? '10.30',
-    replica: db.replicaAddress ?? '10.31',
-    lag: db.replicationLagTicks ?? 3,
-    cacheAddress: snapshot.cache?.address ?? '10.20',
-  });
-  return [
-    `Browser (${from}) emits "${t.request}"`,
-    `Network (10.x) routes to LoadBalancer (${serverAddress})`,
-    `LoadBalancer (${serverAddress}) -> ${target} queue`,
-    dbOp,
-    `WebServer (${target}) -> "${t.response}" (cache ${t.cacheStatus})`,
-    `Network delivers ${t.status} response to ${from}`,
-    `Browser (${from}) received and displayed ${t.status}`,
-    `Worker (${workerAddressOf(snapshot)}) idle — no async jobs in this trace`,
-  ];
-}
-
-const workerAddressOf = (snapshot) => snapshot.workerQueue?.workerAddress ?? '10.41';
 
 export const withHopPrefix = (parts, total) => parts.map((p, i) => `Hop ${i + 1}/${total}: ${p}`);
 

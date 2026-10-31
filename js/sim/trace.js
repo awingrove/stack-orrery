@@ -276,14 +276,13 @@ export function createTraceMachine({
         finishTo(trace, trace.targetServer ?? serverAddress, onFinish);
         frame = `Browser ${trace.from} received and displayed ${trace.status}`;
       } else if (stage === 5 && trace.hop === 7) {
-        // Hop 8/8: async job tails with the worker's commit; a request that
-        // was served synchronously finds the worker idle.
+        // CHECKS: B-6e — hop 8/8 tails with the worker's commit on an async
+        // trace (a synchronous request finds the worker idle), and the
+        // frame reads the LIVE queue state: a crashed worker's tail names
+        // the crash and the waiting count, stamping no phantom commit
+        // (DL-3).
         trace.hop = 8;
-        const dbTarget = database ? database.primaryAddress : '10.30';
-        const workerAddr = workerQueue ? workerQueue.workerAddress : '10.41';
-        frame = trace.asyncJob
-          ? `Worker ${workerAddr} finished job and committed to Database ${dbTarget}`
-          : `Worker ${workerAddr} idle — no async jobs in this trace`;
+        frame = hops.workerTailFrame(trace, workerQueue, database);
       }
       return frame;
     },
