@@ -232,11 +232,11 @@ export function createEngine({
       server.writeFile(path, body);
     },
 
-    // B-6 / B-6b / B-6c / B-6d / B-6e fault flips live in engine-faults.js
-    // (setServerDown, setCacheBypassed, setDatabasePrimaryDown,
-    // setWorkerCrashed) — wiring identical, each fail-loud on the
-    // component it names.
-    ...createFaultSetters({ stage, servers, cache, database, workerQueue }),
+    // B-6 / B-6b / B-6c / B-6d / B-6e / B-6f fault flips live in
+    // engine-faults.js (setServerDown, setCacheBypassed,
+    // setDatabasePrimaryDown, setWorkerCrashed, setDnsDropped) — wiring
+    // identical, each fail-loud on the component it names.
+    ...createFaultSetters({ stage, servers, cache, database, workerQueue, dns }),
 
     snapshot() {
       const serverSnapshots = servers.map((s) => ({

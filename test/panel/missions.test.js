@@ -14,17 +14,17 @@ describe('missions registry and statuses', () => {
   // B-6 (stage-1 recovery) and B-6b (stage-2 failover): stage 1 carries
   // four and the failover mission raises stage 2 from two to three. B-6c
   // (cache bypass) raises stage 3 from three to four, B-6d (primary down)
-  // raises stage 4 from three to four, and B-6e (worker crash) raises
-  // stage 5 from three to four — the title below states the real
-  // per-stage counts.
-  it('stages 1, 3, 4 and 5 carry four; stages 2 and 6 carry two to three (B-6 recovery + B-6b failover + B-6c bypass-cold + B-6d write-fail + B-6e worker-crash)', () => {
+  // raises stage 4 from three to four, B-6e (worker crash) raises stage 5
+  // from three to four, and B-6f (record dropped) raises stage 6 from
+  // three to four — the title below states the real per-stage counts.
+  it('stages 1 and 3-6 carry four; stage 2 carries two to three (B-6 recovery + B-6b failover + B-6c bypass-cold + B-6d write-fail + B-6e worker-crash + B-6f dns-drop)', () => {
     expect(Object.keys(MISSIONS).map(Number).sort()).toEqual([1, 2, 3, 4, 5, 6]);
     for (const stage of [1, 2, 3, 4, 5, 6]) {
       expect(MISSIONS[stage].length, `stage ${stage} mission count floor`).toBeGreaterThanOrEqual(
         2,
       );
       expect(MISSIONS[stage].length, `stage ${stage} mission count cap`).toBeLessThanOrEqual(
-        stage === 2 || stage === 6 ? 3 : 4,
+        stage === 2 ? 3 : 4,
       );
       expect(new Set(MISSIONS[stage].map((m) => m.id)).size, `stage ${stage} unique ids`).toBe(
         MISSIONS[stage].length,
@@ -288,6 +288,42 @@ describe('missions registry and statuses', () => {
     ).find((s) => s.id === 'm6-edge-hit');
     expect(hit.done).toBe(true);
     expect(hit.completedTick).toBe(14);
+  });
+
+  // CHECKS (B-6f, DL-3): the NX mission's two legs — a dropped-lookup
+  // tally AND a post-drop resolve (reResolveAfterDrop can only move AFTER
+  // a drop era opens, so the counters carry the ordering). A drop with no
+  // restored resolve behind it leaves the resolve leg unsatisfied, and a
+  // plain resolve with no drop behind it fails the tally leg.
+  it('the stage-6 NX mission completes only after a dropped lookup AND a restored resolve — either leg alone stays pending', () => {
+    const verified = new Map();
+    const NX_MISSION = 'm6-nx';
+    // A resolve with no drop behind it: the tally leg fails.
+    const plainResolve = missionStatuses(
+      6,
+      { tick: 4, dns: { lookups: 1, droppedLookups: 0, reResolveAfterDrop: 0 } },
+      verified,
+    ).find((s) => s.id === NX_MISSION);
+    expect(plainResolve.done).toBe(false);
+    // The drop era itself: the NX leg moved, but no restored resolve
+    // followed yet — the chip stays pending.
+    const droppedOnly = missionStatuses(
+      6,
+      { tick: 7, dns: { lookups: 3, droppedLookups: 2, reResolveAfterDrop: 0 } },
+      verified,
+    ).find((s) => s.id === NX_MISSION);
+    expect(droppedOnly.done).toBe(false);
+    expect(droppedOnly.completedTick).toBe(null);
+    expect(droppedOnly.progress).toBe('dropped: 2 · resolved: 0');
+    // Positive on both legs: the drop ran and the restored name resolved.
+    const done = missionStatuses(
+      6,
+      { tick: 12, dns: { lookups: 6, droppedLookups: 2, reResolveAfterDrop: 1 } },
+      verified,
+    ).find((s) => s.id === NX_MISSION);
+    expect(done.done).toBe(true);
+    expect(done.completedTick).toBe(12);
+    expect(done.progress).toBe('dropped: 2 · resolved: 1');
   });
 
   // CHECKS (B-6 named counter-example): the recovery mission completes only

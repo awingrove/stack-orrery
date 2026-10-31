@@ -852,3 +852,51 @@ entries:
       committed', enqueue 202 byte_story with fault on, restore commits
       the re-delivered work exactly once, m5-redeliver latched, stage 5
       carries four missions, cross-stage rows intact.
+  - id: B6F-DNS-LEDGER-DROP
+    slice:
+      - SIM
+      - PANEL
+    name: >-
+      B-6f fault console slice 6 (ladder finish) — DNS record dropped: the
+      drop purges the name from the authoritative table AND the resolver
+      ledger, the EXISTING unknown-host NX branch narrates (NX card, no GET
+      ever emitted), cd.example.com and host-less URLs byte-untouched
+    brief: docs/plans/2026-10-31-b6f-dns-ledger-drop.md
+    agent: cheap
+    lead_model: opencode-go/glm-5.3-flash
+    agent_model: opencode-go/mimo-v2.6-flash
+    session_id: ses_e6c86c83affeGheENX3dOvCP1Z
+    tokens_input: 466520
+    tokens_output: 37089
+    tokens_reasoning: 37365
+    tokens_cache_read: 15281472
+    cost_usd: 0
+    human_interventions: 0
+    agent_review_rounds: 0
+    guardrail_failures: 2
+    fix_commits: 0
+    defects_escaped: 0
+    notes: >-
+      Ladder finish. Executor paid MiMo per user direction (2026-10-31).
+      Cold from the brief in 28cfeed, green 168 unit / 65 e2e, one
+      in-session red (prettier style on 3 files — fixed by write, nothing
+      weakened). trace-stage6.js needed ZERO changes: the unknown-host NX
+      machinery already narrated the fault honestly, the exact outcome the
+      brief's no-new-narration-tokens contract demanded. Executor
+      deviations ACCEPTED at review: the DROPPED kind reuses the
+      bypass-chip warn classes (zero CSS delta); DL(1) byte-identity is
+      impossible across differing host literals (the ask frame names the
+      typed host) — normalized equality + zero-fault-token + end-state
+      pins land the contract honestly; the faults-tab empty-state line is
+      now dead UI through the ladder (all six stages own fault rows) with
+      the rebuild() no-section path unpinned — FOLLOW-UP CANDIDATE
+      recorded, not a defect; era payout opens on the flip rather than the
+      first NX (drop-then-restore-with-no-NX still pays the mission's OK
+      leg) — documented by its own contract test. Step-3 acceptance probe:
+      GREEN ON THE FIRST PASS (no probe-side corrections needed for the
+      first time in the ladder) — NX card with no refusal narration,
+      cd.example.com and host-less runs green while dropped, fresh AUTH
+      then real 200 after restore, m6-nx latched, stage 6 carries four
+      missions, cross-stage rows intact. Console-lattice complete:
+      transport refusal, health-skip, miss storm, write fail, queue
+      pause, pre-transport NX.

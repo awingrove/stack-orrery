@@ -2,14 +2,15 @@
 // (rail tab 'faults', host built by rail.js). Per-stage fault switches, one
 // fault per stage (DESIGN.md Fault Console): slice 1 ships the stage-1
 // WebServer-down switch, B-6b appends the stage-2 Backend-10.12 row, B-6c
-// the stage-3 bypass row, B-6d the stage-4 primary row, and B-6e the
-// stage-5 worker-crash row. The
-// switch writes real component state through engine.setServerDown
-// (webserver.setDown validates the boolean, fail-loud) and every visible
-// fault state — the console row's DOWN/off chip and the staged server
-// card's DOWN chip — reads back from the fresh snapshot, not from local UI
-// memory. panel.html sits at its 550-line cap, so the console and the card
-// chip are JS-built: textContent/attributes only,
+// the stage-3 bypass row, B-6d the stage-4 primary row, B-6e the
+// stage-5 worker-crash row, and B-6f the stage-6 DNS-record row — the
+// ladder finish, so every shipped stage now carries exactly one row. The
+// switch writes real component state through the engine's fail-loud
+// setters (each component validates its own boolean) and every visible
+// fault state — the console row's DOWN/BYPASS/DROPPED/off chip and the
+// staged node card's fault chip — reads back from the fresh snapshot, not
+// from local UI memory. panel.html sits at its 550-line cap, so the
+// console and the card chip are JS-built: textContent/attributes only,
 // addEventListener only (AGENTS.md CSP rule). Stages without faults render
 // no section — the rail shows its own empty-state line, not blank space.
 import { getRailHost, refreshRail } from './rail.js';
@@ -86,6 +87,21 @@ const FAULTS = {
       kind: 'worker',
     },
   ],
+  6: [
+    // B-6f: the console ladder's finish — a resolver-flavored ledger
+    // drop, not a down component. The flip routes through
+    // engine.setDnsDropped into the DNS component's own setDropped; the
+    // NX answer hop and the browser's NX card read the component's real
+    // record (pre-transport failure — no GET is formed at all).
+    {
+      id: 'dns-dropped',
+      label: 'DNS record dropped — the name no longer resolves',
+      switchId: 'fault-toggle-dns',
+      chipId: 'fault-state-dns',
+      cardId: 'node-dns',
+      kind: 'dropped',
+    },
+  ],
 };
 
 let stage = null;
@@ -95,9 +111,11 @@ const rows = new Map(); // fault id -> { fault, chipEl, switchEl }
 const cardChips = new Map(); // fault id -> node-card DOWN chip element
 
 // CHECKS: each fault's ON state is read from the snapshot's own component
-// record — a DOWN flag the transport consults (down kind), or the bypass
-// flag the cache snapshot carries (bypass kind) — so the UI cannot show a
-// fault while the component is live, or off while it is misbehaving.
+// record — a DOWN flag the transport consults (down kind), the bypass
+// flag the cache snapshot carries (bypass kind), the primary's and the
+// worker's own flags, or the DNS component's dropped flag (B-6f) — so the
+// UI cannot show a fault while the component is live, or off while it is
+// misbehaving.
 const downIn = (snapshot, serverAddress) =>
   Boolean(snapshot.servers?.find((s) => s.address === serverAddress)?.down);
 
@@ -109,27 +127,44 @@ const primaryDownIn = (snapshot) => Boolean(snapshot.database?.primaryDown);
 // B-6e: the crashed flag reads off the workerQueue snapshot's own record.
 const workerCrashedIn = (snapshot) => Boolean(snapshot.workerQueue?.crashed);
 
+// B-6f: the dropped flag reads off the DNS snapshot's own record.
+const dnsDroppedIn = (snapshot) => Boolean(snapshot.dns?.dropped);
+
+// The warn kinds (bypass, dropped) share the warn-pair chip treatment —
+// out of the path, not down; down/primary/worker keep the danger pair.
+const warnKind = (kind) => kind === 'bypass' || kind === 'dropped';
+
+// Per-kind readers and writers: unknown kinds fall through to the down
+// convention (serverAddress + setServerDown), the B-6 slice-1 default.
+const READERS = {
+  bypass: bypassedIn,
+  primary: primaryDownIn,
+  worker: workerCrashedIn,
+  dropped: dnsDroppedIn,
+};
+
 const faultStateIn = (snapshot, fault) =>
-  fault.kind === 'bypass'
-    ? bypassedIn(snapshot)
-    : fault.kind === 'primary'
-      ? primaryDownIn(snapshot)
-      : fault.kind === 'worker'
-        ? workerCrashedIn(snapshot)
-        : downIn(snapshot, fault.serverAddress);
+  fault.kind in READERS ? READERS[fault.kind](snapshot) : downIn(snapshot, fault.serverAddress);
 
 // The fault write goes through the engine's own fail-loud setter, exactly
 // per kind: setServerDown for a down flip, setCacheBypassed for the cache,
 // setDatabasePrimaryDown for the B-6d primary, setWorkerCrashed for the
-// B-6e worker.
+// B-6e worker, setDnsDropped for the B-6f record drop.
+const WRITERS = {
+  bypass: (engine, fault, next) => engine.setCacheBypassed(next),
+  primary: (engine, fault, next) => engine.setDatabasePrimaryDown(next),
+  worker: (engine, fault, next) => engine.setWorkerCrashed(next),
+  dropped: (engine, fault, next) => engine.setDnsDropped(next),
+};
+
 const flipFault = (engine, fault, next) =>
-  fault.kind === 'bypass'
-    ? engine.setCacheBypassed(next)
-    : fault.kind === 'primary'
-      ? engine.setDatabasePrimaryDown(next)
-      : fault.kind === 'worker'
-        ? engine.setWorkerCrashed(next)
-        : engine.setServerDown(fault.serverAddress, next);
+  fault.kind in WRITERS
+    ? WRITERS[fault.kind](engine, fault, next)
+    : engine.setServerDown(fault.serverAddress, next);
+
+// Console chip text per kind when active — the warn kinds carry their own
+// word, everything else the slice-1 DOWN.
+const CHIP_TEXT = { bypass: 'BYPASS', dropped: 'DROPPED' };
 
 function nodeWith(tag, className, text, testId) {
   const n = document.createElement(tag);
@@ -152,6 +187,10 @@ const FAULT_CHIP = {
   // B-6e: the worker is genuinely down (the crash pauses delivery), the
   // real DOWN/danger chip on the 10.41 card.
   worker: { className: 'down-chip', text: 'DOWN', testId: 'node-down-chip' },
+  // B-6f: the zone is missing a record, nothing is down — the warn pair
+  // (the node-bypass-chip class) with its own node-dropped-chip testid on
+  // the node-dns card.
+  dropped: { className: 'bypass-chip', text: 'DROPPED', testId: 'node-dropped-chip' },
 };
 
 function ensureCardChip(fault) {
@@ -214,17 +253,18 @@ function rebuild() {
 // chip's text/class/aria are written only when they change, so with the
 // fault off the console is byte-identical over crowd ticks. Card chips
 // stay hidden on stages the fault does not own. The ON-state classes are
-// per kind: DOWN keeps the danger pair, the bypass reads warn.
+// per kind: DOWN keeps the danger pair, the warn kinds (bypass, dropped)
+// read warn.
 function refresh(snapshot) {
   for (const { fault, chipEl, switchEl } of rows.values()) {
     const active = faultStateIn(snapshot, fault);
-    const text = active ? (fault.kind === 'bypass' ? 'BYPASS' : 'DOWN') : 'off';
+    const text = active ? (CHIP_TEXT[fault.kind] ?? 'DOWN') : 'off';
     if (chipEl.textContent !== text) chipEl.textContent = text;
-    chipEl.classList.toggle('fault-down', fault.kind !== 'bypass' && active);
-    chipEl.classList.toggle('fault-bypass-on', fault.kind === 'bypass' && active);
+    chipEl.classList.toggle('fault-down', !warnKind(fault.kind) && active);
+    chipEl.classList.toggle('fault-bypass-on', warnKind(fault.kind) && active);
     switchEl.setAttribute('aria-pressed', String(active));
-    switchEl.classList.toggle('fault-switch-on', fault.kind !== 'bypass' && active);
-    switchEl.classList.toggle('fault-switch-warn', fault.kind === 'bypass' && active);
+    switchEl.classList.toggle('fault-switch-on', !warnKind(fault.kind) && active);
+    switchEl.classList.toggle('fault-switch-warn', warnKind(fault.kind) && active);
     const cardChip = ensureCardChip(fault);
     if (cardChip) cardChip.hidden = !active;
   }

@@ -165,3 +165,140 @@ test('should deep-link ?stage=6 into the DNS topology', async ({ page }) => {
   await expect(page.getByTestId('node-router')).toBeVisible();
   await expect(page.getByTestId('node-cdn')).toBeVisible();
 });
+
+// B-6f (docs/plans/2026-10-31-b6f-dns-ledger-drop.md): the fault-console
+// ladder's finish — dropping the record is REAL component state
+// (dns.setDropped through engine.setDnsDropped) and the NX run that
+// follows is the EXISTING unknown-host machinery narrating honestly: no
+// GET is emitted, nothing is served, no new frame exists. Titles are
+// manifest pins — do not reword.
+
+const dnsToggle = (page) => page.getByTestId('fault-toggle-dns');
+
+const dnsChip = (page) => page.getByTestId('fault-state-dns');
+
+const dnsCardChip = (page) => page.locator('#node-dns [data-testid="node-dropped-chip"]');
+
+test('should drop the DNS record from the rail console and watch the browser render NX with no GET emitted', async ({
+  page,
+}) => {
+  await page.goto('/panel.html?stage=6');
+  await page.getByTestId('rail-tab-faults').click();
+  await expect(page.getByTestId('faults-section')).toBeVisible();
+  await expect(dnsChip(page)).toHaveText('off');
+  await expect(dnsToggle(page)).toHaveAttribute('aria-pressed', 'false');
+  await expect(dnsCardChip(page)).toBeHidden();
+
+  // The flip is component state: the console chip reads DROPPED (warn
+  // pair, not the DOWN danger — the resolver is up, the record is gone)
+  // and the node-dns card carries the same-paired chip. Exactly one fault
+  // chip on the page at a time.
+  await dnsToggle(page).click();
+  await expect(dnsChip(page)).toHaveText('DROPPED');
+  await expect(dnsToggle(page)).toHaveAttribute('aria-pressed', 'true');
+  await expect(dnsCardChip(page)).toBeVisible();
+  await expect(dnsCardChip(page)).toHaveText('DROPPED');
+  await expect(page.locator('[data-testid="node-down-chip"]:visible')).toHaveCount(0);
+  await expect(page.locator('[data-testid="node-dropped-chip"]:visible')).toHaveCount(1);
+
+  // The dropped name answers NX at hop 2 and the trace ends there — the
+  // browser renders the real NX card and no served exchange exists.
+  await page.getByTestId('url-input').fill('example.com/about');
+  await page.getByTestId('btn-url-go').click();
+  await expect(page.getByTestId('hop-status')).toHaveText(
+    'Hop 2/2: DNS (10.60) -> Browser (10.2): NX no record — no GET emitted',
+  );
+  await expect(page.getByTestId('browser-status-badge')).toHaveText('NX (GET example.com/about)');
+  await expect(page.getByTestId('browser-rendered-body')).toHaveText(
+    'NX no record — no GET emitted',
+  );
+  await expect(page.getByTestId('exchange-inspector')).toHaveText('No requests served yet');
+  // The dropped lookup wrote no ledger row and consulted nothing
+  // authoritatively — the fault evidence rides the DNS snapshot alone.
+  await expect(page.getByTestId('dns-stats')).toHaveText(
+    'Lookups: 1 · Cached: 0 · Authoritative: 0 · TTL: 300t',
+  );
+  await expect(page.getByTestId('dns-entries-list')).toHaveText('');
+  await expect(page.locator('#journey-log .journey-entry')).toHaveCount(2);
+
+  // Restore: the chip and card chip clear together, same switch, nothing
+  // else.
+  await dnsToggle(page).click();
+  await expect(dnsChip(page)).toHaveText('off');
+  await expect(dnsCardChip(page)).toBeHidden();
+});
+
+test('should narrate the NX run exactly like an unknown-host run without inventing a frame', async ({
+  page,
+}) => {
+  await page.goto('/panel.html?stage=6');
+
+  // Unknown-host run first (fault off): the NX machinery as shipped.
+  await page.getByTestId('url-input').fill('nope.example/about');
+  await page.getByTestId('btn-url-go').click();
+  await expect(page.getByTestId('hop-status')).toHaveText(
+    'Hop 2/2: DNS (10.60) -> Browser (10.2): NX no record — no GET emitted',
+  );
+
+  // The drop run: same two hops, same answer line, host token aside.
+  await page.getByTestId('rail-tab-faults').click();
+  await dnsToggle(page).click();
+  await expect(dnsChip(page)).toHaveText('DROPPED');
+  await page.getByTestId('url-input').fill('example.com/about');
+  await page.getByTestId('btn-url-go').click();
+  await expect(page.getByTestId('hop-status')).toHaveText(
+    'Hop 2/2: DNS (10.60) -> Browser (10.2): NX no record — no GET emitted',
+  );
+
+  // PINS: run-scoped journey comparison — the newer (drop) run floats
+  // wholly above the older (unknown-host) run, and the two runs are
+  // frame-for-frame the same modulo the typed host: identical answer
+  // line, no fault token, no GET frame anywhere in either run.
+  await expect(page.locator('#journey-log .journey-entry')).toHaveText([
+    'hop 1/2 · 10.2 -> 10.60 | who is example.com?',
+    'hop 2/2 · 10.60 -> 10.2 | NX no record',
+    'hop 1/2 · 10.2 -> 10.60 | who is nope.example?',
+    'hop 2/2 · 10.60 -> 10.2 | NX no record',
+  ]);
+  await expect(page.locator('#journey-log .journey-entry', { hasText: 'GET' })).toHaveCount(0);
+});
+
+test('should verify the stage-6 NX mission only after drop and restored resolve', async ({
+  page,
+}) => {
+  await page.goto('/panel.html?stage=6');
+  await page.getByTestId('rail-tab-missions').click();
+  // B-6f: stage 6 carries four since the NX mission joined the
+  // dns/router/edge trio.
+  await expect(page.getByTestId('mission-item')).toHaveCount(4);
+  const nxChip = page
+    .getByTestId('mission-item')
+    .filter({ hasText: 'Drop the DNS record' })
+    .getByTestId('mission-status');
+  await expect(nxChip).toContainText('○ dropped: 0 · resolved: 0');
+
+  // Phase 1 — the drop runs and the NX card renders, but no restored
+  // resolve is behind it, so the mission is NOT complete.
+  await page.getByTestId('rail-tab-faults').click();
+  await dnsToggle(page).click();
+  await expect(dnsChip(page)).toHaveText('DROPPED');
+  await page.getByTestId('url-input').fill('example.com/about');
+  await page.getByTestId('btn-url-go').click();
+  await expect(page.getByTestId('browser-status-badge')).toHaveText('NX (GET example.com/about)');
+  await page.getByTestId('rail-tab-missions').click();
+  await expect(nxChip).toContainText('○ dropped: 1 · resolved: 0');
+  await expect(nxChip).not.toContainText('✓');
+
+  // Phase 2 — restore: the next hosted run is a fresh authoritative
+  // answer that walks the full 9-hop served story; only now both legs
+  // hold and the chip latches done.
+  await page.getByTestId('rail-tab-faults').click();
+  await dnsToggle(page).click();
+  await expect(dnsChip(page)).toHaveText('off');
+  await page.getByTestId('url-input').fill('example.com/about');
+  await page.getByTestId('btn-url-go').click();
+  await expect(page.getByTestId('hop-status')).toContainText('Hop 9/9');
+  await expect(page.getByTestId('browser-status-badge')).toContainText(/^200 /);
+  await page.getByTestId('rail-tab-missions').click();
+  await expect(nxChip).toContainText(/✓ done · tick \d+/);
+});

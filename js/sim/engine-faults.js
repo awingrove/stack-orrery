@@ -4,9 +4,10 @@
 // state: setServerDown to the addressed webserver's setDown, setCacheBypassed
 // to the shared cache's setBypass, setDatabasePrimaryDown (B-6d) to the
 // database's setPrimaryDown, setWorkerCrashed (B-6e) to the worker queue's
-// setCrashed. Nothing here narrates or caches state — every visible fault
-// reads back from the fresh engine snapshot.
-export function createFaultSetters({ stage, servers, cache, database, workerQueue }) {
+// setCrashed, setDnsDropped (B-6f) to the DNS component's setDropped.
+// Nothing here narrates or caches state — every visible fault reads back
+// from the fresh engine snapshot.
+export function createFaultSetters({ stage, servers, cache, database, workerQueue, dns }) {
   return {
     // CHECKS: setServerDown routes the B-6 fault flip to the matching
     // server address — unknown mini-IP throws (fail-loud, same rule as
@@ -50,6 +51,19 @@ export function createFaultSetters({ stage, servers, cache, database, workerQueu
         throw new Error(`engine: setWorkerCrashed — stage ${stage} has no Worker Queue`);
       }
       workerQueue.setCrashed(crashed);
+    },
+
+    // CHECKS: B-6f — the flip routes into the DNS component's own
+    // setDropped (boolean validated there, fail-loud); no DNS exists
+    // below stage 6, so the flip fails loud there. The drop is
+    // pre-transport: the lookup rides the component's existing NX branch
+    // on the next hosted-name ask only — host-less paths and other names
+    // consult nothing here.
+    setDnsDropped(dropped) {
+      if (!dns) {
+        throw new Error(`engine: setDnsDropped — stage ${stage} has no DNS`);
+      }
+      dns.setDropped(dropped);
     },
   };
 }

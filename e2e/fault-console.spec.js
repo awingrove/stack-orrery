@@ -37,9 +37,11 @@ test('should toggle the webserver fault from the rail console and read connectio
   await page.getByTestId('stage-pill-2').click();
   // B-6b: stage 2 now owns the backend-10.12 row — the console shows it,
   // still reading component state. B-6c: stage 3 owns the cache-bypass row;
-  // B-6d: stage 4 owns the primary-down row. B-6e: stage 5 owns the
-  // worker-crash row, so the empty-state line moved to stage 6, the
-  // first fault-less stage.
+  // B-6d: stage 4 owns the primary-down row; B-6e: stage 5 owns the
+  // worker-crash row; B-6f: stage 6 owns the DNS-record row — the ladder
+  // finish, so every shipped stage carries exactly one row and the
+  // rail-empty line is no longer reachable through the stage ladder
+  // (fault-console.js still renders no section for a stage with no rows).
   await expect(page.getByTestId('fault-toggle-backend-10-12')).toBeVisible();
   await expect(page.getByTestId('fault-state-backend-10-12')).toHaveText('off');
   await page.getByTestId('stage-pill-4').click();
@@ -49,10 +51,8 @@ test('should toggle the webserver fault from the rail console and read connectio
   await expect(page.getByTestId('fault-toggle-worker')).toBeVisible();
   await expect(page.getByTestId('fault-state-worker')).toHaveText('off');
   await page.getByTestId('stage-pill-6').click();
-  await expect(page.locator('.rail-host:not([hidden]) .rail-empty')).toHaveText(
-    'No faults for this stage yet.',
-  );
-  await expect(page.getByTestId('faults-section')).toHaveCount(0);
+  await expect(page.getByTestId('fault-toggle-dns')).toBeVisible();
+  await expect(page.getByTestId('fault-state-dns')).toHaveText('off');
   await page.getByTestId('stage-pill-1').click();
   await expect(page.getByTestId('faults-section')).toBeVisible();
 
