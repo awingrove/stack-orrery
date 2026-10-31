@@ -232,10 +232,11 @@ export function createEngine({
       server.writeFile(path, body);
     },
 
-    // B-6 / B-6b / B-6c / B-6d fault flips live in engine-faults.js
-    // (setServerDown, setCacheBypassed, setDatabasePrimaryDown) — wiring
-    // identical, each fail-loud on the component it names.
-    ...createFaultSetters({ stage, servers, cache, database }),
+    // B-6 / B-6b / B-6c / B-6d / B-6e fault flips live in engine-faults.js
+    // (setServerDown, setCacheBypassed, setDatabasePrimaryDown,
+    // setWorkerCrashed) — wiring identical, each fail-loud on the
+    // component it names.
+    ...createFaultSetters({ stage, servers, cache, database, workerQueue }),
 
     snapshot() {
       const serverSnapshots = servers.map((s) => ({
@@ -271,6 +272,10 @@ export function createEngine({
         // live ON/OFF flag read back from the component itself.
         failedWrites: servers.reduce((sum, s) => sum + (s.failedWrites?.() ?? 0), 0),
         primaryDown: database?.isPrimaryDown?.() ?? false,
+        // B-6e: the worker's crash flag and re-delivery tally read back from
+        // the queue component itself.
+        crashed: workerQueue?.isCrashed?.() ?? false,
+        redelivered: workerQueue?.redelivered?.() ?? 0,
         lastExchange,
         queue: serverSnapshots[0].queue,
         files: serverSnapshots[0].files,

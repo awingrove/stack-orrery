@@ -113,6 +113,7 @@ export const STAGE_TEACHING = {
       'POST /jobs answers "202 {"jobId": 1, "status": "queued"}" while the job still sits in the WorkerQueue 10.40 FIFO.',
       'Worker 10.41 dequeues jobs one by one, runs each across its duration ticks, and commits the result to Primary 10.30.',
       'The browser renders the accepted job before any work ran — latency spikes become a backlog the worker drains.',
+      'While the worker is crashed (Faults rail), async delivery pauses — jobs wait in the queue, the in-flight job re-delivers on restore, and nothing is lost.',
     ],
     try: [
       'Trace the POST /jobs path and read hop 4/8 (webserver enqueues) followed by the 202 before the commit.',

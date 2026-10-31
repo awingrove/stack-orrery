@@ -2,6 +2,15 @@
 // background job queue (`10.40`) and worker executor (`10.41`). Jobs are enqueued
 // via POST requests, queued FIFO, processed across `jobDurationTicks`, and
 // written to the database upon completion.
+// B-6e: the worker's crash lives on the component itself (`setCrashed`/
+// `isCrashed`), NOT on narration. While crashed, `step()` drains nothing — the
+// backlog grows visibly. ON the `true` flip with a job caught ACTIVE, that
+// job returns to the HEAD of `jobs` stripped to the queued shape
+// (completion and crash are mutually exclusive, so nothing duplicates) and
+// is re-delivered on restore, re-timed from scratch — the `redelivered`
+// tally; a re-delivered completion lands its own evidence mark
+// (`redeliveredCommits`) so a pre-crash commit cannot be claimed as the
+// re-delivery.
 //
 // CHECKS: constructor validates mini-IP addresses (`/^\d+\.\d+$/`) and
 // `jobDurationTicks` as an integer >= 1.
@@ -28,6 +37,14 @@ export function createWorkerQueue({
   let activeJob = null; // { jobId, path, payload, queuedAtTick, startedAtTick, finishesAtTick }
   let nextJobId = 1;
   let lastJobResult = null;
+  // B-6e: the crash is the worker's own state, plus the re-delivery tally
+  // and the marker book that proves WHICH completions re-delivered.
+  let crashed = false;
+  let redeliveryTally = 0;
+  let redeliveredCommitTally = 0;
+  // CHECKS: re-delivered job ids ride the side book, never the stored job —
+  // the queued shape stays byte-identical across a crash flip.
+  const requeuedJobIds = new Set();
 
   function enqueue(path, payload, currentTick = 0) {
     const jobId = nextJobId++;
@@ -43,7 +60,56 @@ export function createWorkerQueue({
     return job;
   }
 
+  // CHECKS: B-6e flip — validates a boolean (fail-loud, setPrimaryDown
+  // pattern). ON the true flip with an ACTIVE job: unshift it back to the
+  // HEAD of `jobs` stripped to the queued shape
+  // `{ jobId, path, payload, status: 'queued', queuedAtTick }` — the stored
+  // payload is re-delivered as stored, no startedAtTick/finishesAtTick
+  // survive (the re-delivery re-times from scratch) — null the active job
+  // and bump `redelivered`. A flip with no active job moves nothing and the
+  // tally stays.
+  function setCrashed(next) {
+    if (typeof next !== 'boolean') {
+      throw new Error(`queue: crashed must be a boolean, got ${next}`);
+    }
+    crashed = next;
+    if (crashed && activeJob) {
+      requeuedJobIds.add(activeJob.jobId);
+      jobs.unshift({
+        jobId: activeJob.jobId,
+        path: activeJob.path,
+        payload: activeJob.payload,
+        status: 'queued',
+        queuedAtTick: activeJob.queuedAtTick,
+      });
+      activeJob = null;
+      redeliveryTally += 1;
+    }
+  }
+
+  function isCrashed() {
+    return crashed;
+  }
+
+  function redelivered() {
+    return redeliveryTally;
+  }
+
+  function redeliveredCommits() {
+    return redeliveredCommitTally;
+  }
+
+  // The live queue depth the crash narration reads (trace + engine use this,
+  // nobody reaches into internals).
+  function pendingCount() {
+    return jobs.length;
+  }
+
   function step(database, currentTick = 0) {
+    // CHECKS (B-6e): a crashed worker is a hard pause — no completion, no
+    // active start, no commit attempt. `enqueue` is byte-unchanged, so the
+    // backlog grows visibly while the visor watches nothing finish.
+    if (crashed) return;
     // If we have an active job finishing at or before currentTick, complete it
     if (activeJob && currentTick >= activeJob.finishesAtTick) {
       if (database && typeof database.write === 'function') {
@@ -54,7 +120,13 @@ export function createWorkerQueue({
         path: activeJob.path,
         payload: activeJob.payload,
         completedAtTick: currentTick,
+        // CHECKS: the re-delivery evidence mark — a completion flagged
+        // `redelivered` is one whose job sat in the queue HEAD after a crash
+        // flip, so a pre-crash commit can never carry it (the mission's
+        // "commit AFTER the redelivery" ordering reads this counter).
+        redelivered: requeuedJobIds.delete(activeJob.jobId),
       };
+      if (lastJobResult.redelivered) redeliveredCommitTally += 1;
       completed += 1;
       activeJob = null;
     }
@@ -79,6 +151,11 @@ export function createWorkerQueue({
       jobDurationTicks,
       enqueued,
       completed,
+      // CHECKS: the tallies read back — a redelivered job sitting re-queued
+      // mid-crash is never narrated as newly committed work.
+      crashed,
+      redelivered: redeliveryTally,
+      redeliveredCommits: redeliveredCommitTally,
       activeJob: activeJob ? { ...activeJob } : null,
       pendingJobs: jobs.map((j) => ({ ...j })),
       lastJobResult: lastJobResult ? { ...lastJobResult } : null,
@@ -94,6 +171,11 @@ export function createWorkerQueue({
     },
     enqueue,
     step,
+    setCrashed,
+    isCrashed,
+    redelivered,
+    redeliveredCommits,
+    pendingCount,
     snapshot,
   };
 }

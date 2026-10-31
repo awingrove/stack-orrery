@@ -13,17 +13,18 @@ const FIRST = (stage, snapshot, verified) =>
 describe('missions registry and statuses', () => {
   // B-6 (stage-1 recovery) and B-6b (stage-2 failover): stage 1 carries
   // four and the failover mission raises stage 2 from two to three. B-6c
-  // (cache bypass): the bypass-cold mission raises stage 3 from three to
-  // four. B-6d (primary down): the write-fail mission raises stage 4 from
-  // three to four — the title below states the real per-stage counts.
-  it('stages 1, 3 and 4 carry four; stages 2, 5 and 6 carry two to three (B-6 recovery + B-6b failover + B-6c bypass-cold + B-6d write-fail)', () => {
+  // (cache bypass) raises stage 3 from three to four, B-6d (primary down)
+  // raises stage 4 from three to four, and B-6e (worker crash) raises
+  // stage 5 from three to four — the title below states the real
+  // per-stage counts.
+  it('stages 1, 3, 4 and 5 carry four; stages 2 and 6 carry two to three (B-6 recovery + B-6b failover + B-6c bypass-cold + B-6d write-fail + B-6e worker-crash)', () => {
     expect(Object.keys(MISSIONS).map(Number).sort()).toEqual([1, 2, 3, 4, 5, 6]);
     for (const stage of [1, 2, 3, 4, 5, 6]) {
       expect(MISSIONS[stage].length, `stage ${stage} mission count floor`).toBeGreaterThanOrEqual(
         2,
       );
       expect(MISSIONS[stage].length, `stage ${stage} mission count cap`).toBeLessThanOrEqual(
-        stage === 1 || stage === 3 || stage === 4 ? 4 : 3,
+        stage === 2 || stage === 6 ? 3 : 4,
       );
       expect(new Set(MISSIONS[stage].map((m) => m.id)).size, `stage ${stage} unique ids`).toBe(
         MISSIONS[stage].length,
@@ -199,6 +200,52 @@ describe('missions registry and statuses', () => {
     expect(completed.find((s) => s.id === WRITE_FAIL).progress).toBe(
       'failed writes: 2 · last: WRITE',
     );
+  });
+
+  // CHECKS (B-6e named counter-example): the re-delivery mission completes
+  // only on a re-delivered commit AFTER a redelivery — a redelivery alone
+  // (the flip with a job in flight, nothing committed yet on top) stays
+  // pending, and commit tallies from BEFORE the crash (the cumulative
+  // completed counter, redeliveredCommits still zero) cannot latch it.
+  it('the stage-5 re-delivery mission completes only after a redelivery AND a re-delivered commit — either leg alone stays pending', () => {
+    const verified = new Map();
+    const REDELIVER = 'm5-redeliver';
+    // A commit tally with no redelivery behind it: a pre-crash commit alone
+    // (completed counts, redelivered zero) satisfies nothing.
+    const preCrash = missionStatuses(
+      5,
+      { tick: 4, redelivered: 0, workerQueue: { completed: 2, redeliveredCommits: 0 } },
+      verified,
+    );
+    expect(preCrash.find((s) => s.id === REDELIVER).done).toBe(false);
+    // The flip with a job in flight: the redelivery leg moved, but no
+    // re-delivered commit exists behind it yet (redeliveredCommits zero).
+    const flippedOnly = missionStatuses(
+      5,
+      { tick: 7, redelivered: 1, workerQueue: { completed: 2, redeliveredCommits: 0 } },
+      verified,
+    );
+    expect(flippedOnly.find((s) => s.id === REDELIVER).done).toBe(false);
+    expect(flippedOnly.find((s) => s.id === REDELIVER).progress).toBe(
+      'redelivered: 1 · commits: 0',
+    );
+    // Not just any commit on top: a commit the record does not mark
+    // re-delivered fails the commit leg.
+    expect(
+      missionStatuses(
+        5,
+        { tick: 9, redelivered: 1, workerQueue: { completed: 3, redeliveredCommits: 0 } },
+        verified,
+      ).find((s) => s.id === REDELIVER).done,
+    ).toBe(false);
+    // Positive on both legs: the re-delivered job re-committed for real.
+    const done = missionStatuses(
+      5,
+      { tick: 11, redelivered: 1, workerQueue: { completed: 3, redeliveredCommits: 1 } },
+      verified,
+    ).find((s) => s.id === REDELIVER);
+    expect(done.done).toBe(true);
+    expect(done.completedTick).toBe(11);
   });
 
   it('the stage-6 edge-HIT mission completes only on trace edgeStatus HIT — an origin cache HIT does not', () => {

@@ -1,6 +1,7 @@
 // DOCUMENTS: the B-2 mission registry — per-stage missions (2–4 each for
-// the shipped stages 1–6: stages 1, 3 and 4 carry four with their B-6
-// recovery, B-6c bypass-cold and B-6d write-fail missions) whose checks
+// the shipped stages 1–6: stages 1, 3, 4 and 5 carry four with the B-6
+// recovery, B-6c bypass-cold, B-6d write-fail and B-6e re-delivery
+// missions) whose checks
 // are pure snapshot predicates. Each
 // entry is { id, goal, url?, detect(snapshot) -> boolean, progress(snapshot)
 // -> string }; goals mirror the stage's try / watchFor copy in
@@ -24,7 +25,12 @@
 //   - B-6d: a failed write alone (status 503, dbOp WRITE_DOWN) does not
 //     complete the stage-4 write-fail mission, and a served 200 WRITE with
 //     no failedWrites behind it does not either — the restored leg reads a
-//     served 200 WRITE, pinning failed-write-BEFORE-restored-write.
+//     served 200 WRITE, pinning failed-write-BEFORE-restored-write;
+//   - B-6e: a redelivery alone does not complete the stage-5 re-delivery
+//     mission, and commits sitting in the queue's tally from BEFORE the
+//     crash cannot latch it either — the commit leg reads
+//     redeliveredCommits, commits whose own record marks them
+//     re-delivered.
 
 const lastStatus = (snapshot) => snapshot.lastExchange?.status ?? null;
 const perBackend = (snapshot) => snapshot.loadBalancer?.perBackend ?? {};
@@ -35,6 +41,11 @@ const servedCacheStatus = (snapshot) => snapshot.lastExchange?.cacheStatus ?? nu
 // B-6d: the newest exchange's database-side verdict — the restored-write
 // leg of the write-fail mission reads the dbOp record, not the HTTP status.
 const servedDbOp = (snapshot) => snapshot.lastExchange?.dbOp ?? null;
+
+// B-6e: the newest exported commit record — the re-delivery mission's
+// commit leg reads the queue's redeliveredCommits tally, commits whose own
+// record marks them re-delivered, not the cumulative completed counter.
+const redeliveredCommitsIn = (snapshot) => snapshot.workerQueue?.redeliveredCommits ?? 0;
 
 export const MISSIONS = {
   1: [
@@ -189,6 +200,20 @@ export const MISSIONS = {
         (s.workerQueue?.pendingJobs ?? []).length === 0 &&
         !s.workerQueue?.activeJob,
       progress: (s) => `pending: ${(s.workerQueue?.pendingJobs ?? []).length}`,
+    },
+    {
+      id: 'm5-redeliver',
+      goal: 'Crash the worker with a job in flight, restore it and watch the same work commit',
+      // CHECKS (B-6e, evidence ordering): the redelivery leg reads the
+      // queue's own redelivery tally (a job caught ACTIVE at the crash
+      // moment re-queued to the head); the commit leg reads
+      // redeliveredCommits — only a commit whose own record marks it
+      // re-delivered can move it, so a pre-crash commit alone (the
+      // cumulative completed counter with zero redeliveries behind it)
+      // cannot latch this mission, and a redelivery with no restored
+      // commit behind it satisfies neither leg either.
+      detect: (s) => (s.redelivered ?? 0) >= 1 && redeliveredCommitsIn(s) >= 1,
+      progress: (s) => `redelivered: ${s.redelivered ?? 0} · commits: ${redeliveredCommitsIn(s)}`,
     },
   ],
   6: [

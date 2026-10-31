@@ -1,7 +1,9 @@
 // DOCUMENTS: the B-6 fault console — the rail's fourth docked surface
 // (rail tab 'faults', host built by rail.js). Per-stage fault switches, one
 // fault per stage (DESIGN.md Fault Console): slice 1 ships the stage-1
-// WebServer-down switch and B-6b appends the stage-2 Backend-10.12 row. The
+// WebServer-down switch, B-6b appends the stage-2 Backend-10.12 row, B-6c
+// the stage-3 bypass row, B-6d the stage-4 primary row, and B-6e the
+// stage-5 worker-crash row. The
 // switch writes real component state through engine.setServerDown
 // (webserver.setDown validates the boolean, fail-loud) and every visible
 // fault state — the console row's DOWN/off chip and the staged server
@@ -69,6 +71,21 @@ const FAULTS = {
       kind: 'primary',
     },
   ],
+  5: [
+    // B-6e: the async decoupler's fault — the flip is the queue's own
+    // setCrashed flag written through engine.setWorkerCrashed; the 202
+    // story keeps answering while the worker's step() pauses, and a job
+    // caught ACTIVE re-delivers on restore (component state, not narration).
+    {
+      id: 'worker-crashed',
+      label: 'Worker crashed — async jobs wait, re-delivered on restore',
+      switchId: 'fault-toggle-worker',
+      chipId: 'fault-state-worker',
+      serverAddress: '10.41',
+      cardId: 'node-worker',
+      kind: 'worker',
+    },
+  ],
 };
 
 let stage = null;
@@ -89,22 +106,30 @@ const bypassedIn = (snapshot) => Boolean(snapshot.cache?.bypassed);
 // B-6d: the primary-down flag reads off the database snapshot's own record.
 const primaryDownIn = (snapshot) => Boolean(snapshot.database?.primaryDown);
 
+// B-6e: the crashed flag reads off the workerQueue snapshot's own record.
+const workerCrashedIn = (snapshot) => Boolean(snapshot.workerQueue?.crashed);
+
 const faultStateIn = (snapshot, fault) =>
   fault.kind === 'bypass'
     ? bypassedIn(snapshot)
     : fault.kind === 'primary'
       ? primaryDownIn(snapshot)
-      : downIn(snapshot, fault.serverAddress);
+      : fault.kind === 'worker'
+        ? workerCrashedIn(snapshot)
+        : downIn(snapshot, fault.serverAddress);
 
 // The fault write goes through the engine's own fail-loud setter, exactly
 // per kind: setServerDown for a down flip, setCacheBypassed for the cache,
-// setDatabasePrimaryDown for the B-6d primary.
+// setDatabasePrimaryDown for the B-6d primary, setWorkerCrashed for the
+// B-6e worker.
 const flipFault = (engine, fault, next) =>
   fault.kind === 'bypass'
     ? engine.setCacheBypassed(next)
     : fault.kind === 'primary'
       ? engine.setDatabasePrimaryDown(next)
-      : engine.setServerDown(fault.serverAddress, next);
+      : fault.kind === 'worker'
+        ? engine.setWorkerCrashed(next)
+        : engine.setServerDown(fault.serverAddress, next);
 
 function nodeWith(tag, className, text, testId) {
   const n = document.createElement(tag);
@@ -124,6 +149,9 @@ const FAULT_CHIP = {
   // B-6d: the primary is genuinely down (a down component, not slice 3's
   // out-of-path bypass), so it carries the real DOWN/danger chip.
   primary: { className: 'down-chip', text: 'DOWN', testId: 'node-down-chip' },
+  // B-6e: the worker is genuinely down (the crash pauses delivery), the
+  // real DOWN/danger chip on the 10.41 card.
+  worker: { className: 'down-chip', text: 'DOWN', testId: 'node-down-chip' },
 };
 
 function ensureCardChip(fault) {
