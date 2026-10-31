@@ -138,6 +138,7 @@ export const STAGE_TEACHING = {
       'A hosted URL (example.com/about) asks DNS 10.60 first: "who is example.com?" — the answer re-points the GET at the resolved mini-IP.',
       'The ledger answers from cache inside ttlTicks = 300 ticks and consults the authoritative table only on a miss or expired entry.',
       'Cross-subnet: the Router (10.65 ⇄ 20.254) counts one hop per crossing, and the CDN edge (cd.example.com → 20.1) serves a GET inside its 10t TTL from the fill ledger — a miss pulls the origin through the real LB/backend chain, then fills.',
+      'A dropped DNS record (Faults rail) is pre-transport failure — the browser renders the NX card and no GET is ever emitted; restoring re-arms the name for a fresh resolve.',
     ],
     try: [
       'Trace cd.example.com/about once (9 hops: MISS → pull → FILL), then again — the second run ends at Hop 6/6 with the edge HITting, no origin traffic.',

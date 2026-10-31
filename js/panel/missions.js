@@ -1,7 +1,7 @@
 // DOCUMENTS: the B-2 mission registry — per-stage missions (2–4 each for
-// the shipped stages 1–6: stages 1, 3, 4 and 5 carry four with the B-6
-// recovery, B-6c bypass-cold, B-6d write-fail and B-6e re-delivery
-// missions) whose checks
+// the shipped stages 1–6: stages 1 and 3-6 carry four with the B-6
+// recovery, B-6c bypass-cold, B-6d write-fail, B-6e re-delivery and B-6f
+// dns-drop missions) whose checks
 // are pure snapshot predicates. Each
 // entry is { id, goal, url?, detect(snapshot) -> boolean, progress(snapshot)
 // -> string }; goals mirror the stage's try / watchFor copy in
@@ -31,6 +31,9 @@
 //     crash cannot latch it either — the commit leg reads
 //     redeliveredCommits, commits whose own record marks them
 //     re-delivered.
+//   - B-6f: a dropped-lookup tally alone does not complete the stage-6
+//     NX mission while reResolveAfterDrop is zero, and a resolve with
+//     no drop behind it fails the tally leg.
 
 const lastStatus = (snapshot) => snapshot.lastExchange?.status ?? null;
 const perBackend = (snapshot) => snapshot.loadBalancer?.perBackend ?? {};
@@ -237,6 +240,19 @@ export const MISSIONS = {
       // a HIT inside the pull's cache-aside lookup must not complete here.
       detect: (s) => s.trace?.edgeStatus === 'HIT',
       progress: (s) => `fills: ${s.cdn?.fills ?? 0}`,
+    },
+    {
+      id: 'm6-nx',
+      goal: 'Drop the DNS record, read the NX card, restore it and resolve a real answer',
+      // CHECKS (B-6f, evidence semantics + ordering): the NX leg reads the
+      // DNS component's own dropped-lookup tally (NX answers for the
+      // dropped name only), and the resolve leg reads reResolveAfterDrop —
+      // that counter can only move AFTER a drop era opens, so a plain
+      // resolve with no drop behind it fails the tally leg, and a drop
+      // with no restored resolve behind it fails the resolve leg.
+      detect: (s) => (s.dns?.droppedLookups ?? 0) > 0 && (s.dns?.reResolveAfterDrop ?? 0) >= 1,
+      progress: (s) =>
+        `dropped: ${s.dns?.droppedLookups ?? 0} · resolved: ${s.dns?.reResolveAfterDrop ?? 0}`,
     },
   ],
 };

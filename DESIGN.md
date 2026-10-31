@@ -370,6 +370,20 @@ right frame`, em-dash where one run ended sooner) with a `9 vs 6 hops ·
   with the re-delivery promise: waits, never loses. Exactly one fault chip
   at a time, and the worker-tail trace frame reads the worker's actual
   state — it never fake-commits a job sitting re-queued.
+- **Fault #6 (record dropped, 2026-10-31):** the console ladder's finish,
+  and the one resolver-flavored fault — a **ledger drop**, not a down
+  component. `dns.setDropped(bool)` purges `example.com` from the
+  authoritative table AND the resolver ledger (a stale ledger window would
+  otherwise serve the deleted record for 300 ticks), so lookups ride the
+  branch that already exists and lies about nothing: status `NX`, the
+  browser's real NX card, no GET ever emitted, no exchange finished. The
+  teaching point before the narrated hops even matter: DNS failure is
+  pre-transport — the browser cannot even start. `cd.example.com`
+  (recorded separately) still resolves; host-less URLs still work
+  untouched. The card chip reads `DROPPED` on `var(--warn)` — the zone is
+  missing a record, nothing is down; restore re-arms whether the next
+  resolve lands (record re-added, ledger empty, next lookup is a fresh
+  authoritative answer). Exactly one fault chip at a time.
 - **Fault #2 (backend down, 2026-10-28):** a backend fault is NOT a refusal
   story — the load balancer is health-aware and **skips** the down backend
   (round-robin cursor advances past it; skips are counted on the snapshot),
