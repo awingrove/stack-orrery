@@ -17,7 +17,178 @@
 #   Dates are bare ISO scalars. Bootstrap note (kit): warn-only until three
 #   entries, then the gate is hard.
 
-open: []
+open:
+  - id: TD-6
+    title: >-
+      Gate-split module header claims unit-test pins that no test resolves
+    where: >-
+      `js/panel/hop-targets.js:5-6` claims pins in `test/panel/render.test.js`
+      and `test/panel/model-stage6.test.js` — grep for `activeHopTarget` or a
+      `hop-targets` import across `test/` and `e2e/` returns zero matches
+    what: >-
+      During the guard-file-size split that carved hop-targets.js out of
+      render-stage.js, the new module's documentation header inherited the
+      repo's CHECKS:/PINS: vocabulary and asserted a pin that was never
+      written. Found by the 2026-10-31 full review (finding 4-01; confirmed
+      independently by 6-07 and the gate forensics adjudication 10-06). The
+      mapping it describes is exercised only by
+      stage-6 e2e CSS selectors, so the stage 1–5 matrices ride on an
+      unfounded contract.
+    interest: >-
+      The claim vocabulary is the repo's verification currency: a maintainer
+      or agent scanning for the test contract is pointed at a pin that does
+      not exist, and unpinned pure logic (197 lines) can mis-route silently
+      — the defect class the header-pin rule this change adds to AGENTS.md
+      is meant to prevent at birth.
+    paydown: >-
+      Stage R3c of docs/reviews/2026-10-31-full-review/recommendations.md —
+      write test/panel/hop-targets.test.js covering every stage matrix
+      (stage-5 asyncJob counter-example, stage-6 hop-minus-2 prelude, CDN
+      HIT 6-hop vs MISS 9-hop), correct the header to the real pins, and
+      optionally apply the gemini-adjudicated tuple-table refactor (~45%
+      shorter, preserving stage-6 hop - 2 verbatim).
+  - id: TD-7
+    title: >-
+      The file-size guard's scan set excludes the repo's own tooling scripts
+    where: >-
+      `scripts/guard-file-size.mjs:29-30` scans only js/css/test/e2e/html;
+      `scripts/extract-session-metrics.mjs` has grown to 327 lines (109% of
+      the would-be 300) with no gate noticing
+    what: >-
+      The file-count rule does not apply to the directory that implements
+      and runs the rules themselves, and no signal exists for the two
+      write-around shapes the guard cannot see: prod lines over prettier's
+      100-char printWidth (unwrapped literals) and comment-thin capped
+      files (chunk-10 forensics: inspect-source 6.3%/inspector-state 6.8%
+      comment/blank vs 26.8% repo median).
+    interest: >-
+      The guard is the repo's immune system; an unwatched exemption in it
+      normalizes oversized tooling and hides exactly the code-density
+      optimization the gate exists to prevent.
+    paydown: >-
+      Stage R6a of docs/reviews/2026-10-31-full-review/recommendations.md —
+      split extract-session-metrics.mjs by responsibility, add scripts/ to
+      SOURCE_DIRS at the 300 threshold, and add a soft (warn-only) CI signal
+      for prod files with unusually many >100-char lines. No AST or
+      complexity gate (chunk-10 verdict: keep the guard blunt).
+  - id: TD-8
+    title: >-
+      Panel narrative surfaces re-author sim truth without a mechanical tie
+    where: >-
+      `js/panel/inspector-source.js:244-269` (workerqueue mirror omits the
+      crashed flag, redelivery queue and redeliveredCommits machinery of
+      `js/sim/queue.js:38-177`); `js/panel/teaching.js` quotes trace
+      vocabulary ("STALE (lag 3t)", hop denominators, "Routed: 3") with no
+      binding to what `js/sim/trace.js` / `js/sim/trace-stage6.js` actually
+      emit
+    what: >-
+      The inspector code panel claims to render "the executable truth" and
+      teaches simplified mirrors of sim components; the teaching drawer is a
+      stage-keyed prose table quoting sim output fragments. Both drift
+      silently — drift is detectable only by eye review, and no test
+      compares mirror text to sim source or prose fragments to emitted
+      frames. DL-1's defect class (narrative not sourced from the sim)
+      reappearing through hand-authored teaching surfaces rather than trace
+      machines.
+    interest: >-
+      A cache HIT on screen should read the same ledger row the sim just
+      filled; a simplified-but-asserted workerqueue mirror means the learner
+      debugging the B-6e crash/redelivery story is studying a machine the
+      sim does not run. This is the DL-1 defect class reappearing through a
+      hand-authored surface the current guards do not watch.
+    paydown: >-
+      Stages R3a/R3b of docs/reviews/2026-10-31-full-review/recommendations.md —
+      render the real source via fetch (CSP-fine) or re-label the mirrors as
+      simplified excerpts plus a structural-parity unit test; export a
+      TRACE_VOCAB from the trace machines and bind every teaching fragment
+      to it (or assert quoted fragments appear verbatim in real traceHop
+      output).
+  - id: TD-9
+    title: >-
+      Contract knowledge duplicated across layers reconciled only by copy
+      or comment
+    where: >-
+      hop totals: `js/panel/model.js:15` and `js/panel/panel.js:36` both
+      carry TOTAL_HOPS and `js/panel/panel.js:47-55` re-derives
+      `js/sim/trace-stage6.js:183-188`'s final-hop ladder by hand; mini-IP
+      validation: the `MINI_IP` regex is declared in seven files
+      (network, router, browser-seat, cdn, loadbalancer, dns, browser
+      inline); address defaults: `js/sim/engine.js:50-54` vs
+      `js/sim/router.js:20-23`; panel-side sim defaults: ttlTicks 10/300,
+      lag 3, jobDuration 2, serviceRate 4 restated as `??` fallbacks in
+      model.js, inspector-state.js and stage6-registry.js; naming drift:
+      sim serviceRate vs panel serviceRatePerTick
+    what: >-
+      The same contract numbers live in several files each and agree by
+      copy-paste or authorial care, not by import; the single-definition
+      hygiene the modeling contract demands therefore costs one conceptual
+      change but eight edit sites, with silent desync as the failure mode.
+    interest: >-
+      Every future rebalance (a TTL change, a hop-count change, a new
+      subnet shape, a Stage 7) must land in every copy contractually — and
+      the failure mode is silent lies in zero-state fallback paths the
+      happy-path test never reaches.
+    paydown: >-
+      Stages R2a/R2b of docs/reviews/2026-10-31-full-review/recommendations.md —
+      a shared finalHop(stage, trace?) seam in trace-helpers.js (feasibility
+      adjudicated: feasible-with-caveats), one address.js, one sim-defaults
+      module (or always-populated snapshots), and a serviceRate rename with
+      a consumer check.
+  - id: TD-10
+    title: >-
+      Six files pinned at their size gates awaiting planned single-responsibility
+      splits; two capped files fold content into prettier-unbreakable shapes
+    where: >-
+      `e2e/panel.spec.js` (450/450, seven mixed responsibilities, split
+      pressure across 5 commits), `js/panel/viewport.js` (300/300),
+      `css/panel/canvas.css` (299/300), `panel.html` (548/550),
+      `js/sim/engine.js` (298), `js/sim/trace.js` (294); shape write-around:
+      `js/panel/inspector-state.js:79-141` (six-branch chained ternary,
+      comment/blank ratio 6.8% vs 26.8% median)
+    what: >-
+      The gate is working (chunk-10 verdict: 11/15 genuine seams, zero
+      dodges) but the cap-side pressure is accumulating as deferred tax;
+      inspector-state.js in particular packs per-stage interface tables
+      into a ternary and thin-comment envelope rather than a natural data
+      module.
+    interest: >-
+      The next feature touching any of these files forces a
+      pressure-refactor instead of a planned one — the exact failure shape
+      DL-3's Stage 5 crisis ran into under gate pressure.
+    paydown: >-
+      Stages R5a/R5b of docs/reviews/2026-10-31-full-review/recommendations.md —
+      panel.spec split by responsibility (overload / stage-ladder / panel
+      hygiene), canvas.css node-card rules into nodes.css, viewport.js
+      interaction listeners extraction, engine.js/trace.js pre-splits, and
+      the inspector-state data-table module with restored narrative
+      comments.
+  - id: TD-11
+    title: >-
+      Factory metrics ledger conventions blur intervention semantics and
+      leave debt candidates without a register home
+    where: >-
+      `docs/factory/slice-metrics.yaml:588` records `fix_commits: 0` for
+      R1-CONTROL-ROOM despite follow-up commit 508746d; the b6f
+      FOLLOW-UP CANDIDATE (dead faults empty-state) lives only in the
+      notes field of the entry at `:892` rather than in the register
+    what: >-
+      The audit-trail honesty held (chunk-9 deep-dive 9-05: the 2026-10-26
+      register silence audited candidate-by-candidate and ruled honest —
+      every follow-up showing in-gate catches, not escapes), but the
+      judgments live in per-slice free-form notes: a future reader must
+      read every notes field to find debt candidates, and cannot compare
+      solicited model approvals with unsolicited corrections under the
+      single human_interventions counter.
+    interest: >-
+      The register's authority depends on candidates having a predictable
+      home; notes-embedded debt decisions will be lost in 2027's volume.
+    paydown: >-
+      Stage R6b of docs/reviews/2026-10-31-full-review/recommendations.md —
+      split human_interventions into solicited/unsolicited fields (or add
+      an approval-notes field), codify a considered-and-declined register
+      subsection so "not a defect" has a positive record, and add a
+      brief-template note that guard-claims' claim vocabulary is enforced
+      on source comments, not briefs.
 
 closed: []
 

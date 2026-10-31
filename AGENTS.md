@@ -110,7 +110,9 @@ Fragments fine. Technical terms stay exact; code blocks unchanged.
    `docs/factory/slice-metrics.yaml` (kit METRICS).
 5. **Claim vocabulary:** guarantee-comments carry `CHECKS:` / `PINS:` /
    `DOCUMENTS:` — guarantee-language outside a claim is a review defect
-   (kit CLAIM-LANGUAGE).
+   (kit CLAIM-LANGUAGE). A `PINS:` claim must name a real, resolvable pin
+   (`test file::title` that exists) or be omitted — an aspirational pin is
+   a defect (TD-6).
 6. **Manifests same-change:** `slices.yaml` + `storymap.yaml` change in the
    same commit as the feature they describe; a stale map is a defect
    (kit SLICES).
