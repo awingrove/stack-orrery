@@ -109,7 +109,7 @@ happens AFTER the request leaves; this one stops it before the wire.
 - [x] Step 1 (Lead session): human "let's finish" 2026-10-31 after PR #27;
       DESIGN.md dns-drop bullet committed here; executor per user direction =
       `opencode-go/mimo-v2.6-flash` (paid MiMo; free fallbacks stay fallback-only).
-- [ ] Step 2 (Executor sub-agent): cold implementation, unit & e2e tests,
+- [x] Step 2 (Executor sub-agent): cold implementation, unit & e2e tests,
       manifest updates, green `npm run verify`, tick and commit (DEMO shots).
 - [ ] Step 3 (Lead session): strict acceptance probe over every boundary
       contract (including the byte-identical-NX and cd.example.com-immune
