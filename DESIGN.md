@@ -356,6 +356,20 @@ right frame`, em-dash where one run ended sooner) with a `9 vs 6 hops ·
   the recovery mission (fail a write → restore → land a real write)
   closes the lattice: refusal, graceful skip, frozen miss storm, and now
   asymmetric reads/writes. Exactly one fault chip at a time.
+- **Fault #5 (worker crash, 2026-10-31):** the async decoupler goes down and
+  the synchronous story does not feel it — clients still get their real
+  202 (the enqueue never consulted the worker). The worker's own state
+  carries the fault (`setCrashed`/`isCrashed`): while crashed, `step()`
+  drains nothing, so the queue backlog grows visibly; a job caught ACTIVE
+  at the crash moment is honest mid-flight state — it returns to the HEAD
+  of the queue (it never finished, so nothing is duplicated: completion
+  and crash are mutually exclusive) and is **re-delivered** on restore,
+  re-timed from scratch. The worker card `10.41` carries the `DOWN` chip
+  on `var(--danger)`; the console row and the recovery mission (crash with
+  a job in flight → restore → the SAME work commits) close the lattice
+  with the re-delivery promise: waits, never loses. Exactly one fault chip
+  at a time, and the worker-tail trace frame reads the worker's actual
+  state — it never fake-commits a job sitting re-queued.
 - **Fault #2 (backend down, 2026-10-28):** a backend fault is NOT a refusal
   story — the load balancer is health-aware and **skips** the down backend
   (round-robin cursor advances past it; skips are counted on the snapshot),
