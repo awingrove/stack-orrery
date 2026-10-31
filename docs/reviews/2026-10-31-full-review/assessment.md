@@ -111,14 +111,15 @@ structural parity.
 Six files sit at pressing distance from their gates with real pressure
 behind them: `panel.spec.js` (450/450, **≥7 mixed responsibilities**),
 `panel.html` (548/550 — rail chrome already JS-built because of it),
-`canvas.css` (299/300), `viewport.js` (300/300, camera+position+SVG+5
-interaction listeners), `engine.js` (298) + `trace.js` (294), plus four
-panel modules within 30 lines of the rim. Chunk 7's assessment: each is a
-single responsibility, not an emergency — but the next stage costs a
-forced split instead of a planned one. Planned splits: panel.spec →
-overload/stage-ladder/hygiene; canvas.css → nodes.css; viewport.js →
-input listeners module; engine.js/trace.js → snapshot-assembly and
-stage-5-prelude extractions.
+`canvas.css` (299/300, held there across the last 4 commits), `viewport.js`
+(300/300, camera+position+SVG+5 interaction listeners), `engine.js` (298)
+
+- `trace.js` (294), plus four panel modules within 30 lines of the rim.
+  Chunk 7's assessment: each is a single responsibility, not an emergency —
+  but the next stage costs a forced split instead of a planned one. Planned
+  splits: panel.spec → overload/stage-ladder/hygiene; canvas.css → nodes.css;
+  viewport.js → input listeners module; engine.js/trace.js → snapshot-assembly
+  and stage-5-prelude extractions.
 
 ### Rank 6 — Medium — teaching.js prose table drifts unbound from the sim's vocabulary (5-02)
 
@@ -282,3 +283,46 @@ Raw findings live in `reports/chunk-{1..9}-*.md` under the ids
 `{chunk}-{NN}` (plus `{chunk}-P{n}` praise ids in chunks 1–3). The merged
 register above cites them; their quoted line-level evidence is the record
 of what was found, not reconstructed here.
+
+## Addendum (2026-10-31, chunk 10) — are the file-size limits working?
+
+Commissioned by the repo owner to test the suspicion that models game the
+300/450/550-line gates. Method: forensic researcher brief (git-archeology
+of ~15 extraction events, comment/blank density scan, golf-vector scan)
+
+- Qwen3.7 Plus adjudication (`reports/chunk-10-size-gate-forensics.md`;
+  researcher brief-vs-data mismatches 10-01/10-02 also caught and amended).
+
+**Verdict: MIXED, overwhelmingly in the gate's favor — KEEP with minimal
+tightening.**
+
+- **11 of 15 extraction pairs are GENUINE-SPLIT** with nameable single
+  responsibilities and zero dead modules; 2 are line-neutral refactors
+  (numstat symmetric; still-useful seams); **0 DODGE splits**. Pressure
+  transmits usefully across classes: panel.html's 550 cap produced the
+  JS-built teaching-drawer/stage6-registry pattern, and at cap hits
+  e2e/panel.spec.js spawned sibling specs rather than a second monster.
+- **The gaming surface is real but narrow, `js/**` only:** two capped
+  panel files fold content into prettier-unbreakable shapes instead of
+  splitting — the six-branch chained ternary tables in
+  `inspector-state.js:79-141` and `model.js:203-236` — and sit
+  comment-thin (6.3–6.8% comment/blank vs 26.8% repo median; finding
+  10-04). No comment-stripping trend otherwise, zero statement packing.
+- **Gate as context, not cause** (10-06): the model.js↔model-stage6
+  cycle (3-04) and hop-targets' false pin header (4-01) happened
+  _during_ guard-motivated splits but were authoring errors, not forced
+  ones — and 4-01 is the one case where gate-split context made a
+  contract lie cheap.
+- **Guard holes** (10-05): `scripts/` is outside the scan set while
+  `extract-session-metrics.mjs` grew to 327 (109% of would-be cap);
+  the two write-around shapes above are invisible to a pure line count.
+- **Recommendations (minimal, no pressure loss):** (1) add `scripts/`
+  to `SOURCE_DIRS` at 300; (2) a _soft_ CI warning for prod files with
+  many >100-char lines — visibility, not a failure; do NOT add AST or
+  complexity checks (the guard's blunt simplicity is what kept it
+  ungameable at scale); (3) AGENTS.md one-liner for new-module headers:
+  "name a real test or omit the pin — never a fabricated reference"
+  (10-06).
+- **For the fix backlog:** rank 5's at-the-gate splits stand, now with
+  `inspector-source.js`/`inspector-state.js` comment-thinness added to
+  the planned `inspector*` split rationale.
