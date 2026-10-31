@@ -88,6 +88,7 @@ export const STAGE_TEACHING = {
       'A POST writes Primary 10.30 and invalidates the cached path; the Replica applies it after a 3t replication lag.',
       'A GET inside the lag window reads the stale row (P v2 · R v1) with the warn highlight; reads past applyAtTick land on the caught-up Replica.',
       'Data is replicated asynchronously, so reads eventually agree — the primer calls this eventual consistency.',
+      'Fault #4 on the Faults tab downs Primary 10.30: POST writes fail loudly with a real 503 while replica reads keep serving — restore puts writes back.',
     ],
     try: [
       'Send the POST trace and read db-rows-list: Primary steps to v2 while Replica stays at v1.',

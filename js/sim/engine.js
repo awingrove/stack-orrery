@@ -20,6 +20,7 @@ import { createRng } from './rng.js';
 import { createNetwork } from './network.js';
 import { createBrowser } from './browser.js';
 import { createServerPool } from './engine-pool.js';
+import { createFaultSetters } from './engine-faults.js';
 import { createCache } from './cache.js';
 import { createDatabase } from './database.js';
 import { createWorkerQueue } from './queue.js';
@@ -231,24 +232,10 @@ export function createEngine({
       server.writeFile(path, body);
     },
 
-    // CHECKS: setServerDown routes the B-6 fault flip to the matching
-    // server address — unknown mini-IP throws (same rule as setWebFile);
-    // the boolean is validated by webserver.setDown. The transport consults
-    // the flag on the next wire crossing only.
-    setServerDown(address, down) {
-      const server = servers.find((s) => s.address === address);
-      if (!server) {
-        throw new Error(`engine: setServerDown — no server at mini-IP ${address}`);
-      }
-      server.setDown(down);
-    },
-
-    // CHECKS: B-6c — the fault flip routes into the cache's own setBypass;
-    // no cache exists below stage 3, so the flip fails loud there.
-    setCacheBypassed(bypassed) {
-      if (!cache) throw new Error(`engine: setCacheBypassed — stage ${stage} has no Cache`);
-      cache.setBypass(bypassed);
-    },
+    // B-6 / B-6b / B-6c / B-6d fault flips live in engine-faults.js
+    // (setServerDown, setCacheBypassed, setDatabasePrimaryDown) — wiring
+    // identical, each fail-loud on the component it names.
+    ...createFaultSetters({ stage, servers, cache, database }),
 
     snapshot() {
       const serverSnapshots = servers.map((s) => ({
@@ -278,6 +265,12 @@ export function createEngine({
         skippedCount: lb?.skippedCount() ?? 0,
         // B-6c: the pool's own origin-path tally (the cache is not consulted while bypassed, so it cannot tally there).
         bypassedCount: servers.reduce((sum, s) => sum + (s.bypassedCount?.() ?? 0), 0),
+        // B-6d: pool-summed refused writes (each webserver tallies its own
+        // share; the database's own failedWrites only moves on a direct
+        // write() call, e.g. the Stage 5 worker commit) and the primary's
+        // live ON/OFF flag read back from the component itself.
+        failedWrites: servers.reduce((sum, s) => sum + (s.failedWrites?.() ?? 0), 0),
+        primaryDown: database?.isPrimaryDown?.() ?? false,
         lastExchange,
         queue: serverSnapshots[0].queue,
         files: serverSnapshots[0].files,

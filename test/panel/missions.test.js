@@ -12,17 +12,18 @@ const FIRST = (stage, snapshot, verified) =>
 
 describe('missions registry and statuses', () => {
   // B-6 (stage-1 recovery) and B-6b (stage-2 failover): stage 1 carries
-  // four; the failover mission raises stage 2 from two to three, and the
-  // stage-2 cap extends to four in the same change. B-6c (cache bypass):
-  // the bypass-cold mission raises stage 3 from three to four too.
-  it('stages 1 and 3 carry four; stages 2 and 4-6 carry two to three (B-6 recovery + B-6b failover + B-6c bypass-cold)', () => {
+  // four and the failover mission raises stage 2 from two to three. B-6c
+  // (cache bypass): the bypass-cold mission raises stage 3 from three to
+  // four. B-6d (primary down): the write-fail mission raises stage 4 from
+  // three to four — the title below states the real per-stage counts.
+  it('stages 1, 3 and 4 carry four; stages 2, 5 and 6 carry two to three (B-6 recovery + B-6b failover + B-6c bypass-cold + B-6d write-fail)', () => {
     expect(Object.keys(MISSIONS).map(Number).sort()).toEqual([1, 2, 3, 4, 5, 6]);
     for (const stage of [1, 2, 3, 4, 5, 6]) {
       expect(MISSIONS[stage].length, `stage ${stage} mission count floor`).toBeGreaterThanOrEqual(
         2,
       );
       expect(MISSIONS[stage].length, `stage ${stage} mission count cap`).toBeLessThanOrEqual(
-        stage === 1 || stage === 2 || stage === 3 ? 4 : 3,
+        stage === 1 || stage === 3 || stage === 4 ? 4 : 3,
       );
       expect(new Set(MISSIONS[stage].map((m) => m.id)).size, `stage ${stage} unique ids`).toBe(
         MISSIONS[stage].length,
@@ -146,6 +147,58 @@ describe('missions registry and statuses', () => {
     );
     expect(completed.find((s) => s.id === 'm3-bypass-cold').done).toBe(true);
     expect(completed.find((s) => s.id === 'm3-bypass-cold').completedTick).toBe(8);
+  });
+
+  // CHECKS (B-6d, DL-3): the write-fail mission's two legs — the pool
+  // counted a real refused write AND the newest exchange is a served 200
+  // WRITE. A failed write alone (503, dbOp WRITE_DOWN) leaves the restored
+  // leg unsatisfied, and a served 200 WRITE with no failedWrites behind it
+  // fails the tally leg — a served 200 GET (dbOp SELECT) satisfies neither
+  // leg, so a phantom write cannot complete it.
+  it('the stage-4 write-fail mission completes only after a failed write AND a restored WRITE — either leg alone stays pending', () => {
+    const verified = new Map();
+    const WRITE_FAIL = 'm4-write-fail';
+    // A failed write with no restored write behind it: the newest exchange
+    // is the 503 itself.
+    const failedOnly = missionStatuses(
+      4,
+      {
+        tick: 5,
+        failedWrites: 1,
+        lastExchange: { status: 503, dbOp: 'WRITE_DOWN' },
+      },
+      verified,
+    );
+    expect(failedOnly.find((s) => s.id === WRITE_FAIL).done).toBe(false);
+    // A served 200 with no failure behind it fails the tally leg.
+    expect(
+      missionStatuses(
+        4,
+        { tick: 6, failedWrites: 0, lastExchange: { status: 200, dbOp: 'WRITE' } },
+        verified,
+      ).find((s) => s.id === WRITE_FAIL).done,
+    ).toBe(false);
+    // A served 200 GET (dbOp SELECT) is not a restored write either.
+    expect(
+      missionStatuses(
+        4,
+        { tick: 7, failedWrites: 1, lastExchange: { status: 200, dbOp: 'SELECT' } },
+        verified,
+      ).find((s) => s.id === WRITE_FAIL).done,
+    ).toBe(false);
+    // Positive on both legs: a failed write happened earlier and the newest
+    // exchange is a served 200 WRITE — the same completed shape the B-6
+    // recovery mission latches on.
+    const completed = missionStatuses(
+      4,
+      { tick: 9, failedWrites: 2, lastExchange: { status: 200, dbOp: 'WRITE' } },
+      verified,
+    );
+    expect(completed.find((s) => s.id === WRITE_FAIL).done).toBe(true);
+    expect(completed.find((s) => s.id === WRITE_FAIL).completedTick).toBe(9);
+    expect(completed.find((s) => s.id === WRITE_FAIL).progress).toBe(
+      'failed writes: 2 · last: WRITE',
+    );
   });
 
   it('the stage-6 edge-HIT mission completes only on trace edgeStatus HIT — an origin cache HIT does not', () => {

@@ -36,3 +36,34 @@ export function matchFsRoute(fs, request = 'GET /') {
   const body = response.slice(splitAt + 1);
   return { response, status, body, routeId };
 }
+
+// Stage-4 write-through records (extracted with the B-6d consult branch,
+// guard-file-size): the accepted record carries the written value and the
+// INVALIDATE cache verdict; the refused record is the real 503 the down
+// primary answers — cacheStatus stays null because nothing was written, so
+// the cached copy keeps serving (no cache.del happens on the consult side).
+export function writeAcceptedRecord(path, written, primaryAddress) {
+  return {
+    response: `200 ${written.value}`,
+    status: 200,
+    body: written.value,
+    routeId: routeIdFor(path),
+    cacheStatus: 'INVALIDATE',
+    dbOp: 'WRITE',
+    dbTarget: primaryAddress,
+    dbStale: false,
+  };
+}
+
+export function writeDownRecord(path, primaryAddress) {
+  return {
+    response: '503 Write unavailable (primary down)',
+    status: 503,
+    body: 'Write unavailable (primary down)',
+    routeId: routeIdFor(path),
+    cacheStatus: null,
+    dbOp: 'WRITE_DOWN',
+    dbTarget: primaryAddress,
+    dbStale: false,
+  };
+}

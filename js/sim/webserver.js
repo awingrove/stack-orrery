@@ -20,10 +20,10 @@
 // serviceRate and setDown rejects a non-boolean flag (fail-loud).
 //
 // B-6c: with the cache bypassed, GETs take the origin path (the same branch
-// a MISS takes) and return cacheStatus 'BYPASSED' — the cache is not
-// consulted at all while the flag holds, and the origin tally counts those
-// routes per server.
+// a MISS takes) and return cacheStatus 'BYPASSED' — nothing consults the
+// cache while the flag holds, and the origin tally counts those routes.
 import { parseRequest, matchFsRoute, routeIdFor } from './webserver-helpers.js';
+import { writeAcceptedRecord, writeDownRecord } from './webserver-helpers.js';
 
 const DEFAULT_FILES = {
   '/': 'Welcome to the home page',
@@ -46,6 +46,7 @@ export function createWebServer({
   let served = 0;
   let down = false;
   let bypassedRoutes = 0; // B-6c: routes that took the origin path while the cache is bypassed
+  let refusedWrites = 0; // B-6d: writes refused while the database primary is down
   const latencyWindow = []; // rolling: last 50 response latencies, in ticks
   const WINDOW = 50;
 
@@ -59,12 +60,10 @@ export function createWebServer({
     return matchRoute(request).response;
   }
 
-  // Cache-aside resolution: GETs consult the Cache first and fall through
-  // to the filesystem only on a miss, then fill the cache from the 200
-  // response. With a Database attached (Stage 4), POSTs write through and
-  // invalidate the cached path, and a miss fills from the read replica —
-  // stale rows are served but not cached, so the cache only warms from
-  // replica rows already caught up. Non-matching requests bypass untouched.
+  // Cache-aside resolution: GETs consult the Cache first, fall through to
+  // the filesystem on a miss, and fill from the 200 response. With a
+  // Database (Stage 4), POSTs write through and invalidate the cached path;
+  // a miss fills from the read replica (stale served, not cached).
   function resolveRequest(request = 'GET /', currentTick = 0) {
     if (!cache && !database && !workerQueue) return { ...matchRoute(request), cacheStatus: null };
     const { method, path } = parseRequest(request);
@@ -89,18 +88,15 @@ export function createWebServer({
         };
       }
       if (!database) return { ...matchRoute(request), cacheStatus: 'BYPASS' };
+      // CHECKS: B-6d — the consult runs FIRST: a refused write invalidates
+      // nothing (no write, no cache.del) and answers the real 503 — never a fake 200.
+      if (database?.isPrimaryDown?.()) {
+        refusedWrites += 1;
+        return writeDownRecord(path, database.primaryAddress);
+      }
       const written = database.write(path, `Updated ${path} at tick ${currentTick}`, currentTick);
       cache?.del(path);
-      return {
-        response: `200 ${written.value}`,
-        status: 200,
-        body: written.value,
-        routeId: routeIdFor(path),
-        cacheStatus: 'INVALIDATE',
-        dbOp: 'WRITE',
-        dbTarget: database.primaryAddress,
-        dbStale: false,
-      };
+      return writeAcceptedRecord(path, written, database.primaryAddress);
     }
     // CHECKS: B-6c — the bypass consult is the cache component's own
     // isBypass() state, checked before the lookup. While it holds, this
@@ -217,6 +213,9 @@ export function createWebServer({
     bypassedCount() {
       return bypassedRoutes;
     },
+
+    // B-6d read-back: writes this server refused while the primary is down.
+    failedWrites: () => refusedWrites,
 
     // `isYou` marks the learner's own interactive-browser request.
     enqueue({ id, atTick, from = '10.2', to = address, request = 'GET /', isYou = false }) {

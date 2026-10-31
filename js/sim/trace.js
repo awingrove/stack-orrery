@@ -211,30 +211,29 @@ export function createTraceMachine({
         served = drainUntilYou(backend, getTick);
         if (served) {
           trace.cacheStatus = served.cacheStatus ?? null;
-          frame = `${backend.address} -> ${cache.address} | cache ${trace.cacheStatus} (${trace.path})`;
+          // B-6d: a refused write consults nothing — this hop names the
+          // refusal honestly instead of narrating a raw "cache null".
+          frame =
+            served.dbOp === 'WRITE_DOWN'
+              ? `${backend.address} -> ${cache.address} | write refused — cache not consulted (${trace.path})`
+              : `${backend.address} -> ${cache.address} | cache ${trace.cacheStatus} (${trace.path})`;
         }
       } else if (stage === 4 && trace.hop === 4) {
         // Hop 5/7: the database hop — hop 6's WRITE landed on Primary
-        // 10.30 (replication queued toward 10.31), hop 5's SELECT read
-        // Replica 10.31 fresh or stale, and a warm cache HIT skips the
-        // database entirely.
+        // 10.30 (replication queued toward 10.31), the B-6d WRITE_DOWN
+        // narrates a refused write, hop 5's SELECT read Replica 10.31
+        // fresh or stale, and a warm cache HIT skips the database.
         trace.hop = 5;
         if (served) {
           trace.dbOp = served.dbOp ?? null;
           trace.dbStale = Boolean(served.dbStale);
-          if (trace.dbOp === 'WRITE') {
-            frame = `Database WRITE ${trace.path} @ ${database.primaryAddress} (replica ${database.replicaAddress} lags ${database.replicationLagTicks}t)`;
-          } else if (trace.dbOp === 'SELECT') {
-            frame = `Database SELECT ${trace.path} @ ${database.replicaAddress} (${trace.dbStale ? 'STALE' : 'fresh'})`;
-          } else {
-            frame = `Database SKIP ${trace.path} (warm cache HIT @ ${cache.address})`;
-          }
+          frame = hops.dbHopFrame(trace, database, cache);
         }
       } else if (stage === 4 && trace.hop === 5) {
         trace.hop = 6;
         if (served) {
           serveInto(trace, served, onServe);
-          frame = `${trace.targetServer} -> ${trace.from} | ${served.response} (cache ${trace.cacheStatus})`;
+          frame = `${trace.targetServer} -> ${trace.from} | ${served.response}${hops.serveCacheSuffix(trace)}`;
         }
       } else if (stage === 4 && trace.hop === 6) {
         trace.hop = 7;
@@ -253,12 +252,8 @@ export function createTraceMachine({
           trace.asyncJob = Boolean(served.asyncJob);
           if (served.asyncJob) {
             frame = `${backend.address} -> ${workerQueue ? workerQueue.address : '10.40'} | enqueued async job (${trace.path})`;
-          } else if (trace.dbOp === 'WRITE') {
-            frame = `Database WRITE ${trace.path} @ ${database.primaryAddress} (replica ${database.replicaAddress} lags ${database.replicationLagTicks}t)`;
-          } else if (trace.dbOp === 'SELECT') {
-            frame = `Database SELECT ${trace.path} @ ${database.replicaAddress} (${trace.dbStale ? 'STALE' : 'fresh'})`;
           } else {
-            frame = `Database SKIP ${trace.path} (warm cache HIT @ ${cache.address})`;
+            frame = hops.dbHopFrame(trace, database, cache);
           }
         }
       } else if (stage === 5 && trace.hop === 4) {
@@ -269,7 +264,7 @@ export function createTraceMachine({
           serveInto(trace, served, onServe);
           frame = served.asyncJob
             ? `${trace.targetServer} -> ${trace.from} | ${served.response}`
-            : `${trace.targetServer} -> ${trace.from} | ${served.response} (cache ${trace.cacheStatus})`;
+            : `${trace.targetServer} -> ${trace.from} | ${served.response}${hops.serveCacheSuffix(trace)}`;
         }
       } else if (stage === 5 && trace.hop === 5) {
         // Hop 6/8: WebServer returns its response via Network

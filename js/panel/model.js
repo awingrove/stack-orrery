@@ -3,6 +3,7 @@
 // render.js own all DOM writes. Stage-6 hop sentences live in
 // model-stage6.js (guard-file-size split).
 import { stage6Sentences } from './model-stage6.js';
+import { dbOpSentence } from './model-dbop.js';
 export const TICK_MS = 100;
 const QUEUE_BAR_SATURATION = 20; // bar reads full at 20 queued requests
 // Total hops per stage's trace shape (trace.js, trace-stage6.js and
@@ -41,17 +42,13 @@ export function stage5ChainParts(snapshot, from, serverAddress) {
   // Requests served synchronously keep the Stage 4 cache/database story;
   // the worker does not see them, so the tail hop reads idle.
   const db = snapshot.database ?? {};
-  const primary = db.primaryAddress ?? '10.30';
-  const replica = db.replicaAddress ?? '10.31';
-  const lag = db.replicationLagTicks ?? 3;
-  const dbOp =
-    t.dbOp === 'WRITE'
-      ? `Database WRITE @ Primary (${primary}) — replica lags ${lag}t`
-      : t.dbOp === 'SELECT' && t.dbStale
-        ? `Database SELECT @ Replica (${replica}) — STALE (lag ${lag}t)`
-        : t.dbOp === 'SELECT'
-          ? `Database SELECT @ Replica (${replica}) — fresh`
-          : `Database SKIP — warm cache HIT (${snapshot.cache?.address ?? '10.20'})`;
+  const dbOp = dbOpSentence(t.dbOp, {
+    stale: t.dbStale,
+    primary: db.primaryAddress ?? '10.30',
+    replica: db.replicaAddress ?? '10.31',
+    lag: db.replicationLagTicks ?? 3,
+    cacheAddress: snapshot.cache?.address ?? '10.20',
+  });
   return [
     `Browser (${from}) emits "${t.request}"`,
     `Network (10.x) routes to LoadBalancer (${serverAddress})`,
@@ -103,17 +100,13 @@ function hopSentences(stage, snapshot, from, serverAddress) {
   }
   if (stage === 4) {
     const db = snapshot.database ?? null;
-    const primary = db?.primaryAddress ?? '10.30';
-    const replica = db?.replicaAddress ?? '10.31';
-    const lag = db?.replicationLagTicks ?? 3;
-    const dbSentence =
-      t.dbOp === 'WRITE'
-        ? `Hop 5/7: Database WRITE @ Primary (${primary}) — replica lags ${lag}t`
-        : t.dbOp === 'SELECT' && t.dbStale
-          ? `Hop 5/7: Database SELECT @ Replica (${replica}) — STALE (lag ${lag}t)`
-          : t.dbOp === 'SELECT'
-            ? `Hop 5/7: Database SELECT @ Replica (${replica}) — fresh`
-            : `Hop 5/7: Database SKIP — warm cache HIT (10.20)`;
+    const dbSentence = `Hop 5/7: ${dbOpSentence(t.dbOp, {
+      stale: t.dbStale,
+      primary: db?.primaryAddress ?? '10.30',
+      replica: db?.replicaAddress ?? '10.31',
+      lag: db?.replicationLagTicks ?? 3,
+      cacheAddress: '10.20',
+    })}`;
     return [
       `Hop 1/7: Browser (${from}) emits "${t.request}"`,
       `Hop 2/7: Network (10.x) routes to LoadBalancer (${serverAddress})`,

@@ -1,13 +1,14 @@
 import { test, expect } from '@playwright/test';
+import { faultsTab, journeyHop, cacheEntryRows, missionChip } from './fault-console-helpers.js';
 
 // B-6 fault console (docs/plans/2026-10-27-b6-fault-console.md): the rail's
 // fourth surface flips REAL component state (webserver setDown) and the
 // transport refuses on the wire before the server is consulted. Every
 // assertion reads the real sim machinery — refusal frames, queue depth,
 // mission chips — not UI-local state. Titles are manifest pins — do not
-// reword.
-
-const faultsTab = (page) => page.getByTestId('rail-tab-faults');
+// reword. The B-6d stage-4 primary-down tests live in
+// fault-console-stage4.spec.js (guard-file-size); the shared helpers are
+// imported from fault-console-helpers.js.
 
 const toggle = (page) => page.getByTestId('fault-toggle-webserver');
 
@@ -16,8 +17,7 @@ const stateChip = (page) => page.getByTestId('fault-state-webserver');
 // Crowd ticks land refused sends only while down; each tick is a real
 // arrival roll, so read the refusal tally off the recovery mission's own
 // progress line after a few ticks.
-const recoveryChip = (page) =>
-  page.getByTestId('mission-item').filter({ hasText: 'refusal' }).getByTestId('mission-status');
+const recoveryChip = (page) => missionChip(page, 'refusal');
 
 test('should toggle the webserver fault from the rail console and read connection refused in the trace', async ({
   page,
@@ -37,10 +37,14 @@ test('should toggle the webserver fault from the rail console and read connectio
   await page.getByTestId('stage-pill-2').click();
   // B-6b: stage 2 now owns the backend-10.12 row — the console shows it,
   // still reading component state. B-6c: stage 3 owns the cache-bypass row;
-  // the empty-state line moved to stage 4, the first fault-less stage.
+  // B-6d: stage 4 owns the primary-down row, so the empty-state line moved
+  // to stage 5, the first fault-less stage.
   await expect(page.getByTestId('fault-toggle-backend-10-12')).toBeVisible();
   await expect(page.getByTestId('fault-state-backend-10-12')).toHaveText('off');
   await page.getByTestId('stage-pill-4').click();
+  await expect(page.getByTestId('fault-toggle-primary')).toBeVisible();
+  await expect(page.getByTestId('fault-state-primary')).toHaveText('off');
+  await page.getByTestId('stage-pill-5').click();
   await expect(page.locator('.rail-host:not([hidden]) .rail-empty')).toHaveText(
     'No faults for this stage yet.',
   );
@@ -144,8 +148,7 @@ const backendToggle = (page) => page.getByTestId('fault-toggle-backend-10-12');
 
 const backendChip = (page) => page.getByTestId('fault-state-backend-10-12');
 
-const failoverChip = (page) =>
-  page.getByTestId('mission-item').filter({ hasText: 'rejoin' }).getByTestId('mission-status');
+const failoverChip = (page) => missionChip(page, 'rejoin');
 
 test('should skip the down backend in the round-robin and keep the crowd served', async ({
   page,
@@ -277,15 +280,7 @@ const cacheChip = (page) => page.getByTestId('fault-state-cache');
 
 const bypassCardChip = (page) => page.locator('#node-cache [data-testid="node-bypass-chip"]');
 
-const coldChip = (page) =>
-  page
-    .getByTestId('mission-item')
-    .filter({ hasText: 'Bypass the cache' })
-    .getByTestId('mission-status');
-
-const cacheEntryRows = (page) => page.getByTestId('cache-entries-list').locator('.route-item');
-
-const journeyHop = (page, text) => page.locator('.journey-log .journey-entry', { hasText: text });
+const coldChip = (page) => missionChip(page, 'Bypass the cache');
 
 test('should bypass the cache from the rail console and watch the origin take every GET', async ({
   page,

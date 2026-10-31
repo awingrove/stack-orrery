@@ -1,5 +1,5 @@
 ---
-description: Factory brief executor — implements committed docs/plans/<feature>.md briefs cold on GLM-5.3-Flash and keeps npm run verify green.
+description: Factory brief executor — implements committed docs/plans/<feature>.md briefs cold and keeps npm run verify green. Primary model opencode-go/glm-5.3-flash; RATIFIED free fallbacks when the paid tier is unavailable opencode/glm-5.3-flash-free, opencode/mimo-v2.6-flash-free (user ratification 2026-10-29).
 mode: subagent
 model: opencode-go/glm-5.3-flash
 permission:
