@@ -21,13 +21,11 @@ happens AFTER the request leaves; this one stops it before the wire.
 
 - Zero deps; strict CSP (addEventListener + textContent only); existing chip
   styles only. Executable conceptual model: fault state on the component
-  itself (`setDropped`/`isDropped`); narration reads the actual record.
-  `Math.random()`, `Date.now()`, weakened guardrails/manifests forbidden.
-  Off-fault, every replay/stats pin stays byte-green.
+  itself; `Math.random()`, `Date.now()`, weakened guardrails/manifests
+  forbidden. Off-fault, every replay/stats pin stays byte-green.
 - **File caps (REPORT every extract):** `dns.js` 103, `engine.js` 298,
-  `trace-stage6.js` 256, `fault-console.js` 256, `missions.js` 264 — fund via
-  the existing extracts (`engine-faults.js`, `trace-helpers.js`,
-  `model-stage6.js`; wiring verbatim). Tests ≤ 450.
+  `trace-stage6.js` 256 — fund via the existing extracts (`engine-faults.js`,
+  `trace-helpers.js`, `model-stage6.js`; wiring verbatim). Tests ≤ 450.
 
 ## Boundary contracts (Step 2)
 
@@ -95,8 +93,7 @@ happens AFTER the request leaves; this one stops it before the wire.
   same-seed replay byte-green with the fault off.
 - APPEND to `e2e/panel-stage6.spec.js` if room, else NEW
   `e2e/fault-console-stage6.spec.js` (respect 450; titles verbatim into
-  storymap; hosted URL form is `example.com/about`; journey assertions are
-  run-scoped — older runs float above, the B-6c/B-6e lesson):
+  storymap):
   - `should drop the DNS record from the rail console and watch the browser render NX with no GET emitted`
   - `should narrate the NX run exactly like an unknown-host run without inventing a frame`
   - `should verify the stage-6 NX mission only after drop and restored resolve`
@@ -107,10 +104,17 @@ happens AFTER the request leaves; this one stops it before the wire.
 ## Execution steps
 
 - [x] Step 1 (Lead session): human "let's finish" 2026-10-31 after PR #27;
-      DESIGN.md dns-drop bullet committed here; executor per user direction =
-      `opencode-go/mimo-v2.6-flash` (paid MiMo; free fallbacks stay fallback-only).
+      DESIGN.md dns-drop bullet committed here; executor = paid MiMo
+      `opencode-go/mimo-v2.6-flash` (user direction 2026-10-31).
 - [x] Step 2 (Executor sub-agent): cold implementation, unit & e2e tests,
       manifest updates, green `npm run verify`, tick and commit (DEMO shots).
-- [ ] Step 3 (Lead session): strict acceptance probe over every boundary
+- [x] Step 3 (Lead session): strict acceptance probe over every boundary
       contract (including the byte-identical-NX and cd.example.com-immune
-      counter-examples), metrics extraction, ledger entry, tick Step 3, commit.
+      counter-examples), metrics extraction, ledger entry, tick Step 3,
+      commit. NOTE (2026-10-31): probe green FIRST PASS. LEAD REVIEW: DL(1)
+      byte-identity is impossible across differing host literals — the
+      normalized-equality + zero-fault-token pins are the honest landing
+      (ACCEPTED); the faults-tab empty-state line is dead UI through the
+      ladder (rebuild() path unpinned — follow-up candidate); era payout
+      opens on the flip (documented by its test). Guard green: 168 unit /
+      65 e2e.
