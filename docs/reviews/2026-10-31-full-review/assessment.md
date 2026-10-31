@@ -326,3 +326,85 @@ tightening.**
 - **For the fix backlog:** rank 5's at-the-gate splits stand, now with
   `inspector-source.js`/`inspector-state.js` comment-thinness added to
   the planned `inspector*` split rationale.
+
+## Addendum (2026-10-31) — the factory process that produced this code, vs October 2026 practice
+
+Evidence base: chunk 9 audit (all 23 briefs, ledgers, manifests, DL register),
+chunk 8 tooling review (7 guards, CI fidelity), chunk 10 gate forensics, plus
+23/23 telemetry entries and reviewed defects across this whole pipeline.
+
+### What the process is
+
+Per feature: a lead session signs off a committed decision with the human,
+commits a ≤120-line resumable brief carrying _boundary contracts only_
+(module exports, DOM testids, ring ids, test titles) plus mandatory named
+negative-case counter-examples; a **cold executor sub-agent on a pinned
+cheap model** implements code+tests+manifests from the brief alone
+(ghost-coding banned, guard-enforced); the lead then runs a scripted
+**acceptance probe** walking every contract, opens a PR with the human as
+reviewer (never self-approvers/merger), and records session telemetry,
+guardrail failures, and interventions in a metrics ledger; discovered
+defect classes get DL-N entries + rule-doc updates **in the same change**;
+`slices.yaml`/`storymap.yaml` must change with the feature they describe
+(git-diff meta-rule). Seven guards machine-enforce this whole meta-process;
+`npm run verify` is the single named gate; agents hold an isolated,
+fail-closed GitHub identity.
+
+### vs October 2026 mainstream (spec-kit/Kiro/OpenSpec/BMAD era, agentic-SDLC
+
+"agents execute, humans verify" doctrine)
+
+- **Spec-as-executable-artifact: at the leading edge.** 2026's SDD
+  best-practice is specs tied to checklists and gates; this repo goes
+  further — brief contracts, test titles, and storymap refs form a
+  closed, machine-checked loop. The full review verified 47/47 story refs
+  resolve byte-identically and 23/23 brief contracts were honored in
+  shipped code. Most 2026 adoptions assert that linkage; few enforce it
+  with a guard that fails the commit on a stale ref.
+- **Verification as a load-bearing layer: above mainstream.** The 2026
+  doctrine is "vibe, then verify" with deterministic analysis in the
+  loop; here the _process itself_ is deterministically verified (plan
+  ticks, debt schema, line counts, claim vocabulary, same-change
+  manifests) — not just the code. Chunk 8 confirmed all guards bite and
+  CI replicates the gate faithfully.
+- **Context engineering: ahead of typical.** Cold-execution briefs,
+  ghost-coding ban, and read-only boundary contracts match 2026's
+  context-engineering guidance closely enough to look like its
+  reference implementation — encoded as linters, not articles.
+- **Human gates: current and correct.** Design sign-off before work,
+  human-only bypass on rulesets, reviewer assignment, and the post-Kiro
+  (Feb 2026 AWS incident) instinct to forbid agent-approved destructive
+  merges — all present.
+- **Organizational memory: rarer than it should be.** DL register with
+  same-change rule updates + honest telemetry (83 guardrail failures,
+  10 interventions, 3 escaped defects across 23 slices — every escaped
+  defect registered, root-caused, and remediated in-code) is the
+  process-learning loop most teams still lack.
+- **Model-tier discipline by telemetry** (cheap executor + recorded
+  guardrail-failure cost per slice) matches 2026 batch-model-selection
+  practice and is measured rather than folklore.
+
+### Gaps vs 2026 leading edge
+
+1. **No inline automated review layer.** 2026 mainstream adds an
+   LLM-as-judge/CodeRabbit-style pass on every PR; this repo relies on
+   lead review + the Step-3 acceptance probe. The evidence (3 escaped
+   defects of DL-class, zero Criticals) says the probe compensates — but
+   the probe is lead-scripted per slice, not a standing reviewer agent.
+   The one standing adversarial review (this 10-chunk audit) was
+   commissioned, not scheduled.
+2. **Guard blind spots are small but real** (scripts/ outside the
+   file-size gate; comment-thin capped outliers; no WebKit in e2e).
+3. **Residual truthfulness risk sits where the process has no guard:
+   narrative artifacts** (inspector mirrors, teaching prose) — the one
+   DL-1-family surface not mechanically checked.
+
+### Net verdict
+
+For a solo-operator AI factory this is **top-decile implementation of
+October 2026 best practice** — it operationalizes what the ecosystem
+describes philosophically and adds machine enforcement of the meta-process
+that most tooling does not attempt. The gap is not discipline but
+standing automation: adopt an inline review agent on PRs, close the two
+guard blind spots ranked 1-15/Mediums, and the process matches the
+leading edge end to end.
