@@ -801,3 +801,54 @@ entries:
       UI-driven (no console row exists at stage 5, and at stage 4 every
       non-GET is a write) — the executor had correctly pinned it at a
       SIM-LEVEL stage-5 engine, which the probe accepted as the leg's pin.
+  - id: B6E-WORKER-CRASH
+    slice:
+      - SIM
+      - PANEL
+    name: >-
+      B-6e fault console slice 5 — worker crash: clients keep their real
+      202, the queue backlog grows, an ACTIVE job returns to the queue head
+      (at-least-once, nothing duplicated) and re-delivers on restore
+    brief: docs/plans/2026-10-31-b6e-worker-crash.md
+    agent: cheap
+    lead_model: opencode-go/glm-5.3-flash
+    agent_model: opencode-go/glm-5.3-flash
+    session_id: ses_e6f210d78ffemic8LtptiTf1y5
+    tokens_input: 242715
+    tokens_output: 30676
+    tokens_reasoning: 25097
+    tokens_cache_read: 17125120
+    cost_usd: 0
+    human_interventions: 0
+    agent_review_rounds: 0
+    guardrail_failures: 5
+    fix_commits: 0
+    defects_escaped: 0
+    notes: >-
+      First paid-tier execution since the standard models returned
+      (opencode/go per pin; free fallbacks remain ratified fallback-only).
+      Executed cold from the brief in 36c3dd2, green 155 unit / 62 e2e,
+      with 5 first-time-named red gate runs (format, a lint collision in
+      queue.js redelivered() vs let, two unit tick-math corrections, and a
+      combined guard run: model.js 310 + 11 guard-claims violations —
+      each fixed in place, zero guardrail edits weakened). Executor
+      deviations ACCEPTED at review: pendingCount() accessor (trace reads
+      the live backlog without reaching into internals), redeliveredCommits
+      as the snapshot-observable commit-after-crash evidence mark (the
+      ordering contract rides a side Set so the queued shape stays
+      byte-identical across the flip), an OUT-OF-BRIEF extract
+      model-stage5-chain.js (the panel hop-status surface replicated the
+      same fake-commit defect the brief pinned for trace.js only — the
+      extract carries the crash clause for both machines, byte-stable
+      off-crash), and trace-stage6 sharing workerTailFrame (stage-6 tails
+      cannot fake-commit either). Stray non-ASCII ("واحد") appeared in the
+      executor's REPORT text only — verified absent from every committed
+      file. Step-3 probe: node-side bisect proved the sim correct when the
+      lead probe printed 'finished job' on the crash era; both the
+      executor's demo and the lead had the same two probe-side traps
+      (assert crash-tail wording only AFTER the crashed run exists;
+      run-scope journey assertions — whole-log reads pick up older runs).
+      Probe walked green: crash chip DOWN, backlog narration 'nothing
+      committed', enqueue 202 byte_story with fault on, restore commits
+      the re-delivered work exactly once, m5-redeliver latched, stage 5
+      carries four missions, cross-stage rows intact.

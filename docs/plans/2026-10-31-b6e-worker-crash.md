@@ -102,6 +102,15 @@ workerQueue?.isCrashed?.() ?? false`.
       DESIGN.md worker-crash bullet committed here. Executor =standard paid pin.
 - [x] Step 2 (Executor sub-agent): cold implementation, unit & e2e tests,
       manifest updates, green `npm run verify`, tick and commit (DEMO shots).
-- [ ] Step 3 (Lead session): strict acceptance probe over every boundary
+- [x] Step 3 (Lead session): strict acceptance probe over every boundary
       contract (including the no-fake-commit and byte-identical-enqueue
-      counter-examples), metrics extraction, ledger entry, tick Step 3, commit.
+      counter-examples), metrics extraction, ledger entry, tick Step 3,
+      commit. NOTE (2026-10-31): probe green; both the executor and the
+      lead hit one PROBE-SIDE sequencing trap (assert crash-tail wording
+      only AFTER the crashed run exists; run-scope journey assertions —
+      older runs float above). LEAD REVIEW: all executor deviations
+      ACCEPTED (`pendingCount` accessor; `redeliveredCommits` as the
+      snapshot-observable commit-after-crash evidence; the
+      `js/panel/model-stage5-chain.js` extract fixing the same
+      fake-commit leak in the hop-status surface; trace-stage6 sharing `workerTailFrame`).
+      Guard green: 155 unit / 62 e2e.
