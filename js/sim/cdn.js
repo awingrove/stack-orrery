@@ -51,15 +51,28 @@ export function createCdnEdge({ address = '20.1', ttlTicks = 10, originAddress =
   // One lookup, one branch: a ledger row inside the tick window answers HIT
   // (the trace machine reads its bytes via snapshot instead of pulling); a
   // missing or expired row answers MISS — the pull, the fill, and the
-  // staleness timing all stay with the real origin machinery.
+  // staleness timing all stay with the real origin machinery. A HIT carries
+  // the row's own bytes, so the chain has no reason to re-read the ledger
+  // through a throwaway snapshot.
   function lookup(path, currentTick = 0) {
     evictExpired(currentTick);
-    if (ledger.has(path)) {
+    const row = ledger.get(path);
+    if (row) {
       hits += 1;
-      return { status: 'HIT' };
+      return { status: 'HIT', body: row.body };
     }
     misses += 1;
     return { status: 'MISS' };
+  }
+
+  // The HIT frame's ttl token: the matched row's remaining ticks read
+  // straight from the ledger (same eviction rule). The chain used to
+  // rebuild snapshot().ledger.find to reach this one figure; absent row
+  // answers null.
+  function ttlRemainingFor(path, currentTick = 0) {
+    evictExpired(currentTick);
+    const row = ledger.get(path);
+    return row ? row.expiresAtTick - currentTick : null;
   }
 
   // CHECKS: fill records the origin pull's own bytes — non-empty string
@@ -113,6 +126,7 @@ export function createCdnEdge({ address = '20.1', ttlTicks = 10, originAddress =
       return originAddress;
     },
     lookup,
+    ttlRemainingFor,
     fill,
     snapshot,
   };

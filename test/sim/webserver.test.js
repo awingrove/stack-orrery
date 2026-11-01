@@ -36,6 +36,22 @@ describe('createWebServer', () => {
     expect(() => createWebServer({ serviceRate: 2.5 })).toThrow(/serviceRate/);
   });
 
+  // CHECKS: fail-loud construction (cache/dns precedent, finding 2-03) —
+  // a non-mini-IP address cannot be registered on any Network, so it
+  // throws at construction; the serviceRate message keeps the byte shape
+  // the inline check carried.
+  it('throws on a non-mini-IP address at construction (fail-loud, cache/dns precedent)', () => {
+    expect(() => createWebServer({ address: '10.1.1' })).toThrow(
+      /address must be a mini-IP, got 10\.1\.1/,
+    );
+  });
+
+  it('keeps the serviceRate error message byte-unchanged on a zero rate (fail-loud)', () => {
+    expect(() => createWebServer({ serviceRate: 0 })).toThrow(
+      /serviceRate must be a positive integer/,
+    );
+  });
+
   it('handleRequest routes slim GET paths to 200 or 404 and rejects non-GET with 405', () => {
     const server = createWebServer({ address: '10.1' });
     expect(server.handleRequest('GET /')).toBe('200 Welcome to the home page');

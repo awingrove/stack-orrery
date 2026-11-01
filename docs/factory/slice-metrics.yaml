@@ -10,6 +10,62 @@
 # tokens_reasoning, tokens_cache_read, cost_usd, notes.
 
 entries:
+  - id: R1B-SIM-MICRO-TRUTH
+    slice:
+      - SIM
+    name: >-
+      R1b sim-micro-truth-cluster — edge lookup hands back the HIT body,
+      cdn-chain imports shared helpers, webserver fails loud on a
+      non-mini-IP (full-review findings 2-01..2-04 paydown)
+    brief: docs/plans/2026-11-01-r1b-sim-micro-truth-cluster.md
+    agent: cheap
+    lead_model: opencode-go/glm-5.3-flash
+    agent_model: opencode-go/glm-5.3-flash
+    session_id: ses_e66e6b1b4ffemlSYlEMouPGepK
+    tokens_input: 118352
+    tokens_output: 9474
+    tokens_reasoning: 16691
+    tokens_cache_read: 3963584
+    cost_usd: 0
+    human_interventions: 0
+    agent_review_rounds: 1
+    guardrail_failures: 2
+    fix_commits: 0
+    defects_escaped: 0
+    notes: >-
+      Second review-paydown slice (recommendations.md Stage R1b; no register
+      row — findings 2-01..2-04 live in the review artifacts). 2 in-session
+      red gates, both format/shaping per named cause: prettier reflow of the
+      plan file + webserver import; then guard-file-size when webserver.js
+      hit 304 after prettier exploded the import (fixed by merging helpers
+      imports + extracting DEFAULT_FILES — no rule weakened, webserver
+      ends at exactly 300). Step-3 lead acceptance probe green, contract by
+      contract: HIT announce frame byte-identical incl. the ttl token
+      ('20.1 -> 10.65 | 200 ... (edge HIT, ttl 9t)'), the real 6-hop HIT
+      walk shape unchanged; webserver constructor fail-loud on both
+      'webserver' and '10.1.1' with the mini-IP message,
+      serviceRate message byte-unchanged; cdn-chain no longer reads
+      cdn.snapshot anywhere (zero occurrences). Brief gaps recorded (the
+      executor's one honest extension, no contract drift): the lookup
+      return is exactly {status, body} per the brief's exact pins, so
+      the HIT frame's ttl token needed its own narrow accessor —
+      cdn.ttlRemainingFor(path, tick) added with counter-example pins
+      (absent/evicted row answers null); lead adjudication: ACCEPTED (lookup
+      stays a HIT/MISS answer; the ttl read is a separate single-purpose
+      view — cleaner than widening the lookup contract and churning three
+      manifest-covered pins; if a future caller wants one wide read, R2b's
+      sim-defaults seam reviews it). Second gap: the brief's
+      'three cdn.test.js HIT refs' mapped to three it() blocks but the
+      pins live in two — the third ref resolves to the existing
+      pass-through counter-example title (the story owns the branch
+      behavior). Working-tree note: an unrelated uncommitted indentation
+      reformat of the brief (no diff substance) was present at executor
+      start; the executor restored the committed Step-1 version before its
+      tick. Executor ran per .opencode/agents/executor.md on the paid
+      pinned executor. NOTE: this branch was based on main before R1a
+      merged; the 2026-11-01 merge of post-R1a main into this slice
+      resolved the entries ordering exactly as predicted (R1B newest
+      first, R1A second) and kept both manifest stories.
   - id: R1A-STAGE6-LB-HOP
     slice:
       - SIM

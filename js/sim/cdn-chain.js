@@ -17,6 +17,14 @@
 // machine's hop 4 marks PASS and the fill branch only runs on a MISS); a
 // GET inside the edge TTL is served from ledger bytes `fill` recorded
 // earlier — nothing fabricated.
+//
+// The hop helpers (queue drain, backend pick, final delivery) and
+// routeIdFor are shared imports, not re-declarations: the one
+// implementation lives in trace-helpers.js / webserver-helpers.js and each
+// call site passes its own args.
+import { drainUntilYou, backendFor, finishTo } from './trace-helpers.js';
+import { routeIdFor } from './webserver-helpers.js';
+
 export function createCdnChain({
   cdn,
   router,
@@ -36,18 +44,10 @@ export function createCdnChain({
   // chain reads and writes it in place, one hop per call.
   const trace = () => getTrace();
 
-  function drainUntilYou(targetServer) {
-    for (;;) {
-      const batch = targetServer.step(getTick());
-      const you = batch.find((item) => item.isYou);
-      if (you || batch.length === 0) return you;
-    }
-  }
-
-  function backendFor(targetAddress) {
-    return servers.find((s) => s.address === targetAddress) ?? servers[0];
-  }
-
+  // Superset, not duplicate: serveInto (trace-helpers.js) covers the four
+  // core fields only — this copy stays local because cacheStatus, dbOp,
+  // dbStale, and asyncJob ride it; a future DRY pass judges this delta,
+  // not a vibe.
   function serve(you) {
     const t = trace();
     t.response = you.response;
@@ -59,16 +59,6 @@ export function createCdnChain({
     t.dbStale = Boolean(you.dbStale);
     t.asyncJob = Boolean(you.asyncJob);
     onServe(you);
-  }
-
-  function finish(toAddress) {
-    const t = trace();
-    onFinish({
-      from: t.from ?? '10.2',
-      to: toAddress,
-      request: t.request,
-      response: t.response,
-    });
   }
 
   // The response crosses BACK through the Router into the originating
@@ -125,12 +115,13 @@ export function createCdnChain({
         return `${cdn.address} -> ${router.address} | MISS — pulling origin ${cdn.originAddress} via router`;
       }
       // HIT: the ledger row's own bytes (filled by an earlier real pull)
-      // are what leaves the edge — ttl is the row's remaining ticks.
-      const entry = cdn.snapshot(getTick()).ledger.find((row) => row.path === t.path);
-      t.response = `200 ${entry.body}`;
+      // come back with the lookup itself — ttl is the row's remaining
+      // ticks, read off the same ledger truth.
+      const ttlRemaining = cdn.ttlRemainingFor(t.path, getTick());
+      t.response = `200 ${result.body}`;
       t.status = 200;
-      t.body = entry.body;
-      t.routeId = t.path === '/' ? 'route-home' : `route-${t.path.slice(1)}`;
+      t.body = result.body;
+      t.routeId = routeIdFor(t.path);
       serve({
         id: `edge:${getTick()}`,
         from: cdn.address,
@@ -143,7 +134,7 @@ export function createCdnChain({
         routeId: t.routeId,
         cacheStatus: 'HIT',
       });
-      return `${cdn.address} -> ${router.address} | ${t.response} (edge HIT, ttl ${entry.ttlRemaining}t)`;
+      return `${cdn.address} -> ${router.address} | ${t.response} (edge HIT, ttl ${ttlRemaining}t)`;
     }
     if (hop === 5) {
       if (t.edgeStatus === 'HIT') {
@@ -165,14 +156,14 @@ export function createCdnChain({
     }
     if (hop === 6) {
       if (t.edgeStatus === 'HIT') {
-        finish(cdn.address);
+        finishTo(t, cdn.address, onFinish);
         return `Browser ${t.from} received and displayed ${t.status}`;
       }
       return `LB ${cdn.originAddress} -> ${t.targetServer} (${t.request}) queued`;
     }
     if (hop === 7) {
-      const backend = backendFor(t.targetServer);
-      const served = drainUntilYou(backend);
+      const backend = backendFor(servers, t.targetServer);
+      const served = drainUntilYou(backend, getTick);
       if (!served) return null;
       serve(served);
       return `${backend.address} -> ${router.address} | ${served.response} (cache ${served.cacheStatus})`;
@@ -187,7 +178,7 @@ export function createCdnChain({
       return deliverResponse(' (no edge FILL — non-GET pass-through)');
     }
     if (hop === 9) {
-      finish(t.targetServer ?? cdn.originAddress);
+      finishTo(t, t.targetServer ?? cdn.originAddress, onFinish);
       return `Browser ${t.from} received and displayed ${t.status}`;
     }
     return null;

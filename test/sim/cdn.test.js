@@ -23,8 +23,8 @@ describe('createCdnEdge', () => {
     edge.fill('/about', 'Origin body', 1);
     // Alive-through-ticks (dns.js/cache.js precedent): filled at tick 1,
     // responsive through tick 10; at tick 11 the entry is gone.
-    expect(edge.lookup('/about', 1)).toEqual({ status: 'HIT' });
-    expect(edge.lookup('/about', 10)).toEqual({ status: 'HIT' });
+    expect(edge.lookup('/about', 1)).toEqual({ status: 'HIT', body: 'Origin body' });
+    expect(edge.lookup('/about', 10)).toEqual({ status: 'HIT', body: 'Origin body' });
     const snap = edge.snapshot(2);
     expect(snap).toMatchObject({
       address: '20.1',
@@ -51,10 +51,25 @@ describe('createCdnEdge', () => {
     expect(edge.snapshot(11)).toMatchObject({ hits: 0, misses: 1, ledger: [] });
     // A refill starts a fresh window from the current tick.
     edge.fill('/about', 'Newer body', 12);
-    expect(edge.lookup('/about', 13)).toEqual({ status: 'HIT' });
+    expect(edge.lookup('/about', 13)).toEqual({ status: 'HIT', body: 'Newer body' });
     expect(edge.snapshot(13).ledger).toEqual([
       { path: '/about', body: 'Newer body', expiresAtTick: 22, ttlRemaining: 9 },
     ]);
+  });
+
+  // CHECKS: finding 2-01 — the HIT lookup reads the row once and hands the
+  // caller the body it already holds; the chain's HIT frame ttl reads the
+  // matched row off the same ledger truth. Named counter-example: an
+  // absent row's remaining-ttl read answers null (a MISS leaves nothing to
+  // read), matching the lookup's own MISS verdict.
+  it('hands a HIT caller the row’s own body, and ttlRemainingFor reads the matched row — null when absent', () => {
+    const edge = createCdnEdge({ ttlTicks: 10 });
+    edge.fill('/about', 'Origin body', 1);
+    expect(edge.lookup('/about', 2)).toEqual({ status: 'HIT', body: 'Origin body' });
+    expect(edge.ttlRemainingFor('/about', 2)).toBe(9);
+    expect(edge.lookup('/other', 2)).toEqual({ status: 'MISS' });
+    expect(edge.ttlRemainingFor('/other', 2)).toBeNull();
+    expect(edge.ttlRemainingFor('/about', 11)).toBeNull(); // evicted at expiry
   });
 
   // CHECKS: fill records ONLY pulled origin bytes — non-empty string path
