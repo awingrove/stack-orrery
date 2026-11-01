@@ -119,6 +119,16 @@ Fragments fine. Technical terms stay exact; code blocks unchanged.
 7. **Design:** UI that introduces or alters a visual pattern raises the
    `DESIGN.md` amendment question with the human and updates `DESIGN.md` in
    the same change (kit DESIGN + DESIGN-REVIEW patterns).
+8. **Periodic full review:** when the cadence triggers — 8 delivered
+   entries in `docs/factory/slice-metrics.yaml` since the last full
+   review, or the first slice-merge of a month, whichever comes first —
+   the lead session _prompts the human_ to run (or defer) a deep review
+   per [factory-kit FULL-REVIEW.md](https://github.com/awingrove/factory-kit/blob/main/FULL-REVIEW.md):
+   chunk map → fact briefs → verified per-chunk reviews → ranked
+   assessment, findings registered as TD rows and staged as brief-sized
+   fixes. Instruments are evidence named in the map, never gates; a
+   targeted 1–3-chunk review does not reset the cadence. The prompt
+   never fires on its own.
 
 ## Gates
 
