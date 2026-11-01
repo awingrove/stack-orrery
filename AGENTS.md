@@ -145,6 +145,12 @@ own PRs is permitted.
   `gh pr edit --add-reviewer` fails on GraphQL `read:org`; use the REST call
   instead (this is how PR #21's review was requested):
   `gh api repos/awingrove/stack-orrery/pulls/<n>/requested_reviewers -X POST -f 'reviewers[]=awingrove'`
+- **PR notes:** every PR the agent opens follows the kit's PR-body shape
+  ([factory-kit PR-NOTES.md](https://github.com/awingrove/factory-kit/blob/main/PR-NOTES.md)):
+  decision half on top (TL;DR, ranked review path with time cost,
+  explicit decisions-needed, ≤3-area risk map, named-gate verification),
+  full audit trail collapsed in a record block; finding/register ids get
+  one-line plain-English anchors, never prose-only.
 - **Fixes ride open PRs:** while one of our PRs is still open, fixes to code
   in its scope land on its branch in a follow-up commit (full `npm run verify`
   green before the commit, same as any commit), not as a separate PR. A
