@@ -87,5 +87,5 @@ serverAddress, target, trace.request, lb.lastSkip?.())`.
 ## Ticks
 
 - [x] Step 1 (Lead session): human design sign-off (2026-11-01, orchestrating session; no DESIGN.md amendment — sim wiring only, no visual pattern).
-- [ ] Step 2 (Executor sub-agent): cold implementation from the contracts, tests + manifests + green `npm run verify`; tick and commit.
+- [x] Step 2 (Executor sub-agent): cold implementation from the contracts, tests + manifests + green `npm run verify`; tick and commit.
 - [ ] Step 3 (Lead session): `npm run metrics:extract -- <sessionID>`, append entry `R1A-STAGE6-LB-HOP` to docs/factory/slice-metrics.yaml, tick, commit.

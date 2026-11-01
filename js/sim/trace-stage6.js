@@ -41,6 +41,7 @@ import {
   dbHopFrame,
   serveCacheSuffix,
   workerTailFrame,
+  lbEnqueueHop,
 } from './trace-helpers.js';
 
 const subnetOf = (address) => String(address).split('.')[0];
@@ -60,6 +61,7 @@ export function createStage6Trace({
   onServe,
   onFinish,
   onDnsFail,
+  onRefusal,
 }) {
   if (!dns) {
     throw new Error('trace: stage 6 requires a DNS component');
@@ -109,6 +111,13 @@ export function createStage6Trace({
       status: null,
       body: null,
       routeId: null,
+      // CHECKS (R1a, finding 1-02's stage-side fix): `refused` joins the
+      // record so stages 1-6 expose ONE refusal vocabulary — trace.js's
+      // freshTrace resets the same field, and snapshot consumers read
+      // `snapshot.trace.refused` across every stage alike. (A shared
+      // freshTrace factory would be the full unification and is out of
+      // scope here.)
+      refused: false,
     };
   }
 
@@ -122,17 +131,13 @@ export function createStage6Trace({
       return `routed ${trace.from} -> ${serverAddress} (${trace.request}) to LoadBalancer`;
     }
     if (s5 === 2) {
-      const atTick = bumpTick();
-      const target = lb.enqueue({
-        id: `you:${atTick}`,
-        from: trace.from,
-        to: serverAddress,
-        request: trace.request,
-        atTick,
-        isYou: true,
-      });
-      trace.targetServer = target;
-      return `LB ${serverAddress} -> ${target} (${trace.request}) queued`;
+      // B-6b hop parity (R1a): the same shared helper trace.js's stage-5
+      // branch runs — a refusal record stamps `trace.refused` and fires
+      // `onRefusal`; the frame is minted from the LB's own selection state
+      // (skip narration included), and the inline 'LB ... queued' literal
+      // is gone. The helper's document carries the branch claims.
+      const { frame: lbFrame } = lbEnqueueHop(trace, { serverAddress, lb, bumpTick, onRefusal });
+      return lbFrame;
     }
     if (s5 === 3) {
       const backend = backendFor(servers, trace.targetServer);
@@ -176,19 +181,24 @@ export function createStage6Trace({
 
   return {
     step({ method = 'GET', path = '/about', from = '10.2' } = {}) {
-      // Final hop count comes from the live trace shape: 2 once the answer
+      // Final hop count comes from the live trace shape: 3 once the walk
+      // hit a refusal (R1a: the LB-hop refusal aborts the story, mirroring
+      // trace.js's refusal-informed final hop — the next emission restarts
+      // fresh through the existing hop >= finalHop path), 2 once the answer
       // says NX, 6 for a CDN GET served from the edge ledger (HIT), 9 for a
       // CDN MISS or non-GET pass-through, 9 for other hosted paths, 8
       // host-less.
-      const finalHop = trace.nx
-        ? 2
-        : trace.cdn
-          ? trace.edgeStatus === 'HIT'
-            ? 6
-            : 9
-          : trace.host
-            ? 9
-            : 8;
+      const finalHop = trace.refused
+        ? 3
+        : trace.nx
+          ? 2
+          : trace.cdn
+            ? trace.edgeStatus === 'HIT'
+              ? 6
+              : 9
+            : trace.host
+              ? 9
+              : 8;
       let frame;
       if (trace.hop === 0 || trace.hop >= finalHop) {
         // Emission parses the typed path into host + resource path on the

@@ -146,6 +146,87 @@ describe('createEngine', () => {
     expect(snap.trace.hop).toBe(8);
     expect(snap.browserDisplay.status).toBe(200);
   });
+
+  // CHECKS: the all-down counter-example (R1a finding 1-01) — the stage-6 chain aborts the
+  // trace AT the LB hop with the stage-2 machine's refusal card: one frame
+  // minted by the shared lbEnqueueHop helper (trace-helpers.js), so the
+  // `[object Object]` narration of the old stage-6 re-implementation has no
+  // frame to appear in, and the FOURTH traceHop() restarts a fresh
+  // emission at hop 1 (no phantom hop 4 of the dead refused trace). The
+  // pinned hop-3 arithmetic is the host-less shape — a hosted path adds
+  // the 2-hop DNS prelude and narrates the very same refusal frame at hop
+  // 4. The 10.2 crowd is irrelevant here; the trace is the only actor.
+  it("DL-3 counter-example — an all-down stage-6 pool aborts the trace at the LB hop with the stage-2 machine's refusal card: neither [object Object] nor a phantom chain", () => {
+    const engine = createEngine({ seed: 42, stage: 6, users: 5, arrivalProb: 0 });
+    engine.setServerDown('10.11', true);
+    engine.setServerDown('10.12', true);
+    engine.traceHop({ method: 'GET', path: '/about' }); // hop 1 — the emit estimate
+    engine.traceHop(); // hop 2 — routed to the LoadBalancer
+    const snap = engine.traceHop(); // hop 3 — the LB hop, all-down
+    expect(snap.trace.hop).toBe(3);
+    expect(snap.lastFrame).toBe(
+      'LB 10.1 -> 10.11 | GET /about => connection refused (nothing enqueued)',
+    );
+    expect(snap.lastFrame.includes('[object Object]')).toBe(false);
+    expect(snap.trace.refused).toBe(true);
+    expect(snap.trace.targetServer).toBe(null);
+    expect(snap.trace.status).toBe(null);
+    // The FOURTH traceHop() restarts clean at hop 1 — nothing walks on.
+    const restart = engine.traceHop();
+    expect(restart.trace.hop).toBe(1);
+    expect(restart.trace.refused).toBe(false);
+    expect(restart.lastFrame).toBe('10.2 -> 10.1 | GET /about');
+    engine.setServerDown('10.11', false);
+    engine.setServerDown('10.12', false);
+  });
+
+  // CHECKS: the byte-parity counter-example — the same all-down scenario on
+  // the stage-2 machine produces the very frame string the stage-6 chain
+  // narrated at its hop 3 (one shared helper, one refusal record shape).
+  it("the stage-6 all-down refusal frame is byte-identical to the stage-2 machine's for the same request", () => {
+    const stage2 = createEngine({ seed: 42, stage: 2, users: 5, arrivalProb: 0 });
+    stage2.setServerDown('10.11', true);
+    stage2.setServerDown('10.12', true);
+    for (let hop = 1; hop <= 3; hop++) stage2.traceHop();
+    const stage2Frame = stage2.snapshot().lastFrame;
+    const stage6 = createEngine({ seed: 42, stage: 6, users: 5, arrivalProb: 0 });
+    stage6.setServerDown('10.11', true);
+    stage6.setServerDown('10.12', true);
+    for (let hop = 1; hop <= 3; hop++) stage6.traceHop();
+    const stage6Frame = stage6.snapshot().lastFrame;
+    expect(stage2Frame).toBe(
+      'LB 10.1 -> 10.11 | GET /about => connection refused (nothing enqueued)',
+    );
+    expect(stage6Frame).toBe(stage2Frame);
+  });
+
+  // CHECKS: the one-down counter-example — the health-aware cursor's skip
+  // is narrated in the frame the same way the stage-2 machine does it; the
+  // healthy pool's plain byte shape already lives in the sibling traces
+  // above, so no third frame needs a fresh pin.
+  it('a one-down stage-6 pool narrates the crossed seat in the LB frame', () => {
+    const engine = createEngine({ seed: 42, stage: 6, users: 5, arrivalProb: 0 });
+    engine.setServerDown('10.11', true);
+    engine.traceHop({ method: 'GET', path: '/about' });
+    engine.traceHop();
+    const snap = engine.traceHop();
+    expect(snap.trace.hop).toBe(3);
+    expect(snap.lastFrame).toBe('LB 10.1 -> 10.12 (GET /about) queued — 10.11 is down — skipped');
+    expect(snap.trace.refused).toBe(false);
+  });
+
+  // PINS: finding 1-02's stage-side fix — the stage-6 record carries the
+  // same `refused` field stages 1-5 reset, read back false after a normal
+  // hosted trace completes (the all-down pin above carries the true side).
+  it('the stage-6 trace record exposes the same refused vocabulary as stages 1-5', () => {
+    const engine = createEngine({ seed: 42, stage: 6 });
+    let snap;
+    for (let hop = 1; hop <= 9; hop++) {
+      snap = engine.traceHop({ method: 'GET', path: 'example.com/about' });
+      expect(snap.trace.hop).toBe(hop);
+    }
+    expect(snap.trace.refused).toBe(false);
+  });
 });
 
 // The editable filesystem (editable-fs brief): setWebFile routes the write

@@ -59,6 +59,7 @@ export function createTraceMachine({
       onServe,
       onFinish,
       onDnsFail,
+      onRefusal,
     });
   }
   const RESET_FIELDS = {
@@ -148,28 +149,12 @@ export function createTraceMachine({
         trace.hop = 2;
         frame = `routed ${trace.from} -> ${serverAddress} (${trace.request}) to LoadBalancer`;
       } else if (trace.hop === 2) {
+        // B-6b/R1a: the LB hop is one implementation for both machines —
+        // the shared helper mints the frame from the LB's selection state
+        // (its document carries the skip/refusal claims) and refusal flows
+        // through `onRefusal` as on stage 1.
         trace.hop = 3;
-        const atTick = bumpTick();
-        const target = lb.enqueue({
-          id: `you:${atTick}`,
-          from: trace.from,
-          to: serverAddress,
-          request: trace.request,
-          atTick,
-          isYou: true,
-        });
-        // CHECKS (B-6b): the frame reads the LB's own selection state —
-        // lastSkip() names the crossed seat (no skip keeps the byte shape),
-        // and an all-down record aborts here with no served data.
-        if (target?.refused === true) {
-          trace.refused = true;
-          onRefusal?.(target);
-          frame = hops.lbRefusedFrame(serverAddress, target, trace.request);
-        } else {
-          const skippedAt = lb.lastSkip?.();
-          trace.targetServer = target;
-          frame = hops.lbEnqueuedFrame(serverAddress, target, trace.request, skippedAt);
-        }
+        frame = hops.lbEnqueueHop(trace, { serverAddress, lb, bumpTick, onRefusal }).frame;
       } else if (stage === 2 && trace.hop === 3) {
         trace.hop = 4;
         const backend = backendFor(servers, trace.targetServer);
