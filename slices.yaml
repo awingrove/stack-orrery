@@ -116,6 +116,11 @@ slices:
       - unit: test/sim/engine.test.js::serves a second cd.example.com trace from the ledger in 6 hops (edge HIT)
       - unit: test/sim/engine.test.js::keeps an origin write stale at the edge inside the TTL and pulls the new bytes after expiry
       - unit: test/sim/engine.test.js::passes a POST through to the origin without touching the edge ledger
+      - unit: test/sim/cdn.test.js::answers a HIT from the ledger inside ttlTicks and a MISS when absent
+      - unit: test/sim/cdn.test.js::evicts an expired entry and never answers from the ledger past expiry
+      - unit: test/sim/cdn.test.js::keeps a pass-through edge untouched — no lookup, no counters, no row
+      - unit: test/sim/webserver.test.js::throws on a non-mini-IP address at construction (fail-loud, cache/dns precedent)
+      - unit: test/sim/webserver.test.js::keeps the serviceRate error message byte-unchanged on a zero rate (fail-loud)
     entry_point: n/a (engine logic; rendered by PANEL-1)
 
   - id: PANEL

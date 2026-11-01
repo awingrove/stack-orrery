@@ -4,7 +4,37 @@
 // the slim wire record into method/path; matchFsRoute applies the server's
 // own route table (the server hands its live fs Map in — the helper carries
 // no state); routeIdFor names the matched route. Nothing here consults a
-// clock, a cache, or a database.
+// clock, a cache, or a database. DEFAULT_FILES is the WebServer's stock
+// filesystem and rides the same seam: option data, not behavior.
+
+export const DEFAULT_FILES = {
+  '/': 'Welcome to the home page',
+  '/about': 'This is the about page',
+};
+
+// assertWebServerOptions is the WebServer constructor's fail-loud option
+// check, extracted with full-review finding 2-03: webserver.js was the one
+// component whose constructor accepted a non-mini-IP address silently —
+// cache.js, cdn.js, database.js, loadbalancer.js, queue.js, and dns.js
+// all validated theirs at construction. The regex shape follows the
+// network.js shared MINI_IP precedent. The serviceRate message keeps the
+// byte shape of the inline check it replaces.
+export function assertWebServerOptions({ address, serviceRate }) {
+  if (!Number.isInteger(serviceRate) || serviceRate < 1) {
+    throw new Error(`webserver: serviceRate must be a positive integer, got ${serviceRate}`);
+  }
+
+  // CHECKS: the fail-loud option contract (finding 2-03) — a
+  // non-positive-integer serviceRate throws, and a non-mini-IP address
+  // throws at construction instead of constructing a server a network
+  // must refuse to register. Named counter-example:
+  // `createWebServer({ address: '10.1.1' })` throws — a dotted-quad-looking
+  // string is not a two-number mini-IP and is not silently coerced.
+  const MINI_IP = /^\d+\.\d+$/;
+  if (!MINI_IP.test(address)) {
+    throw new Error(`webserver: address must be a mini-IP, got ${address}`);
+  }
+}
 
 export function parseRequest(request = 'GET /') {
   const trimmed = String(request).trim();

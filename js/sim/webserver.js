@@ -17,18 +17,21 @@
 // back) and changes NOTHING about handleRequest, enqueue, or step — the
 // transport consults isDown() before dispatch, so a down server answers
 // no wire traffic at all. CHECKS: constructor rejects a non-positive
-// serviceRate and setDown rejects a non-boolean flag (fail-loud).
+// serviceRate and a non-mini-IP address (assertWebServerOptions,
+// webserver-helpers.js) and setDown rejects a non-boolean flag (fail-loud).
 //
 // B-6c: with the cache bypassed, GETs take the origin path (the same branch
 // a MISS takes) and return cacheStatus 'BYPASSED' — nothing consults the
 // cache while the flag holds, and the origin tally counts those routes.
-import { parseRequest, matchFsRoute, routeIdFor } from './webserver-helpers.js';
-import { writeAcceptedRecord, writeDownRecord } from './webserver-helpers.js';
-
-const DEFAULT_FILES = {
-  '/': 'Welcome to the home page',
-  '/about': 'This is the about page',
-};
+import {
+  parseRequest,
+  matchFsRoute,
+  routeIdFor,
+  assertWebServerOptions,
+  writeAcceptedRecord,
+  writeDownRecord,
+  DEFAULT_FILES,
+} from './webserver-helpers.js';
 
 export function createWebServer({
   address = '10.1',
@@ -38,9 +41,7 @@ export function createWebServer({
   database = null,
   workerQueue = null,
 } = {}) {
-  if (!Number.isInteger(serviceRate) || serviceRate < 1) {
-    throw new Error(`webserver: serviceRate must be a positive integer, got ${serviceRate}`);
-  }
+  assertWebServerOptions({ address, serviceRate });
   const fs = new Map(Object.entries(files));
   let queue = [];
   let served = 0;

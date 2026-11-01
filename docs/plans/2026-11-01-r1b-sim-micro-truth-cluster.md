@@ -23,7 +23,7 @@ loadbalancer.js:32, queue.js:26, dns.js:30 all do).
 ### 1. js/sim/cdn.js — lookup hands the caller the HIT body
 
 - HIT branch: `const row = ledger.get(path); hits += 1; return { status:
-  'HIT', body: row.body };` (the row is already in hand at the existing
+'HIT', body: row.body };` (the row is already in hand at the existing
   `ledger.has` check — same truth, one reads). MISS branch unchanged:
   `{ status: 'MISS' }`.
 - The lookup comment's story gains one sentence: HIT carries the row's
@@ -37,8 +37,8 @@ loadbalancer.js:32, queue.js:26, dns.js:30 all do).
   import `drainUntilYou`, `backendFor`, `finishTo` from
   trace-helpers.js; call sites adapt signatures:
   `backendFor(servers, t.targetServer)`; `drainUntilYou(backend,
-  getTick)`; `finish(t, <addr>, onFinish)` → `finishTo(t, <addr>,
-  onFinish)` at both sites (cdn.address and the targetServer/origin
+getTick)`; `finish(t, <addr>, onFinish)` → `finishTo(t, <addr>,
+onFinish)` at both sites (cdn.address and the targetServer/origin
   fallback).
 - Delete the inline `routeId = t.path === '/' ? 'route-home' : ...` in
   the HIT branch; import `routeIdFor` from webserver-helpers.js and use
@@ -53,15 +53,15 @@ loadbalancer.js:32, queue.js:26, dns.js:30 all do).
 ### 3. webserver address validation, via webserver-helpers.js
 
 - webserver-helpers.js gains: `export function assertWebServerOptions({
-  address, serviceRate })` — (a) the EXISTING serviceRate positive-integer
+address, serviceRate })` — (a) the EXISTING serviceRate positive-integer
   check moves here verbatim (same error message byte-shape); (b) NEW:
   mini-IP validation with the repo's shared regex shape `const MINI_IP =
-  /^\d+\.\d+$/;` (network.js:17 precedent) — on failure throw
+/^\d+\.\d+$/;` (network.js:17 precedent) — on failure throw
   `webserver: address must be a mini-IP, got ${address}`. Both checks
   carry CHECKS: naming the fail-loud contract and the 2-03 finding.
 - js/sim/webserver.js constructor: the two inline
   checks become `assertWebServerOptions({ address, serviceRate
-  })` — file ends under 300 without trimming anything.
+})` — file ends under 300 without trimming anything.
 
 ## §Tests
 
@@ -78,8 +78,8 @@ loadbalancer.js:32, queue.js:26, dns.js:30 all do).
 ## Manifests same-change
 
 - storymap.yaml: ONE story under the SIM slice — `title: 'Sim micro-truth
-  — the edge lookup hands the caller the HIT body it holds and the
-  webserver rejects a non-mini-IP address at construction'`, tests: the
+— the edge lookup hands the caller the HIT body it holds and the
+webserver rejects a non-mini-IP address at construction'`, tests: the
   three cdn.test.js HIT refs (existing titles) + the two new
   webserver.test.js refs (verbatim titles).
 - slices.yaml SIM slice gains the same test refs alongside the story.
@@ -88,9 +88,9 @@ loadbalancer.js:32, queue.js:26, dns.js:30 all do).
 ## Ticks
 
 - [x] Step 1 (Lead session): human design sign-off (2026-11-01,
-  orchestrating session; no DESIGN.md amendment — sim wiring only).
-- [ ] Step 2 (Executor sub-agent): cold implementation from the
-  contracts, tests + manifests + green `npm run verify`; tick and commit.
+      orchestrating session; no DESIGN.md amendment — sim wiring only).
+- [x] Step 2 (Executor sub-agent): cold implementation from the
+      contracts, tests + manifests + green `npm run verify`; tick and commit.
 - [ ] Step 3 (Lead session): `npm run metrics:extract -- <sessionID>`,
-  append entry `R1B-SIM-MICRO-TRUTH` to docs/factory/slice-metrics.yaml,
-  tick, commit.
+      append entry `R1B-SIM-MICRO-TRUTH` to docs/factory/slice-metrics.yaml,
+      tick, commit.
