@@ -408,3 +408,55 @@ that most tooling does not attempt. The gap is not discipline but
 standing automation: adopt an inline review agent on PRs, close the two
 guard blind spots ranked 1-15/Mediums, and the process matches the
 leading edge end to end.
+
+## Addendum (2026-11-01) — session forensics on the teaching-panel cluster
+
+Correlation question: do the drift defects of the panel-side teaching
+surfaces share a common thread, and is one visible model choice? Method:
+birth-commit archeology (git birth of every surface) mapped onto the
+metrics ledger (executor era per slice), plus three exported executor
+sessions (`opencode session export`).
+
+**Verdict: not a model variable. A brief-contract variable.**
+
+- Birth table: `inspector-source.js` born STAGE1-UI (gemini-4-argon
+  frontier, 0 gf / 0 escapes) — worst drift in the cluster;
+  `teaching.js` + `inspector-source-stage6.js` born 10-24 (glm-5.3-
+  flash-free); `hop-targets.js` born STAGE6B (same free model). The
+  PRAISED narrative surfaces (`missions.js`, `compare.js`,
+  `fault-console.js`) were born from **the same executor model in the
+  same three-day window** as two of the drifters.
+- The divergent variable is the brief's contract class: every drifting
+  surface predates the 2026-10-24 truth-tie convention (DL-3/DL-4
+  negative-case pins, "sim is the referee" contracts); every praised
+  one postdates it. The strongest model in the run still drifted,
+  because nothing in its brief demanded a tie; the cheapest model
+  produced praise under post-convention briefs.
+- **Drift was partly brief-authored, on the record:** the stage1-ui
+  brief §4 contracts `COMPONENT_SOURCE` as "the readable JS
+  implementation of each component" (the ghost-coded mirror pattern of
+  5-01 is instructed, not invented) and specifies panel-side strings
+  incl. `serviceRatePerTick: 4` (finding 3-03's naming drift is a brief
+  constant). `teaching.js`'s `"STALE (lag 3t)"` fragment matches real
+  pinned trace output (e2e/panel.spec.js:187) but entered the teaching
+  surface via in-session hand-copy with no binding test — the brief
+  says only `watchFor: string[]`.
+- **One dead incident of the size-gate write-around, from a session
+  log:** in the stage6a session the executor noted `trace.js` at 303
+  lines and chose to "trim comments" to re-pass the gate — the
+  ground-level mechanism behind chunk-10's lowered comment-density
+  stats on capped files, not just a statistical shadow.
+- Model quality _does_ matter for escapes: the only unvetted executor
+  run (STAGE-5, Gemini 3.8 Flash Medium / flash_lite) is the run with
+  2 escaped defects and DL-3/DL-4 — but the cheap executors that
+  produced the clean post-convention surfaces prove the contract, not
+  the model, governs the narrative-truthfulness class.
+
+Consequences for the fix plan: unchanged structure — R2/R3 carry the
+truth-tie paydown — with one sharpened note: **the first fix hectare is
+brief-template truth-tie clauses for narrative deliverables** (a
+`Derived-from:` contract line naming the sim source of truth the
+surface must mirror or the test that pins the tie), not model
+selection. Session-level truth checks (transcript greps over exports)
+are cheap and worth automating inside the Step-3 acceptance probe once
+R3a/R3b land.
