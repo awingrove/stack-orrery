@@ -121,6 +121,10 @@ slices:
       - unit: test/sim/cdn.test.js::keeps a pass-through edge untouched — no lookup, no counters, no row
       - unit: test/sim/webserver.test.js::throws on a non-mini-IP address at construction (fail-loud, cache/dns precedent)
       - unit: test/sim/webserver.test.js::keeps the serviceRate error message byte-unchanged on a zero rate (fail-loud)
+      - unit: "test/sim/engine.test.js::DL-3 counter-example — an all-down stage-6 pool aborts the trace at the LB hop with the stage-2 machine's refusal card: neither [object Object] nor a phantom chain"
+      - unit: "test/sim/engine.test.js::the stage-6 all-down refusal frame is byte-identical to the stage-2 machine's for the same request"
+      - unit: test/sim/engine.test.js::a one-down stage-6 pool narrates the crossed seat in the LB frame
+      - unit: test/sim/engine.test.js::the stage-6 trace record exposes the same refused vocabulary as stages 1-5
     entry_point: n/a (engine logic; rendered by PANEL-1)
 
   - id: PANEL

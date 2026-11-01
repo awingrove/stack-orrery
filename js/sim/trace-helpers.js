@@ -4,9 +4,8 @@
 // responsibility (guard-file-size): both machines run these identical hop
 // semantics, so the one implementation lives here and each hop site passes
 // its live trace in. Hop texts stay at the machines' own branch sites; the
-// only frame minted here is the B-6b LB-hop pair, which the stage-2 branch
-// shapes from the LB's live selection record (the branch's CHECKS comment
-// in trace.js carries the claim for this pair).
+// B-6b LB-hop frames mint here from the LB's live selection record, and the
+// R1a shared `lbEnqueueHop` (below) runs the branch for both machines.
 
 // Serve from the front of the target's queue until the trace's own
 // request (isYou) comes back, or the queue runs dry this tick.
@@ -60,6 +59,47 @@ export function lbEnqueuedFrame(serverAddress, target, request, skippedAt) {
 
 export function lbRefusedFrame(serverAddress, record, request) {
   return `LB ${serverAddress} -> ${record.to} | ${request} => connection refused (nothing enqueued)`;
+}
+
+// DOCUMENTS: the shared LB hop itself (R1a brief, docs/plans/2026-11-01-r1a-stage6-lb-hop-unification.md) — the branch
+// text that lived in trace.js's stage-5 hop now runs for BOTH machines:
+// trace.js's stage-5 branch and trace-stage6.js's chainStep(2) call this
+// one, so an all-down pool, a one-down pool, and a healthy pool tell the
+// identical story from stage 2 through stage 6 (the finding 1-01 defect —
+// the stage-6 chain re-implementation narrating the refusal record as
+// `[object Object]` and walking a phantom chain — cannot reappear).
+//
+// CHECKS: the frame reads the LB's own selection state, branch by branch —
+//   all-down → `lb.enqueue` returns the slice-1 refusal record, the trace
+//   stamps `refused: true`, `onRefusal` fires so the browser gets its
+//   connection-refused card, and the frame is the refusal card
+//   ("LB 10.1 -> 10.11 | GET /about => connection refused (nothing
+//   enqueued)") with `targetServer` untouched;
+//   one-down → the health-aware cursor's skip is narrated in the frame
+//   ("LB 10.1 -> 10.12 (GET /about) queued — 10.11 is down — skipped") with
+//   `targetServer := target` and `refused` left as the trace already holds;
+//   both-up → the plain byte shape ("LB 10.1 -> 10.11 (GET /about) queued").
+export function lbEnqueueHop(trace, { serverAddress, lb, bumpTick, onRefusal }) {
+  const atTick = bumpTick();
+  const target = lb.enqueue({
+    id: `you:${atTick}`,
+    from: trace.from,
+    to: serverAddress,
+    request: trace.request,
+    atTick,
+    isYou: true,
+  });
+  if (target?.refused === true) {
+    trace.refused = true;
+    onRefusal?.(target);
+    return { frame: lbRefusedFrame(serverAddress, target, trace.request), refused: true };
+  }
+  const skippedAt = lb.lastSkip?.();
+  trace.targetServer = target;
+  return {
+    frame: lbEnqueuedFrame(serverAddress, target, trace.request, skippedAt),
+    refused: false,
+  };
 }
 
 // CHECKS: B-6e — the stage-5 worker-tail frame (hop 8/8), minted from the
