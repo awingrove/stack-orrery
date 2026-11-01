@@ -5,6 +5,10 @@
       "playwright": {
         "type": "local",
         "command": ["npx", "-y", "@playwright/mcp@0.0.84", "--browser", "chromium"]
+      },
+      "context7": {
+        "type": "remote",
+        "url": "https://mcp.context7.com/mcp"
       }
     }
   }
