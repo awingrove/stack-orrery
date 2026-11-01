@@ -91,6 +91,6 @@ webserver rejects a non-mini-IP address at construction'`, tests: the
       orchestrating session; no DESIGN.md amendment — sim wiring only).
 - [x] Step 2 (Executor sub-agent): cold implementation from the
       contracts, tests + manifests + green `npm run verify`; tick and commit.
-- [ ] Step 3 (Lead session): `npm run metrics:extract -- <sessionID>`,
+- [x] Step 3 (Lead session): `npm run metrics:extract -- ses_e66e6b1b4ffemlSYlEMouPGepK`, entry `R1B-SIM-MICRO-TRUTH` appended, ticked, committed. Original wording: `npm run metrics:extract -- <sessionID>`,
       append entry `R1B-SIM-MICRO-TRUTH` to docs/factory/slice-metrics.yaml,
       tick, commit.
