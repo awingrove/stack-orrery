@@ -438,6 +438,15 @@ activities:
               - unit: 'test/sim/dns-ledger-drop.test.js::DL counter-example — a restored run narrates a fresh AUTH answer then the 200, no NX residue'
               - unit: test/sim/dns-ledger-drop.test.js::same seed replays the identical tick sequence with the fault off (stage 6)
 
+          - title: LB-hop story parity — stage 6 aborts on an all-down pool with the stages 2-5 refusal card and narrates the crossed seat
+            status: done
+            priority: high
+            tests:
+              - unit: "test/sim/engine.test.js::DL-3 counter-example — an all-down stage-6 pool aborts the trace at the LB hop with the stage-2 machine's refusal card: neither [object Object] nor a phantom chain"
+              - unit: "test/sim/engine.test.js::the stage-6 all-down refusal frame is byte-identical to the stage-2 machine's for the same request"
+              - unit: test/sim/engine.test.js::a one-down stage-6 pool narrates the crossed seat in the LB frame
+              - unit: test/sim/engine.test.js::the stage-6 trace record exposes the same refused vocabulary as stages 1-5
+
       - id: PANEL-6
         name: Switch to Stage 6 and trace the DNS-ledger orrery
         entry_point: index.html -> Diagram Panel link -> 6 · Multi-Net / CDN pill

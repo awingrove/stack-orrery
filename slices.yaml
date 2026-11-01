@@ -116,6 +116,10 @@ slices:
       - unit: test/sim/engine.test.js::serves a second cd.example.com trace from the ledger in 6 hops (edge HIT)
       - unit: test/sim/engine.test.js::keeps an origin write stale at the edge inside the TTL and pulls the new bytes after expiry
       - unit: test/sim/engine.test.js::passes a POST through to the origin without touching the edge ledger
+      - unit: "test/sim/engine.test.js::DL-3 counter-example — an all-down stage-6 pool aborts the trace at the LB hop with the stage-2 machine's refusal card: neither [object Object] nor a phantom chain"
+      - unit: "test/sim/engine.test.js::the stage-6 all-down refusal frame is byte-identical to the stage-2 machine's for the same request"
+      - unit: test/sim/engine.test.js::a one-down stage-6 pool narrates the crossed seat in the LB frame
+      - unit: test/sim/engine.test.js::the stage-6 trace record exposes the same refused vocabulary as stages 1-5
     entry_point: n/a (engine logic; rendered by PANEL-1)
 
   - id: PANEL

@@ -10,6 +10,51 @@
 # tokens_reasoning, tokens_cache_read, cost_usd, notes.
 
 entries:
+  - id: R1A-STAGE6-LB-HOP
+    slice:
+      - SIM
+    name: >-
+      R1a stage6-lb-hop-unification — one shared lbEnqueueHop so stage 6
+      aborts an all-down pool with the stage-2 machine's refusal card and
+      narrates the crossed seat (full-review finding 1-01 paydown)
+    brief: docs/plans/2026-11-01-r1a-stage6-lb-hop-unification.md
+    agent: cheap
+    lead_model: opencode-go/glm-5.3-flash
+    agent_model: opencode-go/glm-5.3-flash
+    session_id: ses_e66f88747ffeNNMSjSHGBxbUxn
+    tokens_input: 117959
+    tokens_output: 8786
+    tokens_reasoning: 17475
+    tokens_cache_read: 3089920
+    cost_usd: 0
+    human_interventions: 0
+    agent_review_rounds: 1
+    guardrail_failures: 2
+    fix_commits: 0
+    defects_escaped: 0
+    notes: >-
+      First review-paydown slice (recommendations.md Stage R1a; no register
+      row — finding 1-01 lives in the review artifacts). 2 in-session red
+      gate runs (a verify; a guard run on manifest YAML quoting — executor
+      quoted whole 'unit: "..."' scalars, fixed per named cause to value-only
+      quoting). Step-3 lead acceptance probe green, contract by contract,
+      both named counter-examples live-reproduced: host-less all-down
+      narrates the byte-exact refusal card at hop 3 with refused true,
+      targetServer null, and NO [object Object]; the FOURTH traceHop
+      restarts clean at hop 1 (phantom chain dead); hosted all-down
+      narrates the same card at hop 4 (DNS prelude +2) then restarts;
+      stage-2 all-down card is byte-identical at its hop 3; one-down
+      narrates 'queued — 10.11 is down — skipped'; refused carries the
+      1-02 parity field (false on a clean hosted run, true on the fault).
+      Brief-authoring gaps recorded (the executor's two honest corrections,
+      no contract drift): the brief's test-1 wording said 'hosted /about' —
+      /about is host-less, so the pinned arithmetic (refusal hop 3, fourth
+      call restarts) is the HOST-LESS shape; the brief's test-2 said
+      'stage-2's hop-2 frame' — the stage-2 machine narrates its refusal at
+      hop 3; and 'next unused story id' was a grammar miss (stories carry
+      title/tests only in storymap; the row landed under the SIM-6 task).
+      Executor sub-agent worked on the paid pinned executor
+      (opencode-go/glm-5.3-flash) per .opencode/agents/executor.md.
   - id: B2-MISSIONS
     slice:
       - PANEL
