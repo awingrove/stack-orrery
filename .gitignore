@@ -4,3 +4,6 @@ test-results/
 playwright-report/
 .cache/
 *.log
+
+# playwright-mcp artifacts (transient snapshots/console logs)
+.playwright-mcp/
