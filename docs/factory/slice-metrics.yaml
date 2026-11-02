@@ -10,6 +10,53 @@
 # tokens_reasoning, tokens_cache_read, cost_usd, notes.
 
 entries:
+  - id: R6A-GUARD-HYGIENE-SUITE
+    slice:
+      - SIM
+    name: >-
+      R6a guard-hygiene-suite — four deterministic guards (determinism,
+      modeling-hygiene, no-inline-html, PR-NOTES body check) wired into
+      guard-all + CI; scripts/ joins the file-size scan at 400
+    brief: docs/plans/2026-11-02-r6a-guard-hygiene-suite.md
+    agent: cheap
+    lead_model: opencode-go/glm-5.3-flash
+    agent_model: opencode-go/glm-5.3-flash
+    session_id: ses_e64e2c42dffexo2wUfjbnZU46H
+    tokens_input: 57392
+    tokens_output: 6114
+    tokens_reasoning: 5804
+    tokens_cache_read: 839936
+    cost_usd: 0
+    human_interventions: 0
+    agent_review_rounds: 1
+    guardrail_failures: 0
+    fix_commits: 0
+    defects_escaped: 0
+    notes: >-
+      Cheapest slice of the factory's history by tokens (57k input / 6k
+      output — tooling-only, no prod code, no story/test surface). Zero
+      prod-code or test changes; four new guards + one CI job wired into
+      the existing composition (check-pr-notes lives in CI only, not
+      guard-all, since it gates on a pull_request env). Executor probe
+      round observed all four fail→fix→pass cycles and reported 1
+      in-probe red (check-pr-notes summary-span regex — aligned with the
+      kit's actual <summary><b>Record</b> shape, not a gate cycle, so the
+      extraction counts 0 guardrail_failures). Step-3 lead acceptance
+      probe, exit-code-exact (a probe round done through a pipe masked
+      exit codes on the first attempt — the lead redid it unsliced per
+      the no-piping rule): determinism fires on a temp .js fixture with
+      Math.random and is clean after deletion; modeling-hygiene fires on
+      a dotted-quad ('1.2.3.4'); no-inline-html names all three classes
+      (inline handler / inline style / non-module <script) on a temp
+      page; check-pr-notes exits 1 on an empty PR_BODY and 0 on real
+      PR #31's body (the kit's actual PR-NOTES shape). Zero probe residue
+      in the work tree. The record-block regex matches PRs #30-#34
+      historically (qwen retro-check: #29 predates the rule and fails —
+      expected). scripts/ now inside guard-file-size at 400
+      (extract-session-metrics at 327 passes); three new guards wired
+      into guard-all; check-pr-notes deliberately kept out of guard-all
+      (CI-only job). Executor ran per .opencode/agents/executor.md on
+      the paid pinned executor.
   - id: R1B-SIM-MICRO-TRUTH
     slice:
       - SIM

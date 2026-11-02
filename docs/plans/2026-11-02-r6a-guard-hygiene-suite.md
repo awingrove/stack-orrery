@@ -113,6 +113,6 @@ changes; no existing rule weakened.
       scoped from the user's "adopt those 3" + qwen's bonus #4).
 - [x] Step 2 (Executor sub-agent): cold implementation from the contracts,
       `npm run verify` + probe round per guard, green; tick and commit.
-- [ ] Step 3 (Lead session): `npm run metrics:extract -- <sessionID>`,
+- [x] Step 3 (Lead session): `npm run metrics:extract -- ses_e64e2c42dffexo2wUfjbnZU46H`, entry `R6A-GUARD-HYGIENE-SUITE` appended, ticked, committed. Original contract template: `npm run metrics:extract -- <sessionID>`,
       append entry `R6A-GUARD-HYGIENE-SUITE` to docs/factory/slice-metrics.yaml,
       tick, commit.
