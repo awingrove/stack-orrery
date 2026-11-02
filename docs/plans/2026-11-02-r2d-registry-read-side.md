@@ -104,10 +104,10 @@ Crowd: `${snapshot.users} simulated browsers` }` — plus PRESERVE the
 
 ## Ticks
 
-- [ ] Step 1 (Lead session): human design sign-off (2026-11-02; walk scope
+- [x] Step 1 (Lead session): human design sign-off (2026-11-02; walk scope
       pre-contracted; reject list: option (a)'s network-registration registry
       vs the contracted engine-composed one — the finding's own text).
-- [ ] Step 2 (Executor sub-agent): cold implementation; `npm run verify`
+- [x] Step 2 (Executor sub-agent): cold implementation; `npm run verify`
       green; tick and commit.
 - [ ] Step 3 (Lead session): `npm run metrics:extract -- <sessionID>`,
       append entry `R2D-REGISTRY-READ-SIDE`, tick, commit.

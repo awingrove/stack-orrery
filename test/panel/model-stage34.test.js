@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { describeSnapshot } from '../../js/panel/model.js';
 import { formatComponentState } from '../../js/panel/inspector-state.js';
+// The network inspector shape now derives from the engine's composition
+// registry (R2d read-side) — the panel fixtures feed it the sim's rows.
+import { buildRegistry } from '../../js/sim/registry.js';
 
 // DOCUMENTS: Stage 3 and Stage 4 snapshot labels and inspector state, split
 // from model.test.js by responsibility (guard-file-size); Stage 5 lives in
@@ -33,6 +36,7 @@ describe('describeSnapshot — Stage 3/4 traces', () => {
       queueDepth: 0,
       served: 2,
       avgLatencyTicks: 1,
+      registry: buildRegistry(3),
       cache,
       loadBalancer: {
         address: '10.1',
@@ -110,6 +114,7 @@ describe('describeSnapshot — Stage 3/4 traces', () => {
       queueDepth: 0,
       served: 2,
       avgLatencyTicks: 1,
+      registry: buildRegistry(4),
       loadBalancer: {
         address: '10.1',
         algorithm: 'round-robin',

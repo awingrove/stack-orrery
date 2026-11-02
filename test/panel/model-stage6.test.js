@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { describeSnapshot } from '../../js/panel/model.js';
 import { formatComponentState, componentTitle } from '../../js/panel/inspector-state.js';
+// The network inspector shape now derives from the engine's composition
+// registry (R2d read-side) — the panel fixtures feed it the sim's rows.
+import { buildRegistry } from '../../js/sim/registry.js';
 
 // Stage-boundary extraction from model.test.js (guard-file-size): the Stage
 // 6 DNS labels and the dns/router inspector state live here so model.test.js
@@ -13,6 +16,7 @@ const baseSnapshot = {
   queueDepth: 0,
   served: 1,
   avgLatencyTicks: 1,
+  registry: buildRegistry(6),
   dns: {
     address: '10.60',
     ttlTicks: 300,

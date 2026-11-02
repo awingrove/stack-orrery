@@ -88,72 +88,22 @@ const STATE_BUILDERS = {
   },
   network: (snapshot) => ({
     subnet: '10.x',
-    // CHECKS: mini-IP keys are quoted strings — a bare `10.20:` literal
-    // collapses to the number 10.2 and collides with the browser's mini-IP.
-    interfaces:
-      snapshot.stage === 6
-        ? {
-            10.1: 'LoadBalancer',
-            10.11: 'WebServer-1',
-            10.12: 'WebServer-2',
-            10.2: 'Browser (You)',
-            '10.20': 'Cache',
-            '10.30': 'Database (Primary)',
-            10.31: 'Database (Replica)',
-            '10.40': 'WorkerQueue',
-            10.41: 'Worker',
-            '10.60': 'DNS',
-            10.65: 'Router (left)',
-            20.254: 'Router (right)',
-            20.1: 'CDN edge',
-            Crowd: `${snapshot.users} simulated browsers`,
-          }
-        : snapshot.stage === 5
-          ? {
-              10.1: 'LoadBalancer',
-              10.11: 'WebServer-1',
-              10.12: 'WebServer-2',
-              10.2: 'Browser (You)',
-              '10.20': 'Cache',
-              '10.30': 'Database (Primary)',
-              10.31: 'Database (Replica)',
-              '10.40': 'WorkerQueue',
-              10.41: 'Worker',
-              Crowd: `${snapshot.users} simulated browsers`,
-            }
-          : snapshot.stage === 4
-            ? {
-                10.1: 'LoadBalancer',
-                10.11: 'WebServer-1',
-                10.12: 'WebServer-2',
-                10.2: 'Browser (You)',
-                '10.20': 'Cache',
-                '10.30': 'Database (Primary)',
-                10.31: 'Database (Replica)',
-                Crowd: `${snapshot.users} simulated browsers`,
-              }
-            : snapshot.stage === 3
-              ? {
-                  10.1: 'LoadBalancer',
-                  10.11: 'WebServer-1',
-                  10.12: 'WebServer-2',
-                  10.2: 'Browser (You)',
-                  '10.20': 'Cache',
-                  Crowd: `${snapshot.users} simulated browsers`,
-                }
-              : snapshot.stage === 2
-                ? {
-                    10.1: 'LoadBalancer',
-                    10.11: 'WebServer-1',
-                    10.12: 'WebServer-2',
-                    10.2: 'Browser (You)',
-                    Crowd: `${snapshot.users} simulated browsers`,
-                  }
-                : {
-                    10.1: 'WebServer',
-                    10.2: 'Browser (You)',
-                    Crowd: `${snapshot.users} simulated browsers`,
-                  },
+    // CHECKS (3-01 read-side): the interface rows are the sim's composition
+    // truth — the registry the engine composes per stage. A Stage-7
+    // component adds rows in js/sim/registry.js and this shape refits with
+    // no stage-branch edit here. The browser's and crowd's seats stay
+    // panel-authored — the sim does not claim them; the network tab's
+    // record itself rides the object.id retrieval the other families use.
+    // Mini-IP keys are quoted strings — a bare `10.20` literal collapses
+    // to the number 10.2 and collides with the browser's mini-IP.
+    // CHECKS: ordered as collected — the spread preserves the registry's
+    // insertion order onto the interface keys (stage-family ordering rides
+    // the registry rows, not a local re-ordering).
+    interfaces: {
+      ...Object.fromEntries(snapshot.registry.map(({ address, role }) => [address, role])),
+      10.2: 'Browser (You)',
+      Crowd: `${snapshot.users} simulated browsers`,
+    },
     lastFrame: snapshot.lastFrame ?? null,
   }),
   loadbalancer: (snapshot) => ({
