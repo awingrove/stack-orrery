@@ -2,8 +2,9 @@
 // FACTORY DoD). Production modules (js/**, css/**) fail over 300 lines so
 // logic splits into focused ES modules/stylesheets; additive test suites
 // (test/**, e2e/**) fail over 450 lines; static pages (*.html, no partials/
-// bundler) fail over 550 lines. Non-vacuity: if the selection is empty the
-// guard itself is broken, so that fails too.
+// bundler) fail over 550 lines; tooling scripts (scripts/**) fail over 400
+// lines (slightly larger cap — R6a). Non-vacuity: if the selection is empty
+// the guard itself is broken, so that fails too.
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, sep, extname } from 'node:path';
 
@@ -11,11 +12,13 @@ const LIMITS = {
   html: 550,
   test: 450,
   code: 300,
+  scripts: 400,
 };
 
 function limitFor(file) {
   if (extname(file) === '.html') return LIMITS.html;
   if (file.startsWith('test/') || file.startsWith('e2e/')) return LIMITS.test;
+  if (file.startsWith('scripts/')) return LIMITS.scripts;
   return LIMITS.code;
 }
 const SKIP_DIRS = new Set([
@@ -26,8 +29,8 @@ const SKIP_DIRS = new Set([
   'playwright-report',
   '.cache',
 ]);
-const SOURCE_DIRS = ['js', 'css', 'e2e', 'test'];
-const SOURCE_EXT = new Set(['.js', '.css', '.html']);
+const SOURCE_DIRS = ['js', 'css', 'e2e', 'test', 'scripts'];
+const SOURCE_EXT = new Set(['.js', '.css', '.html', '.mjs']);
 
 function walk(dir, out = []) {
   for (const name of readdirSync(dir)) {
@@ -73,5 +76,6 @@ if (offenders.length > 0) {
   process.exit(1);
 }
 console.log(
-  `guard-file-size: OK (${candidates.length} source files scanned; js/css ≤ ${LIMITS.code}, test/e2e ≤ ${LIMITS.test}, html ≤ ${LIMITS.html})`,
+  `guard-file-size: OK (${candidates.length} source files scanned; js/css ≤ ${LIMITS.code}, ` +
+    `test/e2e ≤ ${LIMITS.test}, html ≤ ${LIMITS.html}, scripts ≤ ${LIMITS.scripts})`,
 );

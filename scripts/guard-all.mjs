@@ -13,6 +13,9 @@ const guards = [
   'guard-story-refs.mjs',
   'guard-file-size.mjs',
   'guard-claims.mjs',
+  'guard-determinism.mjs',
+  'guard-modeling-hygiene.mjs',
+  'guard-no-inline-html.mjs',
 ];
 
 const results = [];
