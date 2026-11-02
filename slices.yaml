@@ -128,6 +128,7 @@ slices:
       - unit: test/sim/engine.test.js::the stage-6 trace record exposes the same refused vocabulary as stages 1-5
       - unit: test/sim/final-hop.test.js::finalHop resolves the shape matrix — stage 1..5 nominal and refusal, stage-6 refusal at host-less 3 / hosted 4 / cdn 6, nx 2, cdn HIT 6 / MISS 9, host 9, host-less 8, and nominal for a null trace
       - unit: "test/sim/final-hop.test.js::engine walks confirm the paper arithmetic — all-down refusals land at their shape's own hop: 3 host-less, 4 hosted, 6 cdn (no replay, no [object Object], no LB-null narration)"
+      - unit: "test/sim/pool-truth.test.js::the primary shape names itself — 'primaryQueue' / 'primaryFiles' - the pool's primary-backend story, not an aggregate"
     entry_point: n/a (engine logic; rendered by PANEL-1)
 
   - id: PANEL

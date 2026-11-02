@@ -133,7 +133,7 @@ describe('createEngine', () => {
       body: 'NX no record — no GET emitted',
     });
     expect(snap.cache.entries).toEqual([]); // no GET ever reached the pool
-    expect(snap.queue).toEqual([]);
+    expect(snap.primaryQueue).toEqual([]);
 
     // A fresh traceHop restarts cleanly — hop 1 of a new emission.
     snap = engine.traceHop({ method: 'GET', path: '/about' });
@@ -241,7 +241,7 @@ describe('createEngine setWebFile', () => {
 
     // The snapshot's files gain the new bytes without any shape change.
     const before = engine.snapshot();
-    expect(before.files).toEqual({ '/': 'Welcome to the home page', '/about': 'New body' });
+    expect(before.primaryFiles).toEqual({ '/': 'Welcome to the home page', '/about': 'New body' });
     expect(before.servers[0].files['/about']).toBe('New body');
 
     // The very next served GET record carries the new bytes on the wire

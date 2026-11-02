@@ -159,13 +159,16 @@ describe('describeSnapshot', () => {
           served: 1,
           lastMatchedRoute: 'route-about',
           users: 5,
-          queue: [{ id: 'you:2', from: '10.2', to: '10.1', request: 'GET /about', isYou: true }],
+          primaryQueue: [
+            { id: 'you:2', from: '10.2', to: '10.1', request: 'GET /about', isYou: true },
+          ],
         },
         'webserver',
       ),
     );
     expect(state).toEqual({
       address: '10.1',
+      serverAddress: '10.1',
       serviceRate: 4,
       queueDepth: 1,
       queuedRequests: ['10.2 -> GET /about'],

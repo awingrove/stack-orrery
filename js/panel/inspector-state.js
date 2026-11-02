@@ -168,13 +168,17 @@ const STATE_BUILDERS = {
   webserver: (snapshot) => {
     const base = {
       address: snapshot.serverAddress ?? '10.1',
+      // R2c: per-address provenance — whose primary queue/files these are (10.1 stage 1, 10.11 stage 2+).
+      serverAddress: snapshot.servers?.[0]?.address ?? '10.1',
       serviceRate: snapshot.serviceRate ?? DEFAULT_SERVICE_RATE,
       queueDepth: snapshot.queueDepth,
-      queuedRequests: (snapshot.queue ?? []).slice(0, 8).map((q) => `${q.from} -> ${q.request}`),
+      queuedRequests: (snapshot.primaryQueue ?? [])
+        .slice(0, 8)
+        .map((q) => `${q.from} -> ${q.request}`),
       servedTotal: snapshot.served,
       lastMatchedRoute: snapshot.lastMatchedRoute ?? null,
     };
-    if (snapshot.files) base.files = snapshot.files;
+    if (snapshot.primaryFiles) base.files = snapshot.primaryFiles;
     if (snapshot.stage >= 2 && Array.isArray(snapshot.servers)) {
       base.instances = snapshot.servers.map((s) => ({
         address: s.address,

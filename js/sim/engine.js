@@ -278,8 +278,9 @@ export function createEngine({
         crashed: workerQueue?.isCrashed?.() ?? false,
         redelivered: workerQueue?.redelivered?.() ?? 0,
         lastExchange,
-        queue: serverSnapshots[0].queue,
-        files: serverSnapshots[0].files,
+        // CHECKS: top-level shape = the pool's primary backend (10.1 alone on stage 1, 10.11 from stage 2 on) — per-server shapes live on snapshot.servers[i]; a merged aggregate is rejected (fs-editor already routes per-server); lineage: full-review finding 1-06, Stage R2c option (b).
+        primaryQueue: serverSnapshots[0].queue,
+        primaryFiles: serverSnapshots[0].files,
         servers: serverSnapshots,
         loadBalancer: lb ? lb.snapshot() : null,
         cache: cache ? cache.snapshot(tick) : null,
