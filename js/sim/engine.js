@@ -30,6 +30,7 @@ import { createUsers } from './users.js';
 import { createTraceMachine } from './trace.js';
 import { DEFAULT_TTL_TICKS, DEFAULT_DNS_TTL_TICKS, DEFAULT_SERVICE_RATE } from './defaults.js';
 import { ROUTER_LEFT_ADDRESS, ROUTER_RIGHT_ADDRESS, CDN_ADDRESS } from './addresses.js';
+import { buildRegistry } from './registry.js';
 
 export function createEngine({
   seed = 42,
@@ -93,9 +94,7 @@ export function createEngine({
     edgeTtlTicks,
     leftNetwork: network,
   });
-  const dns = fabric ? fabric.dns : null;
-  const router = fabric ? fabric.router : null;
-  const edge = fabric ? fabric.edge : null;
+  const { dns = null, router = null, edge = null } = fabric ?? {};
   // Stage 2 wires the LB in front of two duplicated backends; Stage 3 attaches
   // the cache, Stage 4 the Database, Stage 5 the WorkerQueue (engine-pool.js).
   const { servers, lb } = createServerPool({
@@ -256,6 +255,7 @@ export function createEngine({
           : active.reduce((sum, s) => sum + s.avgLatencyTicks, 0) / active.length;
       return {
         stage,
+        registry: buildRegistry(stage),
         tick,
         users: userPool.getCount(),
         serverAddress,

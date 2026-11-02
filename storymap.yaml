@@ -57,6 +57,11 @@ activities:
               - unit: test/sim/webserver-fault.test.js::the engine counts refusals (refusedCount) and never enqueues crowd sends while down
               - unit: test/sim/webserver-fault.test.js::DL-3 counter-example — lastStatus stays null across a refusal, no mission detector can be satisfied
               - unit: test/sim/webserver-fault.test.js::same seed replays the identical tick sequence with the fault off
+          - title: "buildRegistry composes the stage table — stage 1's webserver seat, stage 2..6 row accumulation in sim order, quoted mini-IP keys, and the stage-6 four-row tail (dns/router-left/router-right/cdn-edge)"
+            status: done
+            priority: medium
+            tests:
+              - unit: "test/sim/registry.test.js::buildRegistry composes the stage table — stage 1's webserver seat, stage 2..6 row accumulation in sim order, quoted mini-IP keys, and the stage-6 four-row tail (dns/router-left/router-right/cdn-edge)"
 
       - id: PANEL-1
         name: Watch a simulated web server under load
