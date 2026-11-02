@@ -111,7 +111,7 @@ changes; no existing rule weakened.
 
 - [x] Step 1 (Lead session): human design sign-off (2026-11-02; suite
       scoped from the user's "adopt those 3" + qwen's bonus #4).
-- [ ] Step 2 (Executor sub-agent): cold implementation from the contracts,
+- [x] Step 2 (Executor sub-agent): cold implementation from the contracts,
       `npm run verify` + probe round per guard, green; tick and commit.
 - [ ] Step 3 (Lead session): `npm run metrics:extract -- <sessionID>`,
       append entry `R6A-GUARD-HYGIENE-SUITE` to docs/factory/slice-metrics.yaml,
