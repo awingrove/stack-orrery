@@ -340,11 +340,12 @@ describe('describeSnapshot', () => {
     expect(labels.hopStatus).not.toContain('rendered');
   });
 
-  // R2a: stage 6 rides the same helper — an all-down run resolves the abort
-  // denominator from the trace (3), and the journey relabel the panel hands
-  // relabelJourneyRun is this same helper value (the machine-side abort is
-  // pinned in test/sim/engine.test.js).
-  it('describeSnapshot and the journey relabel resolve an all-down stage-6 run to the 3-hop abort denominator, not the nominal 9', () => {
+  // R2a reopen: stage 6 rides the same helper — an all-down run resolves
+  // the abort denominator from the trace at the shape's own landing hop
+  // (3 host-less / 4 hosted / 6 cdn), and the journey relabel the panel
+  // hands relabelJourneyRun is this same helper value (the machine-side
+  // aborts are pinned engine-side in test/sim/final-hop.test.js).
+  it("an all-down stage-6 journey relabel resolves to the shape's own abort denominator (3 host-less / 4 hosted / 6 cdn), never the nominal 9", () => {
     const snap = {
       stage: 6,
       tick: 3,
@@ -380,13 +381,63 @@ describe('describeSnapshot', () => {
         routeId: null,
       },
     };
-    const labels = describeSnapshot(snap);
-    expect(labels.totalHops).toBe(3);
-    expect(labels.hop).toBe(3);
-    // The abort story behind the answer keeps the helper's 3, not the 9.
-    expect(labels.hopStatus).toBe('Hop 3/3: Network (10.x) routes to LoadBalancer (10.1)');
+    const labels4 = describeSnapshot({ ...snap, trace: { ...snap.trace, hop: 4 } });
+    expect(labels4.totalHops).toBe(4);
+    expect(labels4.hop).toBe(4);
+    // The hosted card lands at hop 4 — the prelude + routed hop precede it.
+    expect(labels4.hopStatus).toBe(
+      'Hop 4/4: LoadBalancer (10.1): connection refused — the pool is all-down, nothing enqueued, nothing served',
+    );
+    expect(describeSnapshot({ ...snap, trace: { ...snap.trace, hop: 3 } }).hopStatus).toBe(
+      'Hop 3/4: Network (10.x) routes to LoadBalancer (10.1)',
+    );
     expect(describeSnapshot({ ...snap, trace: { ...snap.trace, hop: 2 } }).hopStatus).toBe(
-      'Hop 2/3: DNS (10.60) -> Browser (10.2) answers 10.1',
+      'Hop 2/4: DNS (10.60) -> Browser (10.2) answers 10.1',
+    );
+    expect(describeSnapshot({ ...snap, trace: { ...snap.trace, hop: 1 } }).hopStatus).toBe(
+      'Hop 1/4: Browser (10.2) -> DNS (10.60): who is example.com?',
+    );
+    // Host-less shape: no prelude — the card lands at hop 3, not the 9
+    // the served ladder would read.
+    const hostLess = {
+      ...snap,
+      trace: { ...snap.trace, hop: 3, host: null, dnsTarget: null, request: 'GET /about' },
+    };
+    expect(describeSnapshot(hostLess).totalHops).toBe(3);
+    expect(describeSnapshot(hostLess).hopStatus).toBe(
+      'Hop 3/3: LoadBalancer (10.1): connection refused — the pool is all-down, nothing enqueued, nothing served',
+    );
+    // CDN shape: the pull chain runs to the LB hop — the card lands at 6.
+    const cdnSnap = {
+      ...snap,
+      cdn: { address: '20.1', originAddress: '10.1', ttlTicks: 10, ledger: [] },
+      trace: {
+        ...snap.trace,
+        hop: 6,
+        host: 'cd.example.com',
+        dnsTarget: '20.1',
+        cdn: true,
+        edgeStatus: 'MISS',
+        path: '/about',
+        request: 'GET /about',
+      },
+    };
+    const cdnLabels = describeSnapshot(cdnSnap);
+    expect(cdnLabels.totalHops).toBe(6);
+    expect(cdnLabels.hopStatus).toBe(
+      'Hop 6/6: LoadBalancer (10.1): connection refused — the pool is all-down, nothing enqueued, nothing served',
+    );
+    expect(describeSnapshot({ ...cdnSnap, trace: { ...cdnSnap.trace, hop: 5 } }).hopStatus).toBe(
+      'Hop 5/6: CDN edge (20.1) -> LoadBalancer (10.1): GET /about (edge pull via router)',
+    );
+    // Nothing past the abort hop renders for any shape.
+    for (const over of [{ hop: 7 }, { hop: 9 }]) {
+      expect(describeSnapshot({ ...cdnSnap, trace: { ...cdnSnap.trace, ...over } }).hopStatus).toBe(
+        'Idle — type a path and click Go or Step 1 Hop ->',
+      );
+    }
+    expect(describeSnapshot({ ...snap, trace: { ...snap.trace, hop: 5 } }).hopStatus).toBe(
+      'Idle — type a path and click Go or Step 1 Hop ->',
     );
   });
 });

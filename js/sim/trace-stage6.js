@@ -26,7 +26,9 @@
 // the fill ledger in 6 hops (edge HIT with the ledger's own bytes, the
 // response's reverse crossing — `routed` +1 — then the render); a MISS
 // pulls the origin through the Router in the 9-hop shape (real Router pull
-// whose left-network delivery is the LB queueing it narrates, a real
+// whose LB landing narrates through the shared `lbEnqueueHop` — the R1a
+// shared hop, aborted-with-card on an all-down pool via the helper's
+// refusal branch), a real
 // `drainUntilYou` so the origin's cache-aside status rides the frame, then
 // the real `fill` + the reverse crossing + the render). A non-GET does
 // not touch the edge ledger: it rides the MISS shape minus the fill (named
@@ -90,6 +92,10 @@ export function createStage6Trace({
     onServe,
     onFinish,
     getTrace: () => trace,
+    // R2a reopen: the MISS pull's LB hop lives in cdn-chain.js now, so the
+    // refusal callback reaches the shared helper there too — an all-down
+    // pool cards the browser exactly as the stage-5 chain's hop does.
+    onRefusal,
   });
 
   function freshTrace() {

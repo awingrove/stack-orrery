@@ -154,18 +154,23 @@ const NOMINAL = { 1: 4, 2: 5, 3: 6, 4: 7, 5: 8, 6: 9 };
 // totalHops and hopSentences totals, panel.js's journey labels + per-hop
 // breaks). Pure read over (stage, trace): no state, no randomness. A
 // refusal is its own shape, NOT a renumber of the served ladder — stage 1
-// aborts at the deliver hop (2), stages 2-6 abort at the LB hop (3), and
+// aborts at the deliver hop (2), stages 2-5 abort at the LB hop (3), and
 // the served ladder's hops 4+ stay off the refused run (DL-3
 // counter-example, pinned in test/panel/model.test.js,
 // test/panel/model-stage34.test.js and test/panel/model-stage5.test.js).
-// Stage 6 splits on the live trace shape exactly as trace-stage6.js did:
-// refused -> 3, NX -> 2, CDN edge HIT -> 6, CDN MISS/pass-through -> 9,
-// hosted subnet-10 -> 9, host-less -> 8. A null trace reads nominal, and
-// an unknown stage falls back to 4 (trace.js's existing default).
+// Stage 6 splits on the live trace shape exactly as the R1a walk burned
+// them in: NX -> 2, CDN edge HIT -> 6, CDN MISS/pass-through -> 9, hosted
+// subnet-10 -> 9, host-less -> 8. A refusal is NOT one number either —
+// the card lands where each shape's own LB hop sits (the reopened probe
+// walks, docs/plans/2026-11-02-r2a-finalhop-seam.md): host-less 3 (emit,
+// routed, card), hosted 4 (the DNS ask/answer prelude + routed hop precede
+// the card), cdn 6 (the pull chain runs to the LB hop before the card). A
+// null trace reads nominal, and an unknown stage falls back to 4
+// (trace.js's existing default).
 export function finalHop(stage, trace = null) {
   if (stage === 6) {
     if (!trace) return NOMINAL[6];
-    if (trace.refused) return 3;
+    if (trace.refused) return trace.cdn ? 6 : trace.host ? 4 : 3;
     if (trace.nx) return 2;
     if (trace.cdn) return trace.edgeStatus === 'HIT' ? 6 : 9;
     return trace.host ? 9 : 8;

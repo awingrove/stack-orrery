@@ -112,7 +112,7 @@ enqueued, nothing served`, totals from `finalHop(stage, t)`. Stage-1's
 - [x] Step 1 (Lead session): human design sign-off (2026-11-02) + the
       probe-driven reopen recorded above.
 - [x] Step 2 base scope executed (commit `f1e4b17`).
-- [ ] Step 2 reopen round (contracts above reflect the FINAL state the
+- [x] Step 2 reopen round (contracts above reflect the FINAL state the
       reopen must reach): cdn-chain hop, hardened helper tree, stage-6
       refusal shapes, pins — `npm run verify` green; tick and commit.
 - [ ] Step 3 (Lead session): `npm run metrics:extract -- <sessionID>`,

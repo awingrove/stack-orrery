@@ -215,12 +215,14 @@ activities:
               - unit: 'test/panel/model.test.js::stage-2 refused run narrates the 3-hop abort (DL-3 counter-example: not the served ladder renumbered, no hop 4+/3 residue)'
               - unit: test/panel/model-stage34.test.js::stage-3 and stage-4 refused runs narrate the 3-hop abort, not a renumbered served ladder
               - unit: test/panel/model-stage5.test.js::stage-5 refused run narrates the 3-hop abort with the worker ladder absent
-              - unit: test/panel/model.test.js::describeSnapshot and the journey relabel resolve an all-down stage-6 run to the 3-hop abort denominator, not the nominal 9
+              - unit: "test/panel/model.test.js::an all-down stage-6 journey relabel resolves to the shape's own abort denominator (3 host-less / 4 hosted / 6 cdn), never the nominal 9"
+              - unit: "test/panel/model-stage6.test.js::the three stage-6 refusal panel shapes (host-less / hosted / cdn) with the LB card and the shape's own totals"
           - title: Resolve every stage's final hop through one shared finalHop helper — the two trace machines and the panel count from one surface, with refusal aborts their own shape, not a renumber of the served ladder
             status: done
             priority: high
             tests:
-              - unit: test/sim/final-hop.test.js::finalHop resolves the shape matrix — stage 1..5 nominal and refusal, stage-6 refusal/nx/cdn-HIT/MISS/host/host-less, and nominal for a null trace
+              - unit: test/sim/final-hop.test.js::finalHop resolves the shape matrix — stage 1..5 nominal and refusal, stage-6 refusal at host-less 3 / hosted 4 / cdn 6, nx 2, cdn HIT 6 / MISS 9, host 9, host-less 8, and nominal for a null trace
+              - unit: "test/sim/final-hop.test.js::engine walks confirm the paper arithmetic — all-down refusals land at their shape's own hop: 3 host-less, 4 hosted, 6 cdn (no replay, no [object Object], no LB-null narration)"
 
   - name: 'Stage 2 — Load balancer and duplicated servers'
     tasks:

@@ -58,8 +58,53 @@ function cdnChainParts(snapshot, from, t) {
   ];
 }
 
+// The one LB refusal card, byte-identical to the stages 1-5 machines' card
+// (model.js) — the pool is all-down, nothing enqueued, nothing served.
+const lbRefusalCard = (lbAddress) =>
+  `LoadBalancer (${lbAddress}): connection refused — the pool is all-down, nothing enqueued, nothing served`;
+
+// CHECKS: R2a reopen — the three stage-6 refusal shapes narrate the abort
+// at their own landing hop, not a replay of the served ladder and not one
+// lumped refusal number — the walk evidence (docs/plans/2026-11-02-
+// r2a-finalhop-seam.md) fixes host-less at 3 (emit, routed, card), hosted
+// at 4 (the DNS ask/answer prelude and the routed hop precede the card),
+// cdn at 6 (the pull chain runs to the LB hop before the card). DL-3
+// counter-example: a PASS-shaped pull refuses through the same 6-sentence
+// shape and a refusal never names a served body, a queue, or a render.
+// Parity rule: the sim walk aborts where these totals read — pinned
+// engine-side in test/sim/final-hop.test.js's engine-walk matrix.
+function refusalParts(snapshot, from, serverAddress, t) {
+  const edge = snapshot.cdn ?? {};
+  const edgeAddress = edge.address ?? '20.1';
+  const edgeOrigin = edge.originAddress ?? '10.1';
+  const routerAddress = snapshot.router?.address ?? '10.65';
+  const dnsAddress = snapshot.dns?.address ?? '10.60';
+  const routed = `Network (10.x) routes to LoadBalancer (${serverAddress})`;
+  const card = lbRefusalCard(serverAddress);
+  if (!t.cdn) {
+    const ask = `Browser (${from}) -> DNS (${dnsAddress}): who is ${t.host}?`;
+    const answer = `DNS (${dnsAddress}) -> Browser (${from}) answers ${t.dnsTarget ?? '10.1'}`;
+    return t.host
+      ? [ask, answer, routed, card]
+      : [`Browser (${from}) emits "${t.request}"`, routed, card];
+  }
+  return [
+    `Browser (${from}) -> DNS (${dnsAddress}): who is ${t.host}?`,
+    `DNS (${dnsAddress}) -> Browser (${from}) answers ${t.dnsTarget ?? edgeAddress}`,
+    `Browser (${from}) -> Router (${routerAddress}): ${t.request} to ${edgeAddress} (one router hop)`,
+    t.edgeStatus === 'PASS'
+      ? `CDN edge (${edgeAddress}): ${t.method} ${t.path} is not edge-cacheable — pulling origin ${edgeOrigin}`
+      : `CDN edge (${edgeAddress}): MISS on ${t.path} — pulling origin ${edgeOrigin} via the Router`,
+    `CDN edge (${edgeAddress}) -> LoadBalancer (${edgeOrigin}): ${t.request} (edge pull via router)`,
+    lbRefusalCard(edgeOrigin),
+  ];
+}
+
 export function stage6Sentences(snapshot, from, serverAddress) {
   const t = snapshot.trace ?? {};
+  if (t.refused) {
+    return withHopPrefix(refusalParts(snapshot, from, serverAddress, t), finalHop(6, t));
+  }
   const parts = stage5ChainParts(snapshot, from, serverAddress);
   if (!t.host) {
     // Host-less counter-example: GET /about keeps the stage-5 story whole.
