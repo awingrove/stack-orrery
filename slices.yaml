@@ -130,6 +130,7 @@ slices:
       - unit: "test/sim/final-hop.test.js::engine walks confirm the paper arithmetic — all-down refusals land at their shape's own hop: 3 host-less, 4 hosted, 6 cdn (no replay, no [object Object], no LB-null narration)"
       - unit: "test/sim/pool-truth.test.js::the primary shape names itself — 'primaryQueue' / 'primaryFiles' - the pool's primary-backend story, not an aggregate"
       - unit: "test/sim/registry.test.js::buildRegistry composes the stage table — stage 1's webserver seat, stage 2..6 row accumulation in sim order, quoted mini-IP keys, and the stage-6 four-row tail (dns/router-left/router-right/cdn-edge)"
+      - unit: "test/sim/pool-truth.test.js::the engine snapshot's key set is contract-stable across the engine-snapshot assembly extraction — no shape evolved in this slice"
     entry_point: n/a (engine logic; rendered by PANEL-1)
 
   - id: PANEL

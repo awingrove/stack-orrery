@@ -24,3 +24,51 @@ describe('engine snapshot primary shape', () => {
     expect(solo.servers[0].files['/about']).toBe('New body');
   });
 });
+
+// CHECKS: R2e — the snapshot assembly moved verbatim into
+// js/sim/engine-snapshot.js; the shape-stability rule: the returned
+// record's key set AND order are part of the engine contract and evolve
+// nowhere in this slice (pure extraction — the only change allowed behind
+// this pin is a key-neutral delegate).
+describe('engine snapshot shape stability', () => {
+  it("the engine snapshot's key set is contract-stable across the engine-snapshot assembly extraction — no shape evolved in this slice", () => {
+    const KEY_ORDER = [
+      'stage',
+      'registry',
+      'tick',
+      'users',
+      'serverAddress',
+      'queueDepth',
+      'served',
+      'avgLatencyTicks',
+      'refusedCount',
+      'skippedCount',
+      'bypassedCount',
+      'failedWrites',
+      'primaryDown',
+      'crashed',
+      'redelivered',
+      'lastExchange',
+      'primaryQueue',
+      'primaryFiles',
+      'servers',
+      'loadBalancer',
+      'cache',
+      'database',
+      'workerQueue',
+      'dns',
+      'router',
+      'cdn',
+      'lastMatchedRoute',
+      'lastFrame',
+      'browserDisplay',
+      'browsers',
+      'trace',
+    ];
+    for (const stage of [1, 2]) {
+      const engine = createEngine({ seed: 42, stage });
+      engine.step();
+      expect(Object.keys(engine.snapshot())).toEqual(KEY_ORDER);
+    }
+  });
+});

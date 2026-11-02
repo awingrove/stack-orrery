@@ -62,6 +62,12 @@ activities:
             priority: medium
             tests:
               - unit: "test/sim/registry.test.js::buildRegistry composes the stage table — stage 1's webserver seat, stage 2..6 row accumulation in sim order, quoted mini-IP keys, and the stage-6 four-row tail (dns/router-left/router-right/cdn-edge)"
+          - title: "the engine snapshot's key set is contract-stable across the engine-snapshot assembly extraction — no shape evolved in this slice"
+            status: done
+            priority: medium
+            tests:
+              - unit: "test/sim/pool-truth.test.js::the engine snapshot's key set is contract-stable across the engine-snapshot assembly extraction — no shape evolved in this slice"
+              - unit: "test/sim/pool-truth.test.js::the primary shape names itself — 'primaryQueue' / 'primaryFiles' - the pool's primary-backend story, not an aggregate"
 
       - id: PANEL-1
         name: Watch a simulated web server under load

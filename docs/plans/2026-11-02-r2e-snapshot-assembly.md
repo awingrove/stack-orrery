@@ -82,7 +82,7 @@ lastExchange, lastMatchedRoute, lastFrame, clientBrowser }); }` — ONE
 
 - [x] Step 1 (Lead session): human design sign-off (2026-11-02; R5e
       pull-forward for the engine.js cap-pressure ledger).
-- [ ] Step 2 (Executor sub-agent): cold implementation; `npm run verify`
+- [x] Step 2 (Executor sub-agent): cold implementation; `npm run verify`
       green; tick and commit.
 - [ ] Step 3 (Lead session): `npm run metrics:extract -- <sessionID>`,
       append entry `R2E-SNAPSHOT-ASSEMBLY`, tick, commit.
