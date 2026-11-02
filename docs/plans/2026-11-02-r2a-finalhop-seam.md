@@ -115,5 +115,5 @@ enqueued, nothing served`, totals from `finalHop(stage, t)`. Stage-1's
 - [x] Step 2 reopen round (contracts above reflect the FINAL state the
       reopen must reach): cdn-chain hop, hardened helper tree, stage-6
       refusal shapes, pins — `npm run verify` green; tick and commit.
-- [ ] Step 3 (Lead session): `npm run metrics:extract -- <sessionID>`,
+- [x] Step 3 (Lead session): `npm run metrics:extract -- ses_e63b9bae7ffextCakwCwUUid2R + ses_e63a3bd39ffeNGuu6imravHr9i`, entry `R2A-FINALHOP-SEAM` appended, ticked, committed. Original contract: `npm run metrics:extract -- <sessionID>`,
       append entry `R2A-FINALHOP-SEAM`, tick, commit.
