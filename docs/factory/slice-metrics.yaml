@@ -10,6 +10,71 @@
 # tokens_reasoning, tokens_cache_read, cost_usd, notes.
 
 entries:
+  - id: R2B-ONE-HOME
+    slice:
+      - SIM
+      - PANEL
+    name: >-
+      R2b one home per teachable constant — js/sim/defaults.js +
+      js/sim/addresses.js; 11 regex sites + 2 subnetOf + 3 address pairs +
+      16 panel fallback/label sites consume the homes; serviceRatePerTick
+      renamed (full-review findings 1-03/1-04/1-05/3-02/3-03/3-09 +
+      2-03's regex paydown; TD-9 remainder)
+    brief: docs/plans/2026-11-02-r2b-one-home.md
+    agent: cheap
+    lead_model: opencode-go/glm-5.3-flash
+    agent_model: opencode-go/glm-5.3-flash
+    session_id: ses_e6269ef84ffeMnD1Of3Ilbrzgl
+    tokens_input: 187654
+    tokens_output: 16991
+    tokens_reasoning: 31362
+    tokens_cache_read: 8505984
+    cost_usd: 0
+    human_interventions: 0
+    agent_review_rounds: 1
+    guardrail_failures: 1
+    fix_commits: 0
+    defects_escaped: 0
+    notes: >-
+      Fourth review-paydown slice (Stage R2b; TD-9's remaining surface
+      dies here — the register row's sim ladder + panel ladder both
+      dissolve). 1 red gate (a unit red mid-edit — MINI_IP reference added
+      before its import in browser.js — 14 files red then flushed green;
+      caught by the R6a determinism guard reference round… actually the
+      ReferenceError surfaced by vitest, not by the guard; honest
+      accounting keeps that as an executor-side typo red, not a guardrail
+      catch). STEP-3 LEAD PROBE (walk the residual inventory on the
+      merged branch): MINI_IP copies outside addresses.js = 0 (the one
+      loadbalancer.js hit is the import's consumer); subnetOf outside
+      addresses.js = 0; serviceRatePerTick in code = 0 (one honest
+      paydown-note comment in inspector-state.js:11 documented as the
+      rename record); engine.js ends at exactly 299 per the brief (the 3
+      seat defaults + 5 defaults now import the two homes; one 2-line
+      comment merged to fit the cap); webserver.js untouched (0 diff,
+      300/300); webserver-helpers.js 99 (assertWebServerOptions delegates
+      to addresses.assertMiniIp — the R1b message byte-shaped verbatim so
+      the R1b webserver.test.js pins hold); loadbalancer.js + browser.js
+      import MINI_IP (the two R1a-walk phantoms both gone); FIRST_TEXT
+      ttl strings rebuilt as templates around DEFAULT_DNS_TTL_TICKS with
+      byte-identical rendering, and the executor's walk found the registry
+      node-card triplet literals were DEAD code (tuple[:-2] destructured
+      only) — dropped, rendering provably identical (e2e panel-stage6 +
+      cdn-edge first-text pins green). Executor decisions per brief gap:
+      (1) assertMiniIp message template = `${label ?? 'address'}: address
+      must be a mini-IP, got ${address}` — the prompt's draft would break
+      the R1b webserver.test.js byte regex; (2) webserver.js's literal
+      `serviceRate = 4` survives (UNTOUCHABLE at 300/300 + inspector-source
+      displays its source verbatim — the home is pinned behaviorally in
+      defaults.test.js via a no-arg createWebServer); (3) the walk found
+      3 MORE inline regex copies the original count missed
+      (cache.js:19, database.js:34, queue.js:26) plus 2 dead FIRST_TEXT
+      restatements — all consumed/homed (CHECKS names 11); (4) engine.js's
+      pass-through replicationLag/jobDuration params keep literal
+      defaults per the contract's explicit list (component constructors
+      carry the homes). No manifest ordering collision; both new stories
+      (SIM-1 defaults task + PANEL-1 label task) with verbatim refs, 425→431
+      story-refs resolve. Executor ran per .opencode/agents/executor.md on
+      the paid pinned executor.
   - id: R2A-FINALHOP-SEAM
     slice:
       - SIM
