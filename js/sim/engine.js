@@ -1,12 +1,10 @@
-// DOCUMENTS: the tick loop — each step() advances exactly one discrete
-// tick: users emit request events over the network into the server pool's
+// DOCUMENTS: the tick loop — each step() advances exactly one discrete tick: users emit request events over the network into the server pool's
 // (or load balancer's) queues, the pool consumes up to its per-tick work
 // budget and emits response events, then a snapshot is exposed as UI state.
 // The newest served exchange is kept in `lastExchange` so the panel can
 // show what actually moved on the wire. The interactive single-request
 // trace is the hop-by-hop state machine in trace.js, driven one hop per
-// traceHop() call across the same network/LB/queue/cache machinery the
-// crowd uses — it does not fake a shortcut.
+// traceHop() call across the same network/LB/queue/cache machinery the crowd uses — it does not fake a shortcut.
 //
 // PINS: a fixed seed with a fixed action sequence replays the identical
 // tick sequence — pinned by "same seed replays the identical tick sequence"
@@ -30,7 +28,7 @@ import { createUsers } from './users.js';
 import { createTraceMachine } from './trace.js';
 import { DEFAULT_TTL_TICKS, DEFAULT_DNS_TTL_TICKS, DEFAULT_SERVICE_RATE } from './defaults.js';
 import { ROUTER_LEFT_ADDRESS, ROUTER_RIGHT_ADDRESS, CDN_ADDRESS } from './addresses.js';
-import { buildRegistry } from './registry.js';
+import { buildEngineSnapshot } from './engine-snapshot.js';
 
 export function createEngine({
   seed = 42,
@@ -95,8 +93,7 @@ export function createEngine({
     leftNetwork: network,
   });
   const { dns = null, router = null, edge = null } = fabric ?? {};
-  // Stage 2 wires the LB in front of two duplicated backends; Stage 3 attaches
-  // the cache, Stage 4 the Database, Stage 5 the WorkerQueue (engine-pool.js).
+  // Stage 2 wires the LB in front of two duplicated backends; Stage 3 attaches the cache, Stage 4 the Database, Stage 5 the WorkerQueue (engine-pool.js).
   const { servers, lb } = createServerPool({
     stage,
     serverAddress,
@@ -108,8 +105,7 @@ export function createEngine({
     network,
   });
   // The learner's own interactive client shares the crowd's network and
-  // server pool but keeps its own browser and address; users.js keeps its
-  // addresses so seeded tick sequences stay identical (PINS above).
+  // server pool but keeps its own browser and address; users.js keeps its addresses so seeded tick sequences stay identical (PINS above).
   const clientBrowser = createBrowser({ name: 'Browser (You)', address: '10.2', network });
   const userPool = createUsers({ count: users, serverAddress });
   let tick = 0;
@@ -239,62 +235,26 @@ export function createEngine({
     ...createFaultSetters({ stage, servers, cache, database, workerQueue, dns }),
 
     snapshot() {
-      const serverSnapshots = servers.map((s) => ({
-        address: s.address,
-        ...s.metrics(),
-        down: s.isDown(),
-        queue: s.queueSnapshot(),
-        files: s.filesSnapshot(),
-      }));
-      const queueDepth = serverSnapshots.reduce((sum, s) => sum + s.queueDepth, 0);
-      const served = serverSnapshots.reduce((sum, s) => sum + s.served, 0);
-      const active = serverSnapshots.filter((s) => s.served > 0);
-      const avgLatencyTicks =
-        active.length === 0
-          ? 0
-          : active.reduce((sum, s) => sum + s.avgLatencyTicks, 0) / active.length;
-      return {
+      return buildEngineSnapshot({
         stage,
-        registry: buildRegistry(stage),
         tick,
-        users: userPool.getCount(),
+        servers,
+        lb,
+        cache,
+        database,
+        workerQueue,
+        dns,
+        router,
+        edge,
+        network,
+        userPool,
+        traceMachine,
         serverAddress,
-        queueDepth,
-        served,
-        avgLatencyTicks,
-        refusedCount: network.refusedCount(),
-        // B-6b: the failover skip tally rides the snapshot (stage-2 mission + loads).
-        skippedCount: lb?.skippedCount() ?? 0,
-        // B-6c: the pool's own origin-path tally (the cache is not consulted while bypassed, so it cannot tally there).
-        bypassedCount: servers.reduce((sum, s) => sum + (s.bypassedCount?.() ?? 0), 0),
-        // B-6d: pool-summed refused writes (each webserver tallies its own
-        // share; the database's own failedWrites only moves on a direct
-        // write() call, e.g. the Stage 5 worker commit) and the primary's
-        // live ON/OFF flag read back from the component itself.
-        failedWrites: servers.reduce((sum, s) => sum + (s.failedWrites?.() ?? 0), 0),
-        primaryDown: database?.isPrimaryDown?.() ?? false,
-        // B-6e: the worker's crash flag and re-delivery tally read back from
-        // the queue component itself.
-        crashed: workerQueue?.isCrashed?.() ?? false,
-        redelivered: workerQueue?.redelivered?.() ?? 0,
         lastExchange,
-        // CHECKS: top-level shape = the pool's primary backend (10.1 alone on stage 1, 10.11 from stage 2 on) — per-server shapes live on snapshot.servers[i]; a merged aggregate is rejected (fs-editor already routes per-server); lineage: full-review finding 1-06, Stage R2c option (b).
-        primaryQueue: serverSnapshots[0].queue,
-        primaryFiles: serverSnapshots[0].files,
-        servers: serverSnapshots,
-        loadBalancer: lb ? lb.snapshot() : null,
-        cache: cache ? cache.snapshot(tick) : null,
-        database: database ? database.snapshot(tick) : null,
-        workerQueue: workerQueue ? workerQueue.snapshot(tick) : null,
-        dns: dns ? dns.snapshot(tick) : null,
-        router: router ? router.snapshot() : null,
-        cdn: edge ? edge.snapshot(tick) : null,
         lastMatchedRoute,
         lastFrame,
-        browserDisplay: clientBrowser.last(),
-        browsers: userPool.getBrowsers(),
-        trace: traceMachine.snapshot(),
-      };
+        clientBrowser,
+      });
     },
   };
 }
