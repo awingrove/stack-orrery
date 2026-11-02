@@ -10,6 +10,63 @@
 # tokens_reasoning, tokens_cache_read, cost_usd, notes.
 
 entries:
+  - id: R2D-REGISTRY-READ-SIDE
+    slice:
+      - SIM
+      - PANEL
+    name: >-
+      R2d engine-composed registry read-side — buildRegistry per-stage row
+      ladder in js/sim/registry.js; engine.snapshot() exposes it;
+      inspector-state's six-branch interfaces ternary collapses to the
+      registry spread + panel-authored browser/crowd seats (finding 3-01 ;
+      option-(a) rejected on walk evidence)
+    brief: docs/plans/2026-11-02-r2d-registry-read-side.md
+    agent: cheap
+    lead_model: opencode-go/glm-5.3-flash
+    agent_model: opencode-go/glm-5.3-flash
+    session_id: ses_e61cd9a2fffeZImNWUZBxtSQGf
+    tokens_input: 105696
+    tokens_output: 8116
+    tokens_reasoning: 14247
+    tokens_cache_read: 2556800
+    cost_usd: 0
+    human_interventions: 0
+    agent_review_rounds: 1
+    guardrail_failures: 2
+    fix_commits: 0
+    defects_escaped: 0
+    notes: >-
+      Sixth review-paydown slice (Stage R2d; the finding's option-(a)
+      architecture REJECTED pre-contract on walk evidence — DNS 10.60,
+      Worker 10.40/10.41, cache '10.20', the database pair are components
+      the network NEVER registered; a network read-side would have
+      shipped a partial registry; the contracted mechanism is the
+      ENGINE-COMPOSED registry (the honest middle per the brief: sim
+      truth, panel read-side). Landed: js/sim/registry.js (71 lines,
+      SOLO_ROWS + LADDER_ROWS concat; stage-1 row is role WebServer — no
+      LB exists at stage 1, the panel already narrated that shape and
+      engine-pool registers no LB seat there); engine.snapshot() gains
+      registry: buildRegistry(stage) at exactly 300/300 (freed 2 lines by
+      collapsing the fabric ternaries — the R2a lesson: the cap is
+      engineered, not hoped); inspector-state.js 254→204 (six-branch
+      ternary collapse; the shape's interface rows = the registry spread
+      + panel-authored '10.2'/'Crowd' rows moved un-interleaved to the
+      tail — verified harmless: zero Object.entries(hinterfaces) iteration
+      or key-order pins anywhere, so no test rides the order); red gates 2
+      (unit: the family-superset WebServer row propagated by the LADDER
+      concat, superseded at stage 2's pool base; guard-claims: 'CHECKS (…)':''
+      tag shape corrected to bare CHECKS:); executor decisions: engine.js
+      was AT the 300 cap (not the brief's assumed 298 — R2c's CHECKS line
+      already ran it there) — the fabric-collapse pays the 2 lines; the
+      three
+      panel test fixtures gain registry fields (fake snapshots do NOT flow
+      from the engine) with assertion lines + titles byte-unchanged.
+      Step-3 lead probe: engine snapshot registry === module output
+      (byte-true), stage-1 row + the stage-6 tail (dns/router-left/
+      router-right/cdn edge rows) live-verified; key-order-sensitive
+      iteration grep ZERO; full gate green (189 unit, 65 e2e, 10 guards).
+      Executor ran per .opencode/agents/executor.md on the paid pinned
+      executor.
   - id: R2C-POOL-TRUTH
     slice:
       - SIM

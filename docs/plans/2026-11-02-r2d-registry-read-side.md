@@ -109,5 +109,5 @@ Crowd: `${snapshot.users} simulated browsers` }` — plus PRESERVE the
       vs the contracted engine-composed one — the finding's own text).
 - [x] Step 2 (Executor sub-agent): cold implementation; `npm run verify`
       green; tick and commit.
-- [ ] Step 3 (Lead session): `npm run metrics:extract -- <sessionID>`,
+- [x] Step 3 (Lead session): `npm run metrics:extract -- ses_e61cd9a2fffeZImNWUZBxtSQGf`, entry `R2D-REGISTRY-READ-SIDE` appended, ticked, committed. Original contract: `npm run metrics:extract -- <sessionID>`,
       append entry `R2D-REGISTRY-READ-SIDE`, tick, commit.
