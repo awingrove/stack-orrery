@@ -12,11 +12,14 @@
 // called, so entries keep aging out on the engine's tick while the cache is
 // off the path (the cold-rejoin lesson).
 //
+import { MINI_IP } from './addresses.js';
+import { DEFAULT_TTL_TICKS } from './defaults.js';
+
 // CHECKS: the constructor rejects an address that is not a two-number
 // mini-IP and a ttlTicks that is not a positive integer (fail-loud over
 // silent mis-configuration).
-export function createCache({ address = '10.20', ttlTicks = 10 } = {}) {
-  if (!/^\d+\.\d+$/.test(address)) {
+export function createCache({ address = '10.20', ttlTicks = DEFAULT_TTL_TICKS } = {}) {
+  if (!MINI_IP.test(address)) {
     throw new Error(`cache: invalid mini-IP address ${address}`);
   }
   if (!Number.isInteger(ttlTicks) || ttlTicks < 1) {

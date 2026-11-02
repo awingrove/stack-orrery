@@ -14,16 +14,19 @@
 //
 // CHECKS: constructor validates mini-IP addresses (`/^\d+\.\d+$/`) and
 // `jobDurationTicks` as an integer >= 1.
+import { MINI_IP } from './addresses.js';
+import { DEFAULT_JOB_DURATION_TICKS } from './defaults.js';
+
 export function createWorkerQueue({
   address = '10.40',
   workerAddress = '10.41',
-  jobDurationTicks = 2,
+  jobDurationTicks = DEFAULT_JOB_DURATION_TICKS,
 } = {}) {
   for (const [name, addr] of [
     ['address', address],
     ['workerAddress', workerAddress],
   ]) {
-    if (!/^\d+\.\d+$/.test(addr)) {
+    if (!MINI_IP.test(addr)) {
       throw new Error(`queue: invalid mini-IP address ${name}=${addr}`);
     }
   }

@@ -14,7 +14,7 @@
 //
 // CHECKS: every address crossing the wire is validated as a two-number
 // mini-IP (<net>.<host>), and sends to unregistered hosts fail loud.
-const MINI_IP = /^\d+\.\d+$/;
+import { MINI_IP } from './addresses.js';
 
 export function createNetwork() {
   const servers = new Map();

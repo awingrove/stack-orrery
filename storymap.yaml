@@ -30,6 +30,12 @@ activities:
             priority: high
             tests:
               - unit: test/sim/engine.test.js::same seed replays the identical tick sequence
+          - title: One home per teachable constant — the sim factories' ttl / dns-ttl / replication-lag / job-duration / service-rate defaults and the Stage 6 seat addresses construct from js/sim/defaults.js and js/sim/addresses.js, and the shared assert rejects a dotted-quad
+            status: done
+            priority: medium
+            tests:
+              - unit: "test/sim/defaults.test.js::teachable constants and topology addresses live in one sim home — the sim factories' constructor defaults agree with js/sim/defaults.js and js/sim/addresses.js, and the shared assert rejects a dotted-quad"
+              - unit: test/sim/webserver.test.js::throws on a non-mini-IP address at construction (fail-loud, cache/dns precedent)
           - title: Watch queue depth climb when arrival rate exceeds service rate
             status: done
             priority: high
@@ -79,6 +85,13 @@ activities:
               - unit: test/panel/model.test.js::describes hop-by-hop trace labels and component inspector state
               - unit: test/panel/model.test.js::maps a live snapshot to the webserver inspector state as JSON
               - e2e: panel::should trace a custom URL hop-by-hop into the browser viewport and inspect component code
+          - title: Read the teachable numbers from one home on the panel side — the webserver state key names the sim's own option (serviceRate, the 3-03 drift retired) and the ttl / lag fallbacks reread js/sim/defaults.js while every label stays byte-identical
+            status: done
+            priority: medium
+            tests:
+              - unit: test/panel/model.test.js::maps a live snapshot to the webserver inspector state as JSON
+              - unit: test/panel/model.test.js::stage 1 webserver headline derives mini-IP 10.1 from the live snapshot, not from the static 10.11 / 10.12 entry
+              - unit: test/panel/model.test.js::stages 2-5 webserver headline derives the snapshot backends as mini-IP 10.11 / 10.12
           - title: Click any component node to open its code and live internal state in the inspector
             status: done
             priority: medium

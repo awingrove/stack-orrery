@@ -7,7 +7,7 @@
 // via onFinish, exactly as the stage-5 chain separates wire delivery from
 // rendering. Additive and inert for stages 1-5 (no crossing ever targets
 // them), which still fail loud on unregistered browser addresses.
-const MINI_IP = /^\d+\.\d+$/;
+import { MINI_IP } from './addresses.js';
 
 export function createBrowserSeatRegistry(network) {
   const seats = new Set();

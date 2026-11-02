@@ -47,7 +47,7 @@ import {
   finalHop,
 } from './trace-helpers.js';
 
-const subnetOf = (address) => String(address).split('.')[0];
+import { subnetOf } from './addresses.js';
 
 export function createStage6Trace({
   serverAddress,

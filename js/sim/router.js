@@ -12,15 +12,13 @@
 // CHECKS: both addresses validate as two-number mini-IPs and both network
 // instances must attach; a route() with no networks is a mis-configured
 // topology and fails at construction instead of at first traffic.
-const MINI_IP = /^\d+\.\d+$/;
-
-const subnetOf = (address) => String(address).split('.')[0];
+import { MINI_IP, subnetOf, ROUTER_LEFT_ADDRESS, ROUTER_RIGHT_ADDRESS } from './addresses.js';
 
 export function createRouter({
-  leftAddress = '10.65',
+  leftAddress = ROUTER_LEFT_ADDRESS,
   // Stage 6b: the CDN edge owns 20.1, so the router's own right-side seat
   // re-seats to 20.254 (its identity answer follows the seat).
-  rightAddress = '20.254',
+  rightAddress = ROUTER_RIGHT_ADDRESS,
   leftNetwork = null,
   rightNetwork = null,
 } = {}) {

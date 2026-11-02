@@ -10,6 +10,12 @@
 // below).
 // CHECKS (Stage 6b): the Router chip and stats line read 10.65 ⇄ 20.254 —
 // the edge took 20.1, matching router.js's re-seat exactly.
+// CHECKS (R2b): the dns/cdn stats lines are built once from the sim's
+// default-tick homes (js/sim/defaults.js) — the same templated source the
+// e2e byte pins read on the rendered card; a retint re-renders these
+// first-text lines with zero edits here. FIRST_TEXT owns the rendered
+// string; nodeCard's body rows are (tag, nodeId) pairs and carry no text.
+import { DEFAULT_DNS_TTL_TICKS, DEFAULT_TTL_TICKS } from '../sim/defaults.js';
 
 let injected = false;
 
@@ -24,14 +30,14 @@ export function ensureStage6Dom() {
       ['packet-res-router', '<- via router'],
     ]),
     nodeCard('node-router', 'router', 'Router', 'cross-subnet gateway', '10.65 ⇄ 20.254', [
-      ['p', 'router-stats', 'Router 10.65 ⇄ 20.254 · Routed: 0'],
+      ['p', 'router-stats'],
     ]),
     wireColumn('wire-dns', [
       ['packet-req-dns', 'who is? =>'],
       ['packet-res-dns', '<- answer'],
     ]),
     nodeCard('node-dns', 'dns', 'DNS', 'authoritative ledger', '10.60', [
-      ['p', 'dns-stats', 'Lookups: 0 · Cached: 0 · Authoritative: 0 · TTL: 300t'],
+      ['p', 'dns-stats'],
       ['ul', 'dns-entries-list'],
     ]),
     wireColumn('wire-cdn', [
@@ -39,7 +45,7 @@ export function ensureStage6Dom() {
       ['packet-res-cdn', '<- edge HIT'],
     ]),
     nodeCard('node-cdn', 'cdn', 'CDN Edge', 'edge fill ledger', '20.1', [
-      ['p', 'cdn-stats', 'Hits: 0 · Misses: 0 · Fills: 0 · TTL: 10t'],
+      ['p', 'cdn-stats'],
       ['ul', 'cdn-entries-list'],
     ]),
   );
@@ -102,9 +108,9 @@ function nodeCard(id, component, name, subtitle, addressChip, bodyNodes) {
 }
 
 const FIRST_TEXT = {
-  'dns-stats': 'Lookups: 0 · Cached: 0 · Authoritative: 0 · TTL: 300t',
+  'dns-stats': `Lookups: 0 · Cached: 0 · Authoritative: 0 · TTL: ${DEFAULT_DNS_TTL_TICKS}t`,
   'router-stats': 'Router 10.65 ⇄ 20.254 · Routed: 0',
-  'cdn-stats': 'Hits: 0 · Misses: 0 · Fills: 0 · TTL: 10t',
+  'cdn-stats': `Hits: 0 · Misses: 0 · Fills: 0 · TTL: ${DEFAULT_TTL_TICKS}t`,
 };
 
 function firstText(nodeId) {

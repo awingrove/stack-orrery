@@ -4,9 +4,12 @@
 // inspectable state (`last()`), the way a browser keeps a rendered page.
 //
 // CHECKS: the constructor rejects an address that is not a two-number
-// mini-IP (<net>.<host>) — fail-loud over silent mis-addressing.
+// mini-IP (<net>.<host>) — fail-loud over silent mis-addressing. The
+// regex is the addresses.js MINI_IP home; the message stays per-call.
+import { MINI_IP } from './addresses.js';
+
 export function createBrowser({ name = 'Browser-1', address = '10.2', network = null } = {}) {
-  if (!/^\d+\.\d+$/.test(address)) {
+  if (!MINI_IP.test(address)) {
     throw new Error(`browser: address must be <net>.<host>, got ${address}`);
   }
   let lastDisplay = null;

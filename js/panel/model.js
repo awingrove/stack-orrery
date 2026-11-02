@@ -7,6 +7,11 @@ import { stage6Sentences } from './model-stage6.js';
 import { stage5ChainParts } from './model-stage5-chain.js';
 import { dbOpSentence } from './model-dbop.js';
 import { finalHop } from '../sim/trace-helpers.js';
+import {
+  DEFAULT_TTL_TICKS,
+  DEFAULT_DNS_TTL_TICKS,
+  DEFAULT_REPLICATION_LAG_TICKS,
+} from '../sim/defaults.js';
 export const TICK_MS = 100;
 const QUEUE_BAR_SATURATION = 20; // bar reads full at 20 queued requests
 
@@ -81,7 +86,7 @@ function hopSentences(stage, snapshot, from, serverAddress) {
           stale: t.dbStale,
           primary: db?.primaryAddress ?? '10.30',
           replica: db?.replicaAddress ?? '10.31',
-          lag: db?.replicationLagTicks ?? 3,
+          lag: db?.replicationLagTicks ?? DEFAULT_REPLICATION_LAG_TICKS,
           cacheAddress: '10.20',
         }),
         `WebServer (${target}) -> "${t.response}" (cache ${t.cacheStatus})`,
@@ -228,9 +233,9 @@ export function describeSnapshot(snapshot) {
       : 'Next -> 10.11',
     lbBackend1Label: `10.11 WebServer-1 (${perBackend['10.11'] ?? 0})`,
     lbBackend2Label: `10.12 WebServer-2 (${perBackend['10.12'] ?? 0})`,
-    cacheStatsLabel: `Hits: ${snapshot.cache?.hits ?? 0} · Misses: ${snapshot.cache?.misses ?? 0} · TTL: ${snapshot.cache?.ttlTicks ?? 10}t`,
+    cacheStatsLabel: `Hits: ${snapshot.cache?.hits ?? 0} · Misses: ${snapshot.cache?.misses ?? 0} · TTL: ${snapshot.cache?.ttlTicks ?? DEFAULT_TTL_TICKS}t`,
     cacheEntries: snapshot.cache?.entries ?? [],
-    dbStatsLabel: `Reads: ${snapshot.database?.reads ?? 0} · Writes: ${snapshot.database?.writes ?? 0} · Lag: ${snapshot.database?.replicationLagTicks ?? 3}t`,
+    dbStatsLabel: `Reads: ${snapshot.database?.reads ?? 0} · Writes: ${snapshot.database?.writes ?? 0} · Lag: ${snapshot.database?.replicationLagTicks ?? DEFAULT_REPLICATION_LAG_TICKS}t`,
     dbRows: snapshot.database?.rows ?? [],
     queueStatsLabel: snapshot.workerQueue
       ? `Enqueued: ${snapshot.workerQueue.enqueued} · Completed: ${snapshot.workerQueue.completed} · Active: ${
@@ -247,7 +252,7 @@ export function describeSnapshot(snapshot) {
     queueJobs: snapshot.workerQueue?.pendingJobs ?? [],
     dnsStatsLabel: `Lookups: ${snapshot.dns?.lookups ?? 0} · Cached: ${
       snapshot.dns?.cachedHits ?? 0
-    } · Authoritative: ${snapshot.dns?.authoritative ?? 0} · TTL: ${snapshot.dns?.ttlTicks ?? 300}t`,
+    } · Authoritative: ${snapshot.dns?.authoritative ?? 0} · TTL: ${snapshot.dns?.ttlTicks ?? DEFAULT_DNS_TTL_TICKS}t`,
     // PINS: the DNS ledger renders one row per live cache entry — name,
     // resolved target, ticks left — the Map on screen, not an aggregate.
     dnsEntries: snapshot.dns?.cache ?? [],
@@ -256,7 +261,7 @@ export function describeSnapshot(snapshot) {
     // lookup tally, and rows carry the per-entry remaining ticks.
     cdnStatsLabel: `Hits: ${snapshot.cdn?.hits ?? 0} · Misses: ${snapshot.cdn?.misses ?? 0} · Fills: ${
       snapshot.cdn?.fills ?? 0
-    } · TTL: ${snapshot.cdn?.ttlTicks ?? 10}t`,
+    } · TTL: ${snapshot.cdn?.ttlTicks ?? DEFAULT_TTL_TICKS}t`,
     cdnEntries: snapshot.cdn?.ledger ?? [],
     routerStatsLabel: snapshot.router
       ? `Router ${snapshot.router.address} ⇄ ${snapshot.router.rightAddress} · Routed: ${snapshot.router.routed}`

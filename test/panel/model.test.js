@@ -166,7 +166,7 @@ describe('describeSnapshot', () => {
     );
     expect(state).toEqual({
       address: '10.1',
-      serviceRatePerTick: 4,
+      serviceRate: 4,
       queueDepth: 1,
       queuedRequests: ['10.2 -> GET /about'],
       servedTotal: 1,
