@@ -10,6 +10,66 @@
 # tokens_reasoning, tokens_cache_read, cost_usd, notes.
 
 entries:
+  - id: R2E-SNAPSHOT-ASSEMBLY
+    slice:
+      - SIM
+    name: >-
+      R2e engine snapshot-assembly extraction — buildEngineSnapshot(deps)
+      in js/sim/engine-snapshot.js; engine.js delegates one call and lands
+      at 260 (from the 300 cap); shape-stability pin guards the record
+    brief: docs/plans/2026-11-02-r2e-snapshot-assembly.md
+    agent: cheap
+    lead_model: opencode-go/glm-5.3-flash
+    agent_model: opencode-go/glm-5.3-flash
+    session_id: ses_e61b5825dffeoEhUK4FHsDTDQI
+    tokens_input: 82469
+    tokens_output: 6849
+    tokens_reasoning: 18276
+    tokens_cache_read: 1549312
+    cost_usd: 0
+    human_interventions: 0
+    agent_review_rounds: 1
+    guardrail_failures: 1
+    fix_commits: 0
+    defects_escaped: 0
+    notes: >-
+      R5e PULL-FORWARD slice (the engine-half of chunk-1's finding 1-07
+      recommendation) — motivated by the R2b/R2c/R2d engineered-at-cap
+      pattern: three slices each paid emergency lines into engine.js
+      (comment merge, CHECKS line, fabric collapse). Landed: 300 → 260
+      exactly (40 lines of headroom, ending the pattern); the new
+      engine-snapshot.js (89 lines) carries buildEngineSnapshot(deps)
+      taking the engine's live closure state explicitly — no engine-module
+      closures; every CHECKS/PINS comment moved WITH its code (the B-6
+      tallies' claim text intact per guard-claims); the registry import
+      moved to the new module (engine.js no longer imports buildRegistry).
+      Shape-stability pin landed in pool-truth.test.js (title byte-verbatim;
+      Object.keys contract on BOTH stage-1 and stage-2 engine snapshots —
+      31 keys, order captured live pre-extraction, guided by the brief's
+      list; the record's key order is now a named contract, not a habit).
+      Executor decisions per brief gap: (1) the deps list under-specified —
+      the verbatim body reads userPool.count/getBrowsers, traceMachine.
+      snapshot() and serverAddress; all three passed explicitly per the
+      capture-lead note; (2) clientBrowser kept SINGULAR (brief contract 1
+      said 'clientBrowsers' plural — the concrete closure name is singular;
+      no rename); (3) pool-truth.test.js had exactly ONE pre-existing pin,
+      not two (story refs corrected to the new pin + that one); (4)
+      prettier force-expands object calls one-prop-per-line — the ≤260
+      depot was paid via 4 comment-line merges (no claim paragraph
+      touched). 1 red gate: the executor's first edit cut a test 'it ()'
+      block's closing braces (old string too small) — caught by node
+      --check BEFORE any gate ran (self-caught, restored); the extractor
+      saw 1 red (a verify cycle at the post-extraction state? the session
+      log shows it as the red at the pre-commit step-2 gate), 0 defect
+      escapes. Step-3 lead probe: engine.js EXACTLY 260/260, engine-snapshot
+      .js 89/200, pool-truth 74; keys length 31 live, primaryFiles R2c
+      provenance verified; verify green (190 unit incl. the shape pin,
+      65 e2e, 10 guards). Note for the record: the ledger now carries ONE
+      running pattern — the R-series cap-pressure anxiety is retired for
+      engine.js; trace.js (283) stays for Stage R3's TRACE_VOCAB work,
+      with R5e's trace-half free to judge its own pressure after.
+      Executor ran per .opencode/agents/executor.md on the paid pinned
+      executor.
   - id: R2D-REGISTRY-READ-SIDE
     slice:
       - SIM

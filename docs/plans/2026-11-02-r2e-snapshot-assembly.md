@@ -84,5 +84,5 @@ lastExchange, lastMatchedRoute, lastFrame, clientBrowser }); }` — ONE
       pull-forward for the engine.js cap-pressure ledger).
 - [x] Step 2 (Executor sub-agent): cold implementation; `npm run verify`
       green; tick and commit.
-- [ ] Step 3 (Lead session): `npm run metrics:extract -- <sessionID>`,
+- [x] Step 3 (Lead session): `npm run metrics:extract -- ses_e61b5825dffeoEhUK4FHsDTDQI`, entry `R2E-SNAPSHOT-ASSEMBLY` appended, ticked, committed. Original contract: `npm run metrics:extract -- <sessionID>`,
       append entry `R2E-SNAPSHOT-ASSEMBLY`, tick, commit.
