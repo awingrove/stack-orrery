@@ -5,6 +5,7 @@
 // delegated to render.js.
 import { createEngine } from '../sim/engine.js';
 import { TICK_MS } from './model.js';
+import { DEFAULT_SERVICE_RATE } from '../sim/defaults.js';
 import { COMPONENT_SOURCE } from './inspector-source.js';
 import { $, els, render, renderInspector } from './render.js';
 import { addToJourney, relabelJourneyRun, getRunEntries } from './journey-log.js';
@@ -40,7 +41,7 @@ function createEngineFromControls() {
   return createEngine({
     seed: 42,
     users: Number($('users-slider').value),
-    serviceRate: 4,
+    serviceRate: DEFAULT_SERVICE_RATE,
     arrivalProb: 0.5,
     stage: currentStage,
   });

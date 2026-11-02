@@ -28,16 +28,18 @@ import { fabricForStage } from './engine-stage6.js';
 import { createBrowserSeatRegistry } from './browser-seat.js';
 import { createUsers } from './users.js';
 import { createTraceMachine } from './trace.js';
+import { DEFAULT_TTL_TICKS, DEFAULT_DNS_TTL_TICKS, DEFAULT_SERVICE_RATE } from './defaults.js';
+import { ROUTER_LEFT_ADDRESS, ROUTER_RIGHT_ADDRESS, CDN_ADDRESS } from './addresses.js';
 
 export function createEngine({
   seed = 42,
   users = 5,
-  serviceRate = 4,
+  serviceRate = DEFAULT_SERVICE_RATE,
   arrivalProb = 0.5,
   serverAddress = '10.1',
   stage = 1,
   backendAddresses = ['10.11', '10.12'],
-  ttlTicks = 10,
+  ttlTicks = DEFAULT_TTL_TICKS,
   cacheAddress = '10.20',
   replicationLagTicks = 3,
   dbPrimaryAddress = '10.30',
@@ -46,12 +48,11 @@ export function createEngine({
   workerAddress = '10.41',
   jobDurationTicks = 2,
   dnsAddress = '10.60',
-  dnsTtlTicks = 300,
-  routerLeftAddress = '10.65',
-  // Stage 6b: the CDN edge took 10.65's old 20-side seat (20.1), so the
-  // router re-seats to 20.254 and the edge registers at 20.1.
-  routerRightAddress = '20.254',
-  cdnAddress = '20.1',
+  dnsTtlTicks = DEFAULT_DNS_TTL_TICKS,
+  routerLeftAddress = ROUTER_LEFT_ADDRESS,
+  // Stage 6b seats live in addresses.js — the edge owns 20.1, the router re-seats to 20.254.
+  routerRightAddress = ROUTER_RIGHT_ADDRESS,
+  cdnAddress = CDN_ADDRESS,
   edgeTtlTicks = 10,
 } = {}) {
   if (typeof arrivalProb !== 'number' || arrivalProb < 0 || arrivalProb > 1) {

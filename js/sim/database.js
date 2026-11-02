@@ -21,17 +21,20 @@ const DEFAULT_ROWS = {
   '/about': 'This is the about page',
 };
 
+import { MINI_IP } from './addresses.js';
+import { DEFAULT_REPLICATION_LAG_TICKS } from './defaults.js';
+
 export function createDatabase({
   primaryAddress = '10.30',
   replicaAddress = '10.31',
-  replicationLagTicks = 3,
+  replicationLagTicks = DEFAULT_REPLICATION_LAG_TICKS,
   rows = DEFAULT_ROWS,
 } = {}) {
   for (const [name, address] of [
     ['primaryAddress', primaryAddress],
     ['replicaAddress', replicaAddress],
   ]) {
-    if (!/^\d+\.\d+$/.test(address)) {
+    if (!MINI_IP.test(address)) {
       throw new Error(`database: invalid mini-IP address ${name}=${address}`);
     }
   }

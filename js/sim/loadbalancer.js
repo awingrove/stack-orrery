@@ -22,7 +22,7 @@
 //
 // CHECKS: constructor rejects an invalid mini-IP address or an empty /
 // malformed backend pool so misconfigured topologies fail loud at boot.
-const MINI_IP = /^\d+\.\d+$/;
+import { MINI_IP } from './addresses.js';
 
 export function createLoadBalancer({
   address = '10.1',

@@ -24,9 +24,11 @@
 const DROPPED_NAME = 'example.com';
 const DROPPED_TARGET = '10.1';
 const CD_NAME = 'cd.example.com';
-const MINI_IP = /^\d+\.\d+$/;
 
-export function createDns({ address = '10.60', ttlTicks = 300 } = {}) {
+import { MINI_IP } from './addresses.js';
+import { DEFAULT_DNS_TTL_TICKS } from './defaults.js';
+
+export function createDns({ address = '10.60', ttlTicks = DEFAULT_DNS_TTL_TICKS } = {}) {
   if (!MINI_IP.test(address)) {
     throw new Error(`dns: invalid mini-IP address ${address}`);
   }

@@ -5,6 +5,7 @@
 // byte shape cannot drift between the plain and hosted machines. No DOM
 // here; the unit suite pins the sentences' shape through model.js.
 import { dbOpSentence } from './model-dbop.js';
+import { DEFAULT_REPLICATION_LAG_TICKS } from '../sim/defaults.js';
 
 const workerAddressOf = (snapshot) => snapshot.workerQueue?.workerAddress ?? '10.41';
 
@@ -53,7 +54,7 @@ export function stage5ChainParts(snapshot, from, serverAddress) {
     stale: t.dbStale,
     primary: db.primaryAddress ?? '10.30',
     replica: db.replicaAddress ?? '10.31',
-    lag: db.replicationLagTicks ?? 3,
+    lag: db.replicationLagTicks ?? DEFAULT_REPLICATION_LAG_TICKS,
     cacheAddress: snapshot.cache?.address ?? '10.20',
   });
   return [

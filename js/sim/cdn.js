@@ -19,9 +19,14 @@
 // dns.js expired-entry mirror), and a POST on a CDN name leaves
 // hits/misses/fills untouched with an absent ledger row — fill is only
 // ever called with pulled origin bytes.
-const MINI_IP = /^\d+\.\d+$/;
+import { MINI_IP, CDN_ADDRESS } from './addresses.js';
+import { DEFAULT_TTL_TICKS } from './defaults.js';
 
-export function createCdnEdge({ address = '20.1', ttlTicks = 10, originAddress = '10.1' } = {}) {
+export function createCdnEdge({
+  address = CDN_ADDRESS,
+  ttlTicks = DEFAULT_TTL_TICKS,
+  originAddress = '10.1',
+} = {}) {
   if (!MINI_IP.test(address)) {
     throw new Error(`cdn: invalid mini-IP address ${address}`);
   }

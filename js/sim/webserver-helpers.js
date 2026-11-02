@@ -7,6 +7,8 @@
 // clock, a cache, or a database. DEFAULT_FILES is the WebServer's stock
 // filesystem and rides the same seam: option data, not behavior.
 
+import { assertMiniIp } from './addresses.js';
+
 export const DEFAULT_FILES = {
   '/': 'Welcome to the home page',
   '/about': 'This is the about page',
@@ -16,9 +18,9 @@ export const DEFAULT_FILES = {
 // check, extracted with full-review finding 2-03: webserver.js was the one
 // component whose constructor accepted a non-mini-IP address silently —
 // cache.js, cdn.js, database.js, loadbalancer.js, queue.js, and dns.js
-// all validated theirs at construction. The regex shape follows the
-// network.js shared MINI_IP precedent. The serviceRate message keeps the
-// byte shape of the inline check it replaces.
+// all validated theirs at construction. The regex shape is the addresses.js
+// MINI_IP home; the 'webserver' label keeps the R1b message byte-identical,
+// and the serviceRate message keeps the inline check's byte shape.
 export function assertWebServerOptions({ address, serviceRate }) {
   if (!Number.isInteger(serviceRate) || serviceRate < 1) {
     throw new Error(`webserver: serviceRate must be a positive integer, got ${serviceRate}`);
@@ -29,11 +31,9 @@ export function assertWebServerOptions({ address, serviceRate }) {
   // throws at construction instead of constructing a server a network
   // must refuse to register. Named counter-example:
   // `createWebServer({ address: '10.1.1' })` throws — a dotted-quad-looking
-  // string is not a two-number mini-IP and is not silently coerced.
-  const MINI_IP = /^\d+\.\d+$/;
-  if (!MINI_IP.test(address)) {
-    throw new Error(`webserver: address must be a mini-IP, got ${address}`);
-  }
+  // string is not a two-number mini-IP and is not silently coerced; the
+  // delegating assert (addresses.js) keeps the R1b message byte-identical.
+  assertMiniIp(address, 'webserver');
 }
 
 export function parseRequest(request = 'GET /') {

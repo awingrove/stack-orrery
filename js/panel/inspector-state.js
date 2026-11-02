@@ -2,6 +2,21 @@
 // selectable component, all derived from the engine snapshot (nothing
 // faked). Split from inspector-source.js by responsibility
 // (guard-file-size); the code mirrors live in inspector-source.js.
+//
+// CHECKS (R2b): the numeric fallbacks read one home (js/sim/defaults.js)
+// and keep the `?? DEFAULT` shape — the sim's zero-state contract
+// (components absent by stage) is unchanged, and the fallbacks can no
+// longer drift from the numbers the sim factories construct with. The
+// webserver state's key is `serviceRate` — the sim option's own name (3-03
+// naming-drift paydown; the former `serviceRatePerTick` key is gone).
+import {
+  DEFAULT_TTL_TICKS,
+  DEFAULT_DNS_TTL_TICKS,
+  DEFAULT_REPLICATION_LAG_TICKS,
+  DEFAULT_JOB_DURATION_TICKS,
+  DEFAULT_SERVICE_RATE,
+} from '../sim/defaults.js';
+
 export function formatComponentState(snapshot, component, browserAddress = '10.2') {
   const build = STATE_BUILDERS[component];
   if (!build) throw new Error(`inspector-source: unknown component ${component}`);
@@ -153,7 +168,7 @@ const STATE_BUILDERS = {
   webserver: (snapshot) => {
     const base = {
       address: snapshot.serverAddress ?? '10.1',
-      serviceRatePerTick: 4,
+      serviceRate: snapshot.serviceRate ?? DEFAULT_SERVICE_RATE,
       queueDepth: snapshot.queueDepth,
       queuedRequests: (snapshot.queue ?? []).slice(0, 8).map((q) => `${q.from} -> ${q.request}`),
       servedTotal: snapshot.served,
@@ -173,7 +188,7 @@ const STATE_BUILDERS = {
   cache: (snapshot) => ({
     address: snapshot.cache?.address ?? '10.20',
     strategy: 'cache-aside',
-    ttlTicks: snapshot.cache?.ttlTicks ?? 10,
+    ttlTicks: snapshot.cache?.ttlTicks ?? DEFAULT_TTL_TICKS,
     hits: snapshot.cache?.hits ?? 0,
     misses: snapshot.cache?.misses ?? 0,
     sets: snapshot.cache?.sets ?? 0,
@@ -184,7 +199,7 @@ const STATE_BUILDERS = {
   database: (snapshot) => ({
     primaryAddress: snapshot.database?.primaryAddress ?? '10.30',
     replicaAddress: snapshot.database?.replicaAddress ?? '10.31',
-    replicationLagTicks: snapshot.database?.replicationLagTicks ?? 3,
+    replicationLagTicks: snapshot.database?.replicationLagTicks ?? DEFAULT_REPLICATION_LAG_TICKS,
     reads: snapshot.database?.reads ?? 0,
     writes: snapshot.database?.writes ?? 0,
     staleReads: snapshot.database?.staleReads ?? 0,
@@ -196,7 +211,7 @@ const STATE_BUILDERS = {
   workerqueue: (snapshot) => ({
     address: snapshot.workerQueue?.address ?? '10.40',
     workerAddress: snapshot.workerQueue?.workerAddress ?? '10.41',
-    jobDurationTicks: snapshot.workerQueue?.jobDurationTicks ?? 2,
+    jobDurationTicks: snapshot.workerQueue?.jobDurationTicks ?? DEFAULT_JOB_DURATION_TICKS,
     enqueued: snapshot.workerQueue?.enqueued ?? 0,
     completed: snapshot.workerQueue?.completed ?? 0,
     activeJob: snapshot.workerQueue?.activeJob ?? null,
@@ -206,7 +221,7 @@ const STATE_BUILDERS = {
   dns: (snapshot) => ({
     address: snapshot.dns?.address ?? '10.60',
     role: 'authoritative name server',
-    ttlTicks: snapshot.dns?.ttlTicks ?? 300,
+    ttlTicks: snapshot.dns?.ttlTicks ?? DEFAULT_DNS_TTL_TICKS,
     lookups: snapshot.dns?.lookups ?? 0,
     cachedHits: snapshot.dns?.cachedHits ?? 0,
     authoritative: snapshot.dns?.authoritative ?? 0,
@@ -225,7 +240,7 @@ const STATE_BUILDERS = {
     address: snapshot.cdn?.address ?? '20.1',
     originAddress: snapshot.cdn?.originAddress ?? '10.1',
     strategy: 'pull-through, GET-only',
-    ttlTicks: snapshot.cdn?.ttlTicks ?? 10,
+    ttlTicks: snapshot.cdn?.ttlTicks ?? DEFAULT_TTL_TICKS,
     hits: snapshot.cdn?.hits ?? 0,
     misses: snapshot.cdn?.misses ?? 0,
     fills: snapshot.cdn?.fills ?? 0,
