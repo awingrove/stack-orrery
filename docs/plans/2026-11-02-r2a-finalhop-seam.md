@@ -93,9 +93,9 @@ enqueued, nothing served` — built via `withHopPrefix(parts, 3)`, totals
 
 ## Ticks
 
-- [ ] Step 1 (Lead session): human design sign-off (2026-11-02; scope per
+- [x] Step 1 (Lead session): human design sign-off (2026-11-02; scope per
       the deep dive + the live post-R1a panel residue listed above).
-- [ ] Step 2 (Executor sub-agent): cold implementation, `npm run verify`
+- [x] Step 2 (Executor sub-agent): cold implementation, `npm run verify`
       green; tick and commit.
 - [ ] Step 3 (Lead session): `npm run metrics:extract -- <sessionID>`,
       append entry `R2A-FINALHOP-SEAM`, tick, commit.

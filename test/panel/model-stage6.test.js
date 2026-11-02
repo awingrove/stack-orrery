@@ -109,9 +109,10 @@ describe('describeSnapshot stage 6', () => {
       },
     };
     const labels = describeSnapshot(snap);
-    // totalHops stays the stage-6 map value (9); the trace-aware final hop
-    // for the host-less shape (8) is panel.js's traceFinalHop contract.
-    expect(labels.totalHops).toBe(9);
+    // R2a: totalHops is the shared helper's trace-aware read — the
+    // host-less shape (8) resolves the same way panel.js's journey labels
+    // did, one count surface across model and machines.
+    expect(labels.totalHops).toBe(8);
     expect(labels.hopStatus).toBe('Hop 1/8: Browser (10.2) emits "GET example.com/about"');
     const hopLabels = (hop, over = {}) =>
       describeSnapshot({ ...snap, trace: { ...snap.trace, hop, ...over } }).hopStatus;

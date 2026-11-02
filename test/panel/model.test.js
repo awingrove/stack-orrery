@@ -293,4 +293,100 @@ describe('describeSnapshot', () => {
     ].reduce((acc, [run, hop, label]) => orderJourneyEntries(acc, entry(run, hop, label)), []);
     expect(ordered.map((e) => e.label)).toEqual(['hop 1/4', 'hop 2/4', 'hop 3/4', 'hop 4/4']);
   });
+
+  // R2a parity: the panel narrates the all-down abort as its own 3-hop
+  // shape (submit + routed + the LB refusal card) with the helper-resolved
+  // denominator — the journey relabel rides the same total.
+  it('stage-2 refused run narrates the 3-hop abort (DL-3 counter-example: not the served ladder renumbered, no hop 4+/3 residue)', () => {
+    const snap = {
+      stage: 2,
+      tick: 3,
+      users: 5,
+      serverAddress: '10.1',
+      queueDepth: 0,
+      served: 0,
+      avgLatencyTicks: 0,
+      loadBalancer: null,
+      trace: {
+        hop: 3,
+        method: 'GET',
+        path: '/about',
+        request: 'GET /about',
+        targetServer: null,
+        refused: true,
+        response: null,
+        status: null,
+        body: null,
+        routeId: null,
+      },
+    };
+    const labels = describeSnapshot(snap);
+    expect(labels.totalHops).toBe(3);
+    expect(labels.hop).toBe(3);
+    expect(labels.hopStatus).toBe(
+      'Hop 3/3: LoadBalancer (10.1): connection refused — the pool is all-down, nothing enqueued, nothing served',
+    );
+    // Hops 1-2 keep the served ladder's opening sentences, retotaled 3.
+    const hopLabels = (hop) =>
+      describeSnapshot({ ...snap, trace: { ...snap.trace, hop } }).hopStatus;
+    expect(hopLabels(1)).toBe('Hop 1/3: Browser (10.2) emits "GET /about"');
+    expect(hopLabels(2)).toBe('Hop 2/3: Network (10.x) routes to LoadBalancer (10.1)');
+    // The abort is not a renumber of the served 5-hop story: nothing past
+    // hop 3 renders, and no queue/served/render sentence survives.
+    expect(hopLabels(4)).toBe('Idle — type a path and click Go or Step 1 Hop ->');
+    // No served-ladder residue in the refusal card itself: no wire arrow
+    // (the card is a `LoadBalancer (10.1): ...` line) and no render verb.
+    expect(labels.hopStatus).not.toContain('-> ');
+    expect(labels.hopStatus).not.toContain('rendered');
+  });
+
+  // R2a: stage 6 rides the same helper — an all-down run resolves the abort
+  // denominator from the trace (3), and the journey relabel the panel hands
+  // relabelJourneyRun is this same helper value (the machine-side abort is
+  // pinned in test/sim/engine.test.js).
+  it('describeSnapshot and the journey relabel resolve an all-down stage-6 run to the 3-hop abort denominator, not the nominal 9', () => {
+    const snap = {
+      stage: 6,
+      tick: 3,
+      users: 5,
+      serverAddress: '10.1',
+      queueDepth: 0,
+      served: 0,
+      avgLatencyTicks: 0,
+      dns: {
+        address: '10.60',
+        ttlTicks: 300,
+        lookups: 1,
+        cachedHits: 0,
+        authoritative: 1,
+        lastLookup: { name: 'example.com', status: 'AUTH', target: '10.1', atTick: 1 },
+        cache: [{ name: 'example.com', target: '10.1', expiresAtTick: 301, ttlRemaining: 300 }],
+      },
+      router: { address: '10.65', rightAddress: '20.254', routed: 0, lastCross: null },
+      trace: {
+        hop: 3,
+        method: 'GET',
+        path: '/about',
+        host: 'example.com',
+        dnsTarget: '10.1',
+        nx: false,
+        cdn: false,
+        request: 'GET /about',
+        targetServer: null,
+        refused: true,
+        response: null,
+        status: null,
+        body: null,
+        routeId: null,
+      },
+    };
+    const labels = describeSnapshot(snap);
+    expect(labels.totalHops).toBe(3);
+    expect(labels.hop).toBe(3);
+    // The abort story behind the answer keeps the helper's 3, not the 9.
+    expect(labels.hopStatus).toBe('Hop 3/3: Network (10.x) routes to LoadBalancer (10.1)');
+    expect(describeSnapshot({ ...snap, trace: { ...snap.trace, hop: 2 } }).hopStatus).toBe(
+      'Hop 2/3: DNS (10.60) -> Browser (10.2) answers 10.1',
+    );
+  });
 });

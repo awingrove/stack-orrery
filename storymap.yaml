@@ -6,7 +6,7 @@ meta:
     A runnable orrery of a web stack: simulated components driven by a
     discrete tick queue, making scaling dynamics visible instead of
     described.
-  last_updated: 2026-10-31
+  last_updated: 2026-11-02
 
 activities:
   - name: 'Stage 1 — Single server under load'
@@ -208,6 +208,19 @@ activities:
               - e2e: fault-console::should keep crowd sends refused while down and restore a 200 after toggle-back
               - e2e: fault-console::should verify the stage-1 recovery mission only after refusal and recovery
               - unit: test/panel/missions.test.js::the stage-1 recovery mission completes only after a refusal AND a served 200 — a refusal alone satisfies neither leg
+          - title: Narrate the stages 2-6 all-down aborts in the panel with the helper-resolved 3-hop denominator — the LB refusal card, no renumbered served ladder, no hop 4+/3 residue, and the journey relabel riding the same count surface
+            status: done
+            priority: high
+            tests:
+              - unit: 'test/panel/model.test.js::stage-2 refused run narrates the 3-hop abort (DL-3 counter-example: not the served ladder renumbered, no hop 4+/3 residue)'
+              - unit: test/panel/model-stage34.test.js::stage-3 and stage-4 refused runs narrate the 3-hop abort, not a renumbered served ladder
+              - unit: test/panel/model-stage5.test.js::stage-5 refused run narrates the 3-hop abort with the worker ladder absent
+              - unit: test/panel/model.test.js::describeSnapshot and the journey relabel resolve an all-down stage-6 run to the 3-hop abort denominator, not the nominal 9
+          - title: Resolve every stage's final hop through one shared finalHop helper — the two trace machines and the panel count from one surface, with refusal aborts their own shape, not a renumber of the served ladder
+            status: done
+            priority: high
+            tests:
+              - unit: test/sim/final-hop.test.js::finalHop resolves the shape matrix — stage 1..5 nominal and refusal, stage-6 refusal/nx/cdn-HIT/MISS/host/host-less, and nominal for a null trace
 
   - name: 'Stage 2 — Load balancer and duplicated servers'
     tasks:

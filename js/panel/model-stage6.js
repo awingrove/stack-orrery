@@ -8,6 +8,7 @@
 // test/panel/model-stage6.test.js.
 import { withHopPrefix } from './model.js';
 import { stage5ChainParts } from './model-stage5-chain.js';
+import { finalHop } from '../sim/trace-helpers.js';
 
 // The CDN chain's sentences are the miss shape, rebranched on edgeStatus:
 // the ledger-fill sentence exists only on a MISS (named counter-example,
@@ -62,21 +63,23 @@ export function stage6Sentences(snapshot, from, serverAddress) {
   const parts = stage5ChainParts(snapshot, from, serverAddress);
   if (!t.host) {
     // Host-less counter-example: GET /about keeps the stage-5 story whole.
-    return withHopPrefix(parts, 8);
+    // The denominator is the shared helper's read (R2a: one count surface).
+    return withHopPrefix(parts, finalHop(6, t));
   }
   if (t.cdn) {
     // CHECKS: the CDN shapes count their own hops — 6 for an edge HIT, 9
     // for a MISS or non-GET pass-through (the pass-through rides the MISS
-    // shape's origin leg without touching the ledger).
-    return withHopPrefix(cdnChainParts(snapshot, from, t), t.edgeStatus === 'HIT' ? 6 : 9);
+    // shape's origin leg without touching the ledger). The helper resolves
+    // both from the trace's own edgeStatus.
+    return withHopPrefix(cdnChainParts(snapshot, from, t), finalHop(6, t));
   }
   const dnsAddress = snapshot.dns?.address ?? '10.60';
   const ask = `Browser (${from}) -> DNS (${dnsAddress}): who is ${t.host}?`;
   if (t.nx) {
     const answer = `DNS (${dnsAddress}) -> Browser (${from}): NX no record — no GET emitted`;
-    return withHopPrefix([ask, answer], 2);
+    return withHopPrefix([ask, answer], finalHop(6, t));
   }
   const answer = `DNS (${dnsAddress}) -> Browser (${from}) answers ${t.dnsTarget ?? '10.1'}`;
   // Hosted = 9 hops: ask + answer, then the stage-5 wire chain renumbered.
-  return withHopPrefix([ask, answer, ...parts.slice(1)], 9);
+  return withHopPrefix([ask, answer, ...parts.slice(1)], finalHop(6, t));
 }

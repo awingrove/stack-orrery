@@ -6,13 +6,9 @@
 import { stage6Sentences } from './model-stage6.js';
 import { stage5ChainParts } from './model-stage5-chain.js';
 import { dbOpSentence } from './model-dbop.js';
+import { finalHop } from '../sim/trace-helpers.js';
 export const TICK_MS = 100;
 const QUEUE_BAR_SATURATION = 20; // bar reads full at 20 queued requests
-// Total hops per stage's trace shape (trace.js, trace-stage6.js and
-// engine.traceHop agree). Stage 6's hosted shape is 9: the DNS ask + answer
-// plus the stage-5 chain's wire hops (its emit hop is the browser's
-// composition, not a wire frame).
-const TOTAL_HOPS = { 1: 4, 2: 5, 3: 6, 4: 7, 5: 8, 6: 9 };
 
 const HOP_START_SENTENCE = 'Idle — type a path and click Go or Step 1 Hop ->';
 
@@ -33,7 +29,9 @@ export const withHopPrefix = (parts, total) => parts.map((p, i) => `Hop ${i + 1}
 // shape: 4 hops in Stage 1 (emit, route, serve, render), 5 in Stage 2 (LB
 // round-robin pick), 6 in Stage 3 (cache check, then response emit), 7 in
 // Stage 4 (the database hop after the cache check), 8 in Stage 5, and the
-// stage-6 shapes above.
+// stage-6 shapes above. Every `Hop n/N` denominator resolves through the
+// shared finalHop helper (trace-helpers.js) so the panel readout and the
+// sim machines count from one surface.
 function hopSentences(stage, snapshot, from, serverAddress) {
   const t = snapshot.trace ?? {};
   const target = t.targetServer ?? '10.11';
@@ -49,56 +47,83 @@ function hopSentences(stage, snapshot, from, serverAddress) {
         `Browser (${from}) emits "${t.request}"`,
         `Network (10.x) -> WebServer (${serverAddress}): connection refused — nothing enqueued, nothing served`,
       ],
-      2,
+      finalHop(1, t),
+    );
+  }
+  if (stage >= 2 && stage <= 5 && t.refused) {
+    // CHECKS: R2a parity — stages 2-5 narrate the all-down abort as its own
+    // 3-hop shape: the submit + routed sentences the served ladder already
+    // opens with, plus the LB refusal card, totaled by finalHop(stage, t)
+    // (3). The refusal is not a renumber of the served ladder and there is
+    // no hop 4+/3 residue — pinned in test/panel/model.test.js (stage 2).
+    // Parity rule: the sim abort's final hop equals this panel total.
+    return withHopPrefix(
+      [
+        `Browser (${from}) emits "${t.request}"`,
+        `Network (10.x) routes to LoadBalancer (${serverAddress})`,
+        'LoadBalancer (10.1): connection refused — the pool is all-down, nothing enqueued, nothing served',
+      ],
+      finalHop(stage, t),
     );
   }
   if (stage === 5) {
-    return withHopPrefix(stage5ChainParts(snapshot, from, serverAddress), 8);
+    return withHopPrefix(stage5ChainParts(snapshot, from, serverAddress), finalHop(5, t));
   }
   if (stage === 4) {
     const db = snapshot.database ?? null;
-    const dbSentence = `Hop 5/7: ${dbOpSentence(t.dbOp, {
-      stale: t.dbStale,
-      primary: db?.primaryAddress ?? '10.30',
-      replica: db?.replicaAddress ?? '10.31',
-      lag: db?.replicationLagTicks ?? 3,
-      cacheAddress: '10.20',
-    })}`;
-    return [
-      `Hop 1/7: Browser (${from}) emits "${t.request}"`,
-      `Hop 2/7: Network (10.x) routes to LoadBalancer (${serverAddress})`,
-      `Hop 3/7: LoadBalancer (${serverAddress}) -> ${target} queue`,
-      `Hop 4/7: WebServer (${target}) checks Cache (10.20) — ${t.cacheStatus}`,
-      dbSentence,
-      `Hop 6/7: WebServer (${target}) -> "${t.response}" (cache ${t.cacheStatus})`,
-      `Hop 7/7: Browser (${from}) rendered ${t.status}`,
-    ];
+    return withHopPrefix(
+      [
+        `Browser (${from}) emits "${t.request}"`,
+        `Network (10.x) routes to LoadBalancer (${serverAddress})`,
+        `LoadBalancer (${serverAddress}) -> ${target} queue`,
+        `WebServer (${target}) checks Cache (10.20) — ${t.cacheStatus}`,
+        dbOpSentence(t.dbOp, {
+          stale: t.dbStale,
+          primary: db?.primaryAddress ?? '10.30',
+          replica: db?.replicaAddress ?? '10.31',
+          lag: db?.replicationLagTicks ?? 3,
+          cacheAddress: '10.20',
+        }),
+        `WebServer (${target}) -> "${t.response}" (cache ${t.cacheStatus})`,
+        `Browser (${from}) rendered ${t.status}`,
+      ],
+      finalHop(4, t),
+    );
   }
   if (stage === 3) {
-    return [
-      `Hop 1/6: Browser (${from}) emits "${t.request}"`,
-      `Hop 2/6: Network (10.x) routes to LoadBalancer (${serverAddress})`,
-      `Hop 3/6: LoadBalancer (${serverAddress}) -> ${target} queue`,
-      `Hop 4/6: WebServer (${target}) checks Cache (10.20) — ${t.cacheStatus}`,
-      `Hop 5/6: WebServer (${target}) -> "${t.response}" (cache ${t.cacheStatus})`,
-      `Hop 6/6: Browser (${from}) rendered ${t.status}`,
-    ];
+    return withHopPrefix(
+      [
+        `Browser (${from}) emits "${t.request}"`,
+        `Network (10.x) routes to LoadBalancer (${serverAddress})`,
+        `LoadBalancer (${serverAddress}) -> ${target} queue`,
+        `WebServer (${target}) checks Cache (10.20) — ${t.cacheStatus}`,
+        `WebServer (${target}) -> "${t.response}" (cache ${t.cacheStatus})`,
+        `Browser (${from}) rendered ${t.status}`,
+      ],
+      finalHop(3, t),
+    );
   }
   if (stage === 2) {
-    return [
-      `Hop 1/5: Browser (${from}) emits "${t.request}"`,
-      `Hop 2/5: Network (10.x) routes to LoadBalancer (${serverAddress})`,
-      `Hop 3/5: LoadBalancer (${serverAddress}) -> ${target} queue`,
-      `Hop 4/5: WebServer (${target}) -> "${t.response}"`,
-      `Hop 5/5: Browser (${from}) rendered ${t.status}`,
-    ];
+    return withHopPrefix(
+      [
+        `Browser (${from}) emits "${t.request}"`,
+        `Network (10.x) routes to LoadBalancer (${serverAddress})`,
+        `LoadBalancer (${serverAddress}) -> ${target} queue`,
+        `WebServer (${target}) -> "${t.response}"`,
+        `Browser (${from}) rendered ${t.status}`,
+      ],
+      finalHop(2, t),
+    );
   }
-  return [
-    `Hop 1/4: Browser (${from}) emits "${t.request}"`,
-    `Hop 2/4: Network (10.x) routes to ${serverAddress} queue`,
-    `Hop 3/4: WebServer (${serverAddress}) -> "${t.response}"`,
-    `Hop 4/4: Browser (${from}) rendered ${t.status}`,
-  ];
+  return withHopPrefix(
+    [
+      `Browser (${from}) emits "${t.request}"`,
+      `Network (10.x) routes to ${serverAddress} queue`,
+      `WebServer (${serverAddress}) -> "${t.response}"`,
+      `Browser (${from}) rendered ${t.status}`,
+    ],
+    finalHop(1, t),
+  );
 }
 
 function formatHopStatus(snapshot, serverAddress) {
@@ -182,7 +207,10 @@ export function describeSnapshot(snapshot) {
   const servedPerTick = snapshot.tick > 0 ? (snapshot.served ?? 0) / snapshot.tick : 0;
   return {
     stage,
-    totalHops: TOTAL_HOPS[stage] ?? 4,
+    // R2a: one count surface — the total is the shared finalHop helper's
+    // trace-aware read (a refused stage 2-6 run resolves to its 3-hop
+    // abort, an NX stage-6 run to 2), not a fixed per-stage map.
+    totalHops: finalHop(stage, snapshot.trace),
     tick: String(snapshot.tick),
     users: String(snapshot.users),
     queueDepth: String(snapshot.queueDepth),

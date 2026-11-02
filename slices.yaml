@@ -125,6 +125,7 @@ slices:
       - unit: "test/sim/engine.test.js::the stage-6 all-down refusal frame is byte-identical to the stage-2 machine's for the same request"
       - unit: test/sim/engine.test.js::a one-down stage-6 pool narrates the crossed seat in the LB frame
       - unit: test/sim/engine.test.js::the stage-6 trace record exposes the same refused vocabulary as stages 1-5
+      - unit: test/sim/final-hop.test.js::finalHop resolves the shape matrix — stage 1..5 nominal and refusal, stage-6 refusal/nx/cdn-HIT/MISS/host/host-less, and nominal for a null trace
     entry_point: n/a (engine logic; rendered by PANEL-1)
 
   - id: PANEL
@@ -269,6 +270,10 @@ slices:
       - e2e: fault-console-stage5::should crash the worker from the rail console and watch async jobs wait, then re-deliver
       - e2e: fault-console-stage5::should narrate the crashed worker without ever faking a commit
       - e2e: fault-console-stage5::should verify the stage-5 re-delivery mission only after crash and restore
+      - unit: 'test/panel/model.test.js::stage-2 refused run narrates the 3-hop abort (DL-3 counter-example: not the served ladder renumbered, no hop 4+/3 residue)'
+      - unit: test/panel/model-stage34.test.js::stage-3 and stage-4 refused runs narrate the 3-hop abort, not a renumbered served ladder
+      - unit: test/panel/model-stage5.test.js::stage-5 refused run narrates the 3-hop abort with the worker ladder absent
+      - unit: test/panel/model.test.js::describeSnapshot and the journey relabel resolve an all-down stage-6 run to the 3-hop abort denominator, not the nominal 9
     entry_point: index.html -> Diagram Panel link
 
 allowlist:

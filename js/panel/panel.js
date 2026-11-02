@@ -17,6 +17,7 @@ import { initTeachingDrawer, renderTeaching } from './teaching-drawer.js';
 import { initFaultConsole } from './fault-console.js';
 import { readDeepLink, syncUrlState } from './url-state.js';
 import { initRail } from './rail.js';
+import { finalHop } from '../sim/trace-helpers.js';
 
 // Stage-6 topology DOM (DNS/Router cards, wire columns, inspector tabs) is
 // injected before the wiring loops below so every getElementById resolves.
@@ -30,29 +31,10 @@ let currentSnapshot = null;
 // The browser currently expanded into #node-browser (mini-IP on Ring 3);
 // every other browser renders as a compact clickable node in its slot.
 let activeBrowserAddress = '10.2';
-// Total hops per stage's trace shape; trace.js, trace-stage6.js and
-// model.js's labels agree (stage 6's hosted shape: ask + answer + the
-// stage-5 wire chain = 9).
-const TOTAL_HOPS = { 1: 4, 2: 5, 3: 6, 4: 7, 5: 8, 6: 9 };
-
-const totalHopsFor = (stage) => TOTAL_HOPS[stage] ?? TOTAL_HOPS[1];
-
-// CHECKS: the live final hop reads from the trace itself — stage 6's shape
-// is (nx ? 2 : cdn ? (edgeStatus === 'HIT' ? 6 : 9) : host ? 9 : 8)
-// (mirroring trace-stage6.js), so a host-less trace stops at its normal
-// stage-5 count, an NX answer stops at the answer hop, and a CDN GET stops
-// at 6 only after the answer proved an edge HIT. Stage-1's B-6 refused
-// shape stops at the deliver hop (2), mirroring trace.js. Other stages use
-// TOTAL_HOPS.
-const traceFinalHop = (snapshot, stage) => {
-  if (snapshot.stage === 1 && snapshot.trace?.refused) return 2;
-  if (snapshot.stage === 6 && snapshot.trace) {
-    if (snapshot.trace.nx) return 2;
-    if (snapshot.trace.cdn) return snapshot.trace.edgeStatus === 'HIT' ? 6 : 9;
-    return snapshot.trace.host ? 9 : 8;
-  }
-  return totalHopsFor(stage);
-};
+// R2a: every hop denominator and per-hop break resolves through the shared
+// finalHop helper (trace-helpers.js) — the local TOTAL_HOPS /
+// totalHopsFor / traceFinalHop tables are gone, so a refusal abort reads
+// its 3-hop shape here exactly as the sim machines do.
 
 function createEngineFromControls() {
   return createEngine({
@@ -164,7 +146,7 @@ function stepOneHop() {
     path: els.urlInput.value,
     from: activeBrowserAddress,
   });
-  const totalHops = traceFinalHop(snapshot, snapshot.stage);
+  const totalHops = finalHop(snapshot.stage, snapshot.trace);
   // PINS: hop 1 emission starts a new trace run — that run (whole, hops
   // ascending) floats above the previous run in #journey-log.
   // CHECKS: when the trace's final hop lands, the run's stored labels are
@@ -175,7 +157,7 @@ function stepOneHop() {
     run: traceRunId,
     hop: snapshot.trace.hop,
   });
-  if (snapshot.trace.hop === traceFinalHop(snapshot, snapshot.stage)) {
+  if (snapshot.trace.hop === finalHop(snapshot.stage, snapshot.trace)) {
     relabelJourneyRun(traceRunId, totalHops);
     pushTraceRun(traceRunId, snapshot.trace, getRunEntries(traceRunId)); // B-5 snapshot
   }
@@ -189,15 +171,18 @@ $('btn-play-request').addEventListener('click', () => {
   if (timer) pause();
   const iv = setInterval(() => {
     const snapshot = stepOneHop();
-    if (snapshot.trace.hop === traceFinalHop(snapshot, currentStage)) clearInterval(iv);
+    if (snapshot.trace.hop === finalHop(currentStage, snapshot.trace)) clearInterval(iv);
   }, TICK_MS);
 });
 
 $('btn-url-go').addEventListener('click', () => {
   if (timer) pause();
-  for (let i = 0; i < totalHopsFor(currentStage) + 1; i += 1) {
+  // The sweep paces to the stage's NOMINAL hop count (the healthy-path
+  // shape); the per-hop break resolves the live shape instead, so an
+  // all-down abort stops at its own 3-hop final hop instead of replaying.
+  for (let i = 0; i < finalHop(currentStage) + 1; i += 1) {
     const snapshot = stepOneHop();
-    if (snapshot.trace.hop === traceFinalHop(snapshot, currentStage)) break;
+    if (snapshot.trace.hop === finalHop(currentStage, snapshot.trace)) break;
   }
 });
 
