@@ -229,4 +229,55 @@ describe('describeSnapshot — Stage 3/4 traces', () => {
     expect(networkState.interfaces['10.30']).toBe('Database (Primary)');
     expect(networkState.interfaces['10.31']).toBe('Database (Replica)');
   });
+
+  // R2a parity: an all-down pool aborts the stage-3 and stage-4 stories at
+  // the LB hop as their own 3-hop shape — the served ladders (6 and 7
+  // hops) stay out of the narration entirely.
+  it('stage-3 and stage-4 refused runs narrate the 3-hop abort, not a renumbered served ladder', () => {
+    const refused = (stage) => ({
+      stage,
+      tick: 3,
+      users: 5,
+      serverAddress: '10.1',
+      queueDepth: 0,
+      served: 0,
+      avgLatencyTicks: 0,
+      trace: {
+        hop: 3,
+        method: 'GET',
+        path: '/about',
+        request: 'GET /about',
+        targetServer: null,
+        refused: true,
+        response: null,
+        status: null,
+        body: null,
+        routeId: null,
+      },
+    });
+    for (const stage of [3, 4]) {
+      const labels = describeSnapshot(refused(stage));
+      expect(labels.totalHops).toBe(3);
+      expect(labels.hop).toBe(3);
+      expect(labels.hopStatus).toBe(
+        'Hop 3/3: LoadBalancer (10.1): connection refused — the pool is all-down, nothing enqueued, nothing served',
+      );
+      expect(
+        describeSnapshot({ ...refused(stage), trace: { ...refused(stage).trace, hop: 1 } })
+          .hopStatus,
+      ).toBe('Hop 1/3: Browser (10.2) emits "GET /about"');
+      expect(
+        describeSnapshot({ ...refused(stage), trace: { ...refused(stage).trace, hop: 2 } })
+          .hopStatus,
+      ).toBe('Hop 2/3: Network (10.x) routes to LoadBalancer (10.1)');
+      // Nothing past hop 3 renders — no cache, no database, no render verb.
+      expect(
+        describeSnapshot({ ...refused(stage), trace: { ...refused(stage).trace, hop: 4 } })
+          .hopStatus,
+      ).toBe('Idle — type a path and click Go or Step 1 Hop ->');
+      expect(describeSnapshot(refused(stage)).hopStatus).not.toContain('Cache');
+      expect(describeSnapshot(refused(stage)).hopStatus).not.toContain('Database');
+      expect(describeSnapshot(refused(stage)).hopStatus).not.toContain('rendered');
+    }
+  });
 });

@@ -26,7 +26,9 @@
 // the fill ledger in 6 hops (edge HIT with the ledger's own bytes, the
 // response's reverse crossing — `routed` +1 — then the render); a MISS
 // pulls the origin through the Router in the 9-hop shape (real Router pull
-// whose left-network delivery is the LB queueing it narrates, a real
+// whose LB landing narrates through the shared `lbEnqueueHop` — the R1a
+// shared hop, aborted-with-card on an all-down pool via the helper's
+// refusal branch), a real
 // `drainUntilYou` so the origin's cache-aside status rides the frame, then
 // the real `fill` + the reverse crossing + the render). A non-GET does
 // not touch the edge ledger: it rides the MISS shape minus the fill (named
@@ -42,6 +44,7 @@ import {
   serveCacheSuffix,
   workerTailFrame,
   lbEnqueueHop,
+  finalHop,
 } from './trace-helpers.js';
 
 const subnetOf = (address) => String(address).split('.')[0];
@@ -89,6 +92,10 @@ export function createStage6Trace({
     onServe,
     onFinish,
     getTrace: () => trace,
+    // R2a reopen: the MISS pull's LB hop lives in cdn-chain.js now, so the
+    // refusal callback reaches the shared helper there too — an all-down
+    // pool cards the browser exactly as the stage-5 chain's hop does.
+    onRefusal,
   });
 
   function freshTrace() {
@@ -181,26 +188,16 @@ export function createStage6Trace({
 
   return {
     step({ method = 'GET', path = '/about', from = '10.2' } = {}) {
-      // Final hop count comes from the live trace shape: 3 once the walk
-      // hit a refusal (R1a: the LB-hop refusal aborts the story, mirroring
-      // trace.js's refusal-informed final hop — the next emission restarts
-      // fresh through the existing hop >= finalHop path), 2 once the answer
-      // says NX, 6 for a CDN GET served from the edge ledger (HIT), 9 for a
-      // CDN MISS or non-GET pass-through, 9 for other hosted paths, 8
-      // host-less.
-      const finalHop = trace.refused
-        ? 3
-        : trace.nx
-          ? 2
-          : trace.cdn
-            ? trace.edgeStatus === 'HIT'
-              ? 6
-              : 9
-            : trace.host
-              ? 9
-              : 8;
+      // Final hop count comes from the shared helper (trace-helpers.js R2a
+      // seam): 3 once the walk hit a refusal (R1a: the LB-hop refusal
+      // aborts the story, mirroring trace.js's refusal-informed final hop —
+      // the next emission restarts fresh through the existing
+      // hop >= lastHop path), 2 once the answer says NX, 6 for a CDN GET
+      // served from the edge ledger (HIT), 9 for a CDN MISS or non-GET
+      // pass-through, 9 for other hosted paths, 8 host-less.
+      const lastHop = finalHop(6, trace);
       let frame;
-      if (trace.hop === 0 || trace.hop >= finalHop) {
+      if (trace.hop === 0 || trace.hop >= lastHop) {
         // Emission parses the typed path into host + resource path on the
         // first slash — 'example.com/about' is hosted; '/about' is not —
         // but is itself NO wire hop on a hosted path. CHECKS: the browser's

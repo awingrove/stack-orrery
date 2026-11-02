@@ -109,9 +109,10 @@ describe('describeSnapshot stage 6', () => {
       },
     };
     const labels = describeSnapshot(snap);
-    // totalHops stays the stage-6 map value (9); the trace-aware final hop
-    // for the host-less shape (8) is panel.js's traceFinalHop contract.
-    expect(labels.totalHops).toBe(9);
+    // R2a: totalHops is the shared helper's trace-aware read — the
+    // host-less shape (8) resolves the same way panel.js's journey labels
+    // did, one count surface across model and machines.
+    expect(labels.totalHops).toBe(8);
     expect(labels.hopStatus).toBe('Hop 1/8: Browser (10.2) emits "GET example.com/about"');
     const hopLabels = (hop, over = {}) =>
       describeSnapshot({ ...snap, trace: { ...snap.trace, hop, ...over } }).hopStatus;
@@ -169,6 +170,124 @@ describe('describeSnapshot stage 6', () => {
     expect(networkState.interfaces['10.65']).toBe('Router (left)');
     expect(networkState.interfaces['20.254']).toBe('Router (right)');
     expect(networkState.interfaces['20.1']).toBe('CDN edge');
+  });
+
+  // PINS (R2a reopen): the three stage-6 refusal shapes — host-less 3,
+  // hosted 4, cdn 6 — each ending on the shared LB card with its own
+  // totals, no replay of the served ladder behind any of them (parity with
+  // the engine walks pinned in test/sim/final-hop.test.js).
+  it("the three stage-6 refusal panel shapes (host-less / hosted / cdn) with the LB card and the shape's own totals", () => {
+    const refusedCard =
+      'LoadBalancer (10.1): connection refused — the pool is all-down, nothing enqueued, nothing served';
+    const refused = (over) => ({
+      ...baseSnapshot,
+      trace: {
+        ...baseSnapshot.trace,
+        nx: false,
+        refused: true,
+        targetServer: null,
+        response: null,
+        status: null,
+        body: null,
+        routeId: null,
+        ...over,
+      },
+    });
+
+    // Host-less: emit, routed, card — 3.
+    const hostLess = describeSnapshot(
+      refused({ hop: 3, host: null, dnsTarget: null, request: 'GET /about', path: '/about' }),
+    );
+    expect(hostLess.totalHops).toBe(3);
+    expect(hostLess.hopStatus).toBe(`Hop 3/3: ${refusedCard}`);
+    expect(describeSnapshot(refused({ hop: 1, host: null, request: 'GET /about' })).hopStatus).toBe(
+      'Hop 1/3: Browser (10.2) emits "GET /about"',
+    );
+    expect(describeSnapshot(refused({ hop: 2, host: null, request: 'GET /about' })).hopStatus).toBe(
+      'Hop 2/3: Network (10.x) routes to LoadBalancer (10.1)',
+    );
+
+    // Hosted: ask, answer, routed, card — 4.
+    const labels = describeSnapshot(refused({ hop: 4 }));
+    expect(labels.totalHops).toBe(4);
+    expect(labels.hopStatus).toBe(`Hop 4/4: ${refusedCard}`);
+    expect(describeSnapshot(refused({ hop: 3 })).hopStatus).toBe(
+      'Hop 3/4: Network (10.x) routes to LoadBalancer (10.1)',
+    );
+    expect(describeSnapshot(refused({ hop: 1 })).hopStatus).toBe(
+      'Hop 1/4: Browser (10.2) -> DNS (10.60): who is example.com?',
+    );
+    expect(describeSnapshot(refused({ hop: 2 })).hopStatus).toBe(
+      'Hop 2/4: DNS (10.60) -> Browser (10.2) answers 10.1',
+    );
+    // No served-ladder residue: nothing past the card renders.
+    expect(describeSnapshot(refused({ hop: 5 })).hopStatus).toBe(
+      'Idle — type a path and click Go or Step 1 Hop ->',
+    );
+
+    // CDN: ask, answer, forward, MISS announce, pull, card — 6.
+    const cdnRefused = describeSnapshot({
+      ...baseSnapshot,
+      cdn: { address: '20.1', originAddress: '10.1', ttlTicks: 10, ledger: [] },
+      trace: {
+        ...baseSnapshot.trace,
+        hop: 6,
+        host: 'cd.example.com',
+        dnsTarget: '20.1',
+        cdn: true,
+        edgeStatus: 'MISS',
+        request: 'GET /about',
+        path: '/about',
+        refused: true,
+        targetServer: null,
+        response: null,
+        status: null,
+        body: null,
+        routeId: null,
+      },
+    });
+    const cdnHops = (hop) =>
+      describeSnapshot({
+        ...baseSnapshot,
+        cdn: { address: '20.1', originAddress: '10.1', ttlTicks: 10, ledger: [] },
+        trace: {
+          ...baseSnapshot.trace,
+          hop,
+          host: 'cd.example.com',
+          dnsTarget: '20.1',
+          cdn: true,
+          edgeStatus: 'MISS',
+          request: 'GET /about',
+          path: '/about',
+          refused: true,
+          targetServer: null,
+          response: null,
+          status: null,
+          body: null,
+          routeId: null,
+        },
+      }).hopStatus;
+    expect(cdnRefused.totalHops).toBe(6);
+    expect(cdnHops(1)).toBe('Hop 1/6: Browser (10.2) -> DNS (10.60): who is cd.example.com?');
+    expect(cdnHops(2)).toBe('Hop 2/6: DNS (10.60) -> Browser (10.2) answers 20.1');
+    expect(cdnHops(3)).toBe(
+      'Hop 3/6: Browser (10.2) -> Router (10.65): GET /about to 20.1 (one router hop)',
+    );
+    expect(cdnHops(4)).toBe(
+      'Hop 4/6: CDN edge (20.1): MISS on /about — pulling origin 10.1 via the Router',
+    );
+    expect(cdnHops(5)).toBe(
+      'Hop 5/6: CDN edge (20.1) -> LoadBalancer (10.1): GET /about (edge pull via router)',
+    );
+    expect(cdnHops(6)).toBe(`Hop 6/6: ${refusedCard}`);
+    // The card is a plain name line — no wire arrow, no render verb.
+    expect(cdnHops(6)).not.toContain('->');
+    expect(cdnHops(6)).not.toContain('rendered');
+    // No served-ladder residue: the queue row, the serve, and the fill all
+    // stay off the aborted walk.
+    const all = [cdnHops(4), cdnHops(5), cdnHops(6)].join(' ');
+    expect(all).not.toContain('10.11 queue');
+    expect(all).not.toContain('filled');
   });
 
   describe('stage 6b CDN trace sentences', () => {

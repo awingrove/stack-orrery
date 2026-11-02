@@ -94,11 +94,12 @@ export function createTraceMachine({
     // delivery ends the stage-1 story at the deliver hop (2), a refused LB
     // hop (B-6b all-down) ends at 3; the served shape walks to the final hop.
     step({ method = 'GET', path = '/about', from = '10.2' } = {}) {
-      const finalStageHop =
-        stage === 5 ? 8 : stage === 4 ? 7 : stage === 3 ? 6 : stage === 2 ? 5 : 4;
-      const finalHop = trace.refused ? (stage === 1 ? 2 : 3) : finalStageHop;
+      // R2a: the final hop comes from the shared helper (trace-helpers.js):
+      // the nominal ladder and the refusal shapes are one count surface for
+      // both machines, and the `hop >= lastHop` exit stays.
+      const lastHop = hops.finalHop(stage, trace);
       let frame = null;
-      if (trace.hop === 0 || trace.hop >= finalHop) {
+      if (trace.hop === 0 || trace.hop >= lastHop) {
         const request = `${method} ${path}`;
         trace = {
           ...freshTrace(),

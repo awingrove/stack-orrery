@@ -10,6 +10,68 @@
 # tokens_reasoning, tokens_cache_read, cost_usd, notes.
 
 entries:
+  - id: R2A-FINALHOP-SEAM
+    slice:
+      - SIM
+      - PANEL
+    name: >-
+      R2a finalHop shared seam + panel refusal parity — one count surface
+      across sim machines + panel (TOTAL_HOPS ×2, totalHopsFor, traceFinalHop
+      deleted), stage-2..6 refusal shapes, cdn-chain pull consume
+      (full-review findings 3-05 + 5-03 paydown)
+    brief: docs/plans/2026-11-02-r2a-finalhop-seam.md
+    agent: cheap
+    lead_model: opencode-go/glm-5.3-flash
+    agent_model: opencode-go/glm-5.3-flash
+    session_id: >-
+      ses_e63b9bae7ffextCakwCwUUid2R (Step 2 base);
+      ses_e63a3bd39ffeNGuu6imravHr9i (Step 2 reopen round)
+    tokens_input: 219496
+    tokens_output: 16462
+    tokens_reasoning: 47257
+    tokens_cache_read: 6386560
+    cost_usd: 0
+    human_interventions: 0
+    agent_review_rounds: 1
+    guardrail_failures: 4
+    fix_commits: 0
+    defects_escaped: 0
+    notes: >-
+      Third review-paydown slice (Stage R2a; two executor sessions recorded:
+      base + reopen; base-session telemetry listed second in the
+      import-notes; reopen telemetry THIS block; base: 172k in / 18k out /
+      21k reasoning / 6.4M cache / 2 red). STEP 2 REOPENED (2026-11-02): the
+      Step-3 lead probe found two shape-family behaviors the brief's
+      contracts missed — (a) HOSTED all-down narrated the refusal at hop 4
+      while the helper declared 3 (hop 4/3 denominator + restart that
+      wouldn't let the story rest); (b) CDN-MISS all-down narrated
+      `LB 10.1 -> null (GET /about) queued` — finding 1-01's phantom alive on
+      the branch R1a didn't reach (refused never set). Brief-authoring note:
+      the walk-scope probe list missed hosted + cdn all-down shapes — the
+      lead's authoring gap (the same class the full review surfaced with
+      R1a's host-ness correction). REOPEN CONTRACTS landed: (1) hardened
+      stage-6 helper tree — refusal cases cdn → 6, host → 4, host-less → 3;
+      (2) cdn-chain's pull-side LB narration consumes the shared
+      `lbEnqueueHop` finding (trace chain narrates via the refusal card →
+      no `LB -> null` narration, refused aborts clean); (3) hopSentences
+      stage-6 refusal sentences per-shape (host-less 3, hosted 4, cdn 6)
+      composed through withHopPrefix + finalHop; (4) final-hop.test.js
+      engine-walk matrix pin plus the panel refusal-shape pins in
+      model-stage6.test.js / model.test.js. Red gates per executor report:
+      2 base round (prettier YAML + guard-claims form) + 2 reopen round
+      (npm run unit — three executor assertion mistakes incl. one substring
+      collision; guard-claims — CHECKS (…) tag format + a bare 'never' in a
+      comment — both fixed per the named cause); total 4 across both
+      sessions. Step-3 lead acceptance probe green, live: hosted all-down
+      narrates the refusal card at hop 4 and RESTARTS rest-clean (next
+      traceHop → new ask, no phantom walk); cdn all-down narrates the
+      refusal card at hop 6 and restarts rest-clean (no `LB -> null`
+      narration; refused values set); helper + machinery agree on the
+      landing hops (3 / 4 / 6); healthy-path frames byte-identical (9-hop
+      CDN walk pinned). No prod file exceeded 300 (trace-helpers 174,
+      trace.js 281, trace-stage6.js 257, model.js 278, panel.js 270).
+      Executor ran per .opencode/agents/executor.md on the paid pinned
+      executor (both sessions).
   - id: R6A-GUARD-HYGIENE-SUITE
     slice:
       - SIM

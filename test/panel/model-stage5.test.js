@@ -194,4 +194,60 @@ describe('describeSnapshot', () => {
         .hopStatus,
     ).toBe('Hop 4/8: Database SKIP — warm cache HIT (10.20)');
   });
+
+  // R2a parity: the stage-5 abort is its own 3-hop shape — the async
+  // worker ladder (enqueue lane, 202 story, worker tail) stays out of the
+  // narration entirely.
+  it('stage-5 refused run narrates the 3-hop abort with the worker ladder absent', () => {
+    const snap = {
+      stage: 5,
+      tick: 3,
+      users: 5,
+      serverAddress: '10.1',
+      queueDepth: 0,
+      served: 0,
+      avgLatencyTicks: 0,
+      workerQueue: {
+        address: '10.40',
+        workerAddress: '10.41',
+        jobDurationTicks: 2,
+        enqueued: 0,
+        completed: 0,
+        activeJob: null,
+        pendingJobs: [],
+        lastJobResult: null,
+      },
+      trace: {
+        hop: 3,
+        method: 'GET',
+        path: '/about',
+        request: 'GET /about',
+        targetServer: null,
+        refused: true,
+        response: null,
+        status: null,
+        body: null,
+        routeId: null,
+      },
+    };
+    const labels = describeSnapshot(snap);
+    expect(labels.totalHops).toBe(3);
+    expect(labels.hop).toBe(3);
+    expect(labels.hopStatus).toBe(
+      'Hop 3/3: LoadBalancer (10.1): connection refused — the pool is all-down, nothing enqueued, nothing served',
+    );
+    expect(describeSnapshot({ ...snap, trace: { ...snap.trace, hop: 1 } }).hopStatus).toBe(
+      'Hop 1/3: Browser (10.2) emits "GET /about"',
+    );
+    expect(describeSnapshot({ ...snap, trace: { ...snap.trace, hop: 2 } }).hopStatus).toBe(
+      'Hop 2/3: Network (10.x) routes to LoadBalancer (10.1)',
+    );
+    expect(describeSnapshot({ ...snap, trace: { ...snap.trace, hop: 4 } }).hopStatus).toBe(
+      'Idle — type a path and click Go or Step 1 Hop ->',
+    );
+    // The worker ladder is absent: no worker queue lane, no 202 story, no
+    // worker tail (the refusal card's own "nothing enqueued" stays).
+    expect(labels.hopStatus).not.toContain('Worker');
+    expect(labels.hopStatus).not.toContain('202');
+  });
 });

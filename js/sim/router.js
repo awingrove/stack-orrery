@@ -44,6 +44,16 @@ export function createRouter({
     handleRequest: () => `200 Router ${leftAddress} ⇄ ${rightAddress}`,
     enqueue: (frame) => frame,
   });
+  // The left-side ingest seat mirrors the right one (Stage 6b R2a reopen:
+  // the edge's origin pull needs a real crossing whose landing is the
+  // router itself, not the LB's queue — the pull's lb.enqueue narrates one
+  // hop later through the shared helper, so the queueing must not double
+  // at the crossing). Same contract as the right seat: identity on send,
+  // frames delivered there are ingested and dropped.
+  leftNetwork.registerServer(leftAddress, {
+    handleRequest: () => `200 Router ${leftAddress} ⇄ ${rightAddress}`,
+    enqueue: (frame) => frame,
+  });
 
   return {
     get address() {

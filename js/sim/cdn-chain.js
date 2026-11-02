@@ -5,10 +5,14 @@
 // subnet. The engine hands in the real components (cdn.js edge, router.js,
 // loadbalancer, backend servers) with itself as no shortcut: hop 3 and hop
 // 5/8 are real `router.forward` crossings (`routed` +1 per crossing), the
-// MISS pull's left-network delivery IS the real `lb.enqueue`, hop 7 really
+// MISS pull's real `lb.enqueue` runs through the shared `lbEnqueueHop` at
+// hop 6 (its refusal branch stamps `trace.refused` and aborts the walk —
+// the finding 1-01 phantom `LB 10.1 -> null` has no branch left to narrate
+// from), hop 7 really
 // drains the origin backend so its cache-aside status rides the frame, and
 // hop 8 fills the edge ledger only with the bytes that pull really
-// returned. HIT = 6 hops, MISS and non-GET pass-through = 9.
+// returned. HIT = 6 hops, MISS and non-GET pass-through = 9, a refused
+// pull aborts at 6.
 //
 // CHECKS: (negative cases pinned in test/sim/cdn.test.js and
 // test/sim/engine.test.js) a miss or expired entry answers only from a
@@ -16,13 +20,29 @@
 // non-GET leaves the ledger untouched (no lookup, no counters, no row; the
 // machine's hop 4 marks PASS and the fill branch only runs on a MISS); a
 // GET inside the edge TTL is served from ledger bytes `fill` recorded
-// earlier — nothing fabricated.
+// earlier — nothing fabricated. The all-down refusal branch is pinned in
+// test/sim/final-hop.test.js's engine-walk matrix (R2a reopen): the shared
+// refusal card narrates at hop 6, `trace.refused` rides the snapshot, and
+// the next call restarts a fresh emission.
+//
+// CHECKS: the pull's two-hop narration stays byte-identical to the R1a
+// walk it replaced, hop by hop. Hop 5's frame narrates the pull leaving
+// the edge via the Router and the crossing is real (`routed` +1), but its
+// landing is the Router's own left-side ingest seat (loadbalancer-free) —
+// the LB's queueing happens exactly once, at hop 6, inside the shared
+// helper: at hop 5 it would double-enqueue (the pick's real backend row
+// plus the helper's) and the all-down refusal record would be dropped
+// mid-wire exactly as the R1a delivery dropped it. Hop 6 narrates the
+// helper's live pick (`LB ... queued`, skip narration included) or its
+// refusal card; the tick contract holds — the run's ONE explicit bump
+// stays at the hop-3 crossing and the helper's enqueue reads the live
+// tick, matching the R1a delivery's own `atTick`-as-current-tick pattern.
 //
 // The hop helpers (queue drain, backend pick, final delivery) and
 // routeIdFor are shared imports, not re-declarations: the one
 // implementation lives in trace-helpers.js / webserver-helpers.js and each
 // call site passes its own args.
-import { drainUntilYou, backendFor, finishTo } from './trace-helpers.js';
+import { drainUntilYou, backendFor, finishTo, lbEnqueueHop } from './trace-helpers.js';
 import { routeIdFor } from './webserver-helpers.js';
 
 export function createCdnChain({
@@ -35,6 +55,7 @@ export function createCdnChain({
   onServe,
   onFinish,
   getTrace,
+  onRefusal,
 }) {
   if (!cdn || !router || !lb) {
     throw new Error('cdn-chain: cdn, router, and lb are required');
@@ -141,17 +162,18 @@ export function createCdnChain({
         return deliverResponse();
       }
       // The edge really pulls the origin through the Router: the crossing
-      // is `routed` +1 and the delivered frame IS the real lb.enqueue — the
-      // narrated queueing is the round-robin pick that really happened.
+      // is `routed` +1 and the frame narrates the pull (see the header's
+      // CHECKS on the two-hop narration split). The landing is the
+      // Router's own ingest seat — the LB's enqueue runs at hop 6, once,
+      // through the shared helper.
       router.forward({
         id: `edge-pull:${getTick()}`,
         from: cdn.address,
-        to: cdn.originAddress,
+        to: router.address,
         request: t.request,
         atTick: getTick(),
         isYou: true,
       });
-      t.targetServer = lb.snapshot().lastTarget;
       return `${cdn.address} -> ${cdn.originAddress} | ${t.request} (edge pull via router)`;
     }
     if (hop === 6) {
@@ -159,7 +181,19 @@ export function createCdnChain({
         finishTo(t, cdn.address, onFinish);
         return `Browser ${t.from} received and displayed ${t.status}`;
       }
-      return `LB ${cdn.originAddress} -> ${t.targetServer} (${t.request}) queued`;
+      // The shared LB hop (trace-helpers.js R1a helper, R2a reopen): the
+      // pick and the queueing run HERE, once — a refused pull narrates the
+      // shared refusal card, stamps `trace.refused`, and the exit check's
+      // next call restarts a fresh emission. The bump already happened at
+      // the hop-3 crossing (the edge consult), so the enqueue reads the
+      // live tick — the same atTick the R1a delivery used.
+      const { frame } = lbEnqueueHop(t, {
+        serverAddress: lb.address,
+        lb,
+        bumpTick: getTick,
+        onRefusal,
+      });
+      return frame;
     }
     if (hop === 7) {
       const backend = backendFor(servers, t.targetServer);
