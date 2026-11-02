@@ -107,5 +107,5 @@ serverSnapshots[0].files` (same one-line-pair engine.js records; ±0 net
       walk-scope ledger done first per the R2a lesson).
 - [x] Step 2 (Executor sub-agent): cold implementation; `npm run verify`
       green; tick and commit.
-- [ ] Step 3 (Lead session): `npm run metrics:extract -- <sessionID>`,
+- [x] Step 3 (Lead session): `npm run metrics:extract -- ses_e623592d1ffeDBOMNgKVQ8Yb1r`, entry `R2C-POOL-TRUTH` appended, ticked, committed. Original contract: `npm run metrics:extract -- <sessionID>`,
       append entry `R2C-POOL-TRUTH`, tick, commit.

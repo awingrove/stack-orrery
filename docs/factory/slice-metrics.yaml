@@ -10,6 +10,66 @@
 # tokens_reasoning, tokens_cache_read, cost_usd, notes.
 
 entries:
+  - id: R2C-POOL-TRUTH
+    slice:
+      - SIM
+      - PANEL
+    name: >-
+      R2c pool truth — snapshot pool-truth schema: snapshot 'queue'/'files'
+      renamed to primaryQueue/primaryFiles (finding 1-06 option b);
+      inspector gains per-address provenance; pool-truth acceptance pin
+    brief: docs/plans/2026-11-02-r2c-pool-truth.md
+    agent: cheap
+    lead_model: opencode-go/glm-5.3-flash
+    agent_model: opencode-go/mimo-v2.6-flash
+    session_id: ses_e623592d1ffeDBOMNgKVQ8Yb1r
+    tokens_input: 110439
+    tokens_output: 5947
+    tokens_reasoning: 27607
+    tokens_cache_read: 2625088
+    cost_usd: 0
+    human_interventions: 0
+    agent_review_rounds: 1
+    guardrail_failures: 0
+    fix_commits: 0
+    defects_escaped: 0
+    notes: >-
+      Fifth review-paydown slice (Stage R2c; TD-9's pool-truth ledger row
+      resolved). Zero prod behavior change; 1 detail: the schema-level
+      rename rides engine.js:281-282, engine.js ends exactly 300 (one
+      CHECKS line added to the cap; the brief's ±0 net agreement holds).
+      Executor deviation per human direction: agent_model is the PAID
+      opencode-go/mimo-v2.6-flash (opencode-go/mimo-v2.6-flash was named
+      by the human "No, not Free. We have paid MiMo available" — recorded
+      per the B6F-era paid-Mimo precedent; agent: cheap class).
+      Executed as brief-contract: schema rename (queue/files →
+      primaryQueue/primaryFiles, engine.js 281-282); three consumer
+      re-points (inspector-state.js:173/177 + provenance
+      serverAddress: snapshot.servers?.[0]?.address ?? '10.1' — stage-1
+      reads '10.1', stage-2+ reads '10.11'; render.js:211; the two schema
+      pins engine.test.js:136/:244 re-pointed in place with titles
+      unchanged so storymap refs keep resolving); a new pool-truth.test.js
+      (§Test 4's counter-example: setWebFile('10.12', ...) lands ONLY in
+      snapshot.servers[1].files while primaryFiles stays 10.11's view,
+      plus the stage-1-'10.1' leg). Brief-gap decisions (executor, one
+      line): Mimo's run also re-pointed model.test.js's synthetic literal
+      (line ~162) — a needed reshape of the old key's snapshot into the
+      renamed schema; story home moved to SIM-2 (the pool task; the
+      finding's stage); numbers for ledger — agent: cheap,
+      agent_review_rounds: 1, human_interventions: 0, defects_escaped: 0.
+      No prod file exceeded 300; engine.test.js untouched past in-place
+      renames. Executor ran per .opencode/agents/executor.md — with a
+      per-slice human-directed executor-tier deviation (model paid MiMo).
+      Step-3 lead probe live: stage-2 engine + setWebFile('10.12', ...)
+      → primaryFiles stays 10.11's AND servers[1].files carries the edit
+      AND servers[0] unchanged AND provenance 10.11; stage-1 engine +
+      setWebFile('10.1', /about, ...) → primaryFiles carries via real path
+      (the lead's first probe leg wrote an unknown path — the fs fail-loud
+      contract caught it correctly; an aleatory walk re-noted below for
+      the honest record); pool-truth.test.js 'snap.queue'/'snap.files' are
+      honest absent-pins (asserting the old names are gone). No residual
+      snapshot.queue/snapshot.files reads in js/panel/*.js outside the
+      pool-truth.test.js pins, re-greppend on the led branch.
   - id: R2B-ONE-HOME
     slice:
       - SIM
