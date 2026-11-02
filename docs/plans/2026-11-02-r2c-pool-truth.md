@@ -103,9 +103,9 @@ serverSnapshots[0].files` (same one-line-pair engine.js records; ±0 net
 
 ## Ticks
 
-- [ ] Step 1 (Lead session): human design sign-off (2026-11-02; the
+- [x] Step 1 (Lead session): human design sign-off (2026-11-02; the
       walk-scope ledger done first per the R2a lesson).
-- [ ] Step 2 (Executor sub-agent): cold implementation; `npm run verify`
+- [x] Step 2 (Executor sub-agent): cold implementation; `npm run verify`
       green; tick and commit.
 - [ ] Step 3 (Lead session): `npm run metrics:extract -- <sessionID>`,
       append entry `R2C-POOL-TRUTH`, tick, commit.

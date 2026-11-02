@@ -260,6 +260,13 @@ activities:
               - unit: test/sim/loadbalancer-failover.test.js::stage-2 engine snapshot carries skippedCount
               - unit: test/sim/loadbalancer-failover.test.js::distribution lopsides while 10.12 is down and rejoins the rotation after restore (deterministic)
               - unit: test/sim/loadbalancer-failover.test.js::same seed replays the identical tick sequence with the fault off (stage 2)
+          - title: "the primary shape names itself — 'primaryQueue' / 'primaryFiles' - the pool's primary-backend story, not an aggregate"
+            status: done
+            priority: medium
+            tests:
+              - unit: "test/sim/pool-truth.test.js::the primary shape names itself — 'primaryQueue' / 'primaryFiles' - the pool's primary-backend story, not an aggregate"
+              - unit: test/sim/engine.test.js::ends an NX trace at the DNS answer hop without ever emitting a GET
+              - unit: test/sim/engine.test.js::routes the write to the server at the matching mini-IP address
 
       - id: PANEL-2
         name: Switch to Stage 2 and trace through the load balancer

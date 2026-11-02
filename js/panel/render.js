@@ -208,7 +208,7 @@ export function render(snapshot, selectedComponent, { layout, activeAddress = '1
     ? `${display.status} (${display.request})`
     : 'No response yet';
   els.statusBadge.className = `status-badge${badgeClass(display)}`;
-  renderQueueInto(els.queueList, snapshot.queue ?? []);
+  renderQueueInto(els.queueList, snapshot.primaryQueue ?? []);
   renderQueueInto(els.queueList2, snapshot.servers?.[1]?.queue ?? []);
   // The filesystem rows rebuild from the snapshot each pass and must land
   // BEFORE renderRoutes() — fresh rows carry no .matched-route state of
