@@ -212,3 +212,27 @@ describe('the hop mapping is pinned — stage 1..4 chains switch on targetServer
     );
   });
 });
+
+// PINS (lead probe, R3c step 3): the uniform idle story — the
+// adjudicated fallback semantics made stages 1..5 idle (hop 0) light the
+// browser + request-left pair, where the old code lit it only on stage 5.
+// The rendered surface is visible (renderHopHighlights is an unguarded
+// consumer), so the new shape is pinned: stage-6 hosted keeps the
+// no-highlight pre-DNS query (its adjudicated fallback).
+it('idle hops light the browser + request-left pair uniformly on stages 1..5; stage-6 hosted stays unlit before the DNS query', () => {
+  for (const stage of [1, 2, 3, 4, 5]) {
+    const snap = { stage, trace: { hop: 0 } };
+    expect(activeHopTarget(snap, 0)).toEqual({
+      cardId: 'node-browser',
+      laneId: 'packet-req-left',
+    });
+  }
+  const hosted = {
+    stage: 6,
+    trace: { hop: 0, host: 'example.com', nx: false, cdn: false },
+  };
+  expect(activeHopTarget(hosted, 0)).toEqual({
+    cardId: undefined,
+    laneId: undefined,
+  });
+});
