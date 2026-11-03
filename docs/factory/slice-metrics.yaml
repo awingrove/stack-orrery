@@ -10,6 +10,142 @@
 # tokens_reasoning, tokens_cache_read, cost_usd, notes.
 
 entries:
+  - id: R3C-HOP-TARGETS-TRUTH
+    slice:
+      - PANEL
+    name: >-
+      R3c hop-targets truth — the adjudicated tuple tables (197→120), the
+      false pin header replaced, the mapping's first real unit file, the
+      uniform idle fallback story accepted + pinned by the lead (findings
+      4-01 + 4-04 + 6-07-X1 paydown)
+    brief: docs/plans/2026-11-02-r3c-hop-targets-truth.md
+    agent: cheap
+    lead_model: opencode-go/glm-5.3-flash
+    agent_model: opencode-go/glm-5.3-flash
+    session_id: ses_e5e552b11ffeoT9kWTs19e7DZO
+    tokens_input: 129609
+    tokens_output: 16858
+    tokens_reasoning: 29714
+    tokens_cache_read: 3521856
+    cost_usd: 0
+    human_interventions: 0
+    agent_review_rounds: 1
+    guardrail_failures: 0
+    fix_commits: 0
+    defects_escaped: 0
+    notes: >-
+      Batch round 3 (Stage R3c). Landed: header truth (4-01's false pin
+      claim replaced with the real unit-file + e2e selector refs per the
+      TD-6 rule), the adjudicated tuple-table shape (197→120: per-hop
+      [cardId, laneId] tables + pick(); backendCard/dbLane hoisted), and
+      test/panel/hop-targets.test.js (7 pins: stage 1..4
+      targetServer/dbOp switches, stage-5 async/sync counter-examples,
+      stage-6 prelude + hop-2 reuse, CDN HIT/MISS shapes). DIFFERENTIAL
+      HARNESS (executor-built, ~2,200 stage/trace combos): stage-5/6
+      byte-identical everywhere; stage 1..4 identical on every IN-RANGE
+      hop; the one diverged surface was the out-of-range idle (hop 0)
+      fallback — old code returned undefined on stages 1..4 but the
+      browser pair on stage 5 (the OLD state was internally
+      inconsistent). Lead adjudication: the adjudicated semantics
+      (browser pair on idle, stages 1..5 uniform; stage-6 hosted keeps
+      the no-highlight pre-DNS query) ACCEPTED as the intended shape, and
+      the newly visible surface PINNED by a lead-authored probe commit
+      (7112780, one new it in the unit file, +24 lines — lead-authored
+      test extension recorded as a step-3 lead-probe artifact per the
+      fix-rides-PR rule; the brass hats may prefer executor-authored:
+      flagged as a process note for the RETRO). 0 red gates; e2e green;
+      the pinned shape is visible via renderHopHighlights (the unguarded
+      consumer checked live).
+  - id: R3B-TEACHING-VOCAB
+    slice:
+      - PANEL
+    name: >-
+      R3b teaching vocab binding — TRACE_VOCAB (11 tokens, mint-site
+      mapped) exported from trace-helpers; the drawer's 9 quoted sites
+      bound byte-identical; two-directional walk pins (finding 5-02
+      paydown)
+    brief: docs/plans/2026-11-02-r3b-teaching-vocab.md
+    agent: cheap
+    lead_model: opencode-go/glm-5.3-flash
+    agent_model: opencode-go/mimo-v2.6-flash
+    session_id: ses_e5e84971cffeHg7p0XbephVIfk
+    tokens_input: 165991
+    tokens_output: 10122
+    tokens_reasoning: 65958
+    tokens_cache_read: 4541312
+    cost_usd: 0
+    human_interventions: 0
+    agent_review_rounds: 1
+    guardrail_failures: 0
+    fix_commits: 0
+    defects_escaped: 0
+    notes: >-
+      Batch round 2 (Stage R3b). Landed: TRACE_VOCAB in trace-helpers.js
+      (frozen; a frozen 11-token map, every token's comment citing its
+      minting site; staleTag composed from DEFAULT_REPLICATION_LAG_TICKS
+      — the R2b home compounding) + the drawer's 9 quoted sites bound
+      byte-identically + the round-trip pin. THE executor's main
+      adjudications recorded: (1) walk output = frames AND composed labels
+      (staleTag mints in the panel's dbOpSentence layer, not the wire);
+      (2) two-directional pins: drawer-token-in-walk AND every vocab
+      value minted in real fault walks (the export-side pin walks refusals/
+      one-down/NX scenarios) — the machine can't reword or the vocab can't
+      drift without a failing pin; (3) unquoted prose left hand-written
+      (byte-identity; no force-binding); (4) engine scenario data
+      (addresses/nextChip args) stays scenario-side, not vocabulary.
+      STEP-3 LEAD PROBE NOTE (the lead's own miss recorded): the probe
+      first looked for staleTag in RAW frames (no — it mints in the
+      composed label layer per decision 1), then merged the write-walk
+      and get-walk into one run (the replica caught up — the lag window
+      closed). The executor's test shape was the authority: one drained
+      POST write, then GETs inside the lag window, live-minted
+      'Database SELECT @ Replica (10.31) — STALE (lag 3t)'. 0 red gates;
+      e2e green.
+  - id: R3A-MIRROR-LABELS
+    slice:
+      - PANEL
+    name: >-
+      R3a inspector mirror labels — EXCERPT_NOTE + per-entry excerpt
+      markers + the rendered notice line; 8 structural parity pins
+      (finding 5-01 paydown, batch-mode option b; option c staged as its
+      own slice)
+    brief: docs/plans/2026-11-02-r3a-mirror-labels.md
+    agent: cheap
+    lead_model: opencode-go/glm-5.3-flash
+    agent_model: opencode-go/mimo-v2.6-flash
+    session_id: ses_e5e968e07ffemL3LzeBgRJXpTT
+    tokens_input: 111765
+    tokens_output: 7247
+    tokens_reasoning: 15132
+    tokens_cache_read: 2578240
+    cost_usd: 0
+    human_interventions: 0
+    agent_review_rounds: 1
+    guardrail_failures: 0
+    fix_commits: 0
+    defects_escaped: 0
+    notes: >-
+      Batch round 1 (Stage R3a; option b — the honest re-label; option c
+      the fetch-render retires the drift vector and is staged as its own
+      follow-up slice). Landed: the honest-excerpt headers on both mirror
+      modules (the executor-truth claim replaced), EXCERPT_NOTE +
+      per-entry excerpt:true markers, the rendered notice line under each
+      component title (render.js + a one-line caption element in
+      panel.html 548→549, using existing inspector tokens; a new UI
+      pattern judged not to need DESIGN.md — the caption reuses the
+      existing mono/muted tokens and the UI contract was human-gated in
+      the design gate), 8 structural parity pins in a new
+      inspector-parity.test.js ( Component keys vs the 10 exemplary
+      components; existsSync file resolution; the code strings name their
+      create* factory; the notice rides every panel). The workerqueue
+      mirror drift is now DOCUMENTED (the label says simplified) rather
+      than silent. No e2e changes needed (the inspector pins are
+      substring/mailbox shape). 0 red gates first attempt. Batch
+      governance note: the batch PR's head branch was recreated
+      mid-batch — the stale-PR-head incident froze rounds 1..2 as this
+      slice merged via #41 (the human's merge); round 3 + the reopen pin
+      re-shipped as PR #42. The ledger was reconciled at batch close
+      (all three rounds' telemetry above/below).
   - id: R2E-SNAPSHOT-ASSEMBLY
     slice:
       - SIM
