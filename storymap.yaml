@@ -139,6 +139,11 @@ activities:
               - unit: test/panel/render.test.js::within one run, hop entries order ascending regardless of emission order
               - unit: test/panel/render.test.js::a newer run floats above an older one; entries stay whole per run
               - e2e: panel::should render a full-trace journey log with hop 1/4 to 4/4 in ascending order
+          - title: 'the hop mapping is pinned — stage 1..4 chains switch on targetServer and dbOp, stage-5 async vs sync counter-examples, and stage-6 reuses stage-5 at hop - 2 with the DNS prelude'
+            status: done
+            priority: medium
+            tests:
+              - unit: 'test/panel/hop-targets.test.js::the hop mapping is pinned — stage 1..4 chains switch on targetServer and dbOp, stage-5 async vs sync counter-examples, and stage-6 reuses stage-5 at hop - 2 with the DNS prelude'
           - title: Compare the two most recent completed trace runs hop-by-hop in the log-card compare tray — verbatim frames, em-dash where a run ended sooner, cleared on a stage switch
             status: done
             priority: medium

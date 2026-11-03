@@ -181,6 +181,7 @@ slices:
       - unit: test/panel/model-stage34.test.js::describes Stage 3 6-hop cache-aside trace labels and cache inspector state
       - unit: test/panel/model-stage34.test.js::describes Stage 4 7-hop database trace labels and database inspector state
       - unit: test/panel/model-stage5.test.js::describes Stage 5 8-hop async queue trace labels and workerqueue inspector state
+      - unit: 'test/panel/hop-targets.test.js::the hop mapping is pinned — stage 1..4 chains switch on targetServer and dbOp, stage-5 async vs sync counter-examples, and stage-6 reuses stage-5 at hop - 2 with the DNS prelude'
       - unit: test/panel/model.test.js::stage 1 webserver headline derives mini-IP 10.1 from the live snapshot, not from the static 10.11 / 10.12 entry
       - unit: test/panel/model.test.js::stages 2-5 webserver headline derives the snapshot backends as mini-IP 10.11 / 10.12
       - unit: test/panel/model.test.js::journey entries order by run key then ascending hop, keeping labels whole
