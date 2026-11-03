@@ -207,6 +207,7 @@ slices:
       - unit: test/panel/teaching.test.js::describes all shipped stages with a headline, three lists, a tradeoff, and a primerLink
       - unit: test/panel/teaching.test.js::stage 1 content never mentions cache TTL names
       - unit: test/panel/teaching.test.js::unknown stages degrade to a pending-entries placeholder, not a crash
+      - unit: test/panel/teaching-vocab.test.js::every quoted sim fragment in the teaching tables appears verbatim in a real walk of that stage — the drawer cannot go stale silently
       - unit: 'test/panel/missions.test.js::stages 1 and 3-6 carry four; stage 2 carries two to three (B-6 recovery + B-6b failover + B-6c bypass-cold + B-6d write-fail + B-6e worker-crash + B-6f dns-drop)'
       - unit: test/panel/missions.test.js::the stage-1 404 mission completes only on a real 404 — a 405 does not
       - unit: test/panel/missions.test.js::the stage-1 recovery mission completes only after a refusal AND a served 200 — a refusal alone satisfies neither leg

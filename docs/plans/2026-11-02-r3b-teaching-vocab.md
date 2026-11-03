@@ -67,9 +67,9 @@ trace'`, `nxCard: 'NX no record'`, plus any token the drawer quotes
 
 ## Ticks
 
-- [ ] Step 1 (Lead session): human sign-off (batch round 2; option (b)
+- [x] Step 1 (Lead session): human sign-off (batch round 2; option (b)
       binding gated 2026-11-02).
-- [ ] Step 2 (Executor sub-agent): cold implementation; `npm run verify`
+- [x] Step 2 (Executor sub-agent): cold implementation; `npm run verify`
       green; tick and commit.
 - [ ] Step 3 (Lead session): probe + telemetry `R3B-TEACHING-VOCAB` +
       tick, commit.

@@ -201,6 +201,11 @@ activities:
               - unit: test/panel/teaching.test.js::unknown stages degrade to a pending-entries placeholder, not a crash
               - e2e: teaching::should open the teaching drawer, trace it across stage switches, and show stage-1 content only on stage 1
               - e2e: teaching::should link to the system-design-primer section for the active stage
+          - title: every quoted sim fragment in the teaching tables appears verbatim in a real walk of that stage — the drawer cannot go stale silently
+            status: done
+            priority: medium
+            tests:
+              - unit: test/panel/teaching-vocab.test.js::every quoted sim fragment in the teaching tables appears verbatim in a real walk of that stage — the drawer cannot go stale silently
           - title: Work per-stage missions in the teaching drawer — the sim auto-verifies them from real snapshots, URL missions prefill the mini-browser without auto-send, and a stage switch clears the verified set
             status: done
             priority: medium
