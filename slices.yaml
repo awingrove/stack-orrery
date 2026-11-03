@@ -280,6 +280,7 @@ slices:
       - unit: test/panel/model-stage5.test.js::stage-5 refused run narrates the 3-hop abort with the worker ladder absent
       - unit: "test/panel/model.test.js::an all-down stage-6 journey relabel resolves to the shape's own abort denominator (3 host-less / 4 hosted / 6 cdn), never the nominal 9"
       - unit: "test/panel/model-stage6.test.js::the three stage-6 refusal panel shapes (host-less / hosted / cdn) with the LB card and the shape's own totals"
+      - unit: test/panel/inspector-parity.test.js::the inspector mirrors carry honest labels and resolvable sources — every entry names a real js/sim file, every code string names its factory, and the excerpt notice rides every panel
     entry_point: index.html -> Diagram Panel link
 
 allowlist:

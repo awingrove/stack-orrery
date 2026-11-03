@@ -1,17 +1,23 @@
-// DOCUMENTS: the bottom inspector's code side — a readable, hand-edited
-// mirror of each sim component's real implementation (js/sim/* is the
-// executable truth; this module renders the same logic for learners).
-// The live-state builders and their JSON formatting live in
+// DOCUMENTS: the bottom inspector's code side — simplified teaching
+// excerpts, NOT the executable truth: the real implementation lives at
+// each entry's `file` path; read js/sim/<file> for the machine the sim
+// actually runs. The live-state builders and their JSON formatting live in
 // inspector-state.js (split by responsibility, guard-file-size), which also
 // builds the per-snapshot inspector headline in componentTitle — this file
 // keeps only the static file/code entries, no per-stage address pins. The
 // stage-6 mirrors live in inspector-source-stage6.js (same split).
 import { STAGE6_SOURCE } from './inspector-source-stage6.js';
 
+// DOCUMENTS: the one-line notice the render site prints under the
+// component title, before the mirrored code — the notice plus the entry's
+// `file` path reads "simplified excerpt — real source: js/sim/<file>".
+export const EXCERPT_NOTE = 'simplified excerpt — real source:';
+
 export const COMPONENT_SOURCE = {
   ...STAGE6_SOURCE,
   browser: {
     file: 'js/sim/browser.js',
+    excerpt: true,
     code: `createBrowser({ name, address, network }) {
   // address must be "<net>.<host>" — a two-number mini-IP
   let lastDisplay = null;
@@ -37,6 +43,7 @@ export const COMPONENT_SOURCE = {
   },
   network: {
     file: 'js/sim/network.js',
+    excerpt: true,
     title: 'Network — routing fabric',
     code: `createNetwork() {
   const servers = new Map();
@@ -60,6 +67,7 @@ export const COMPONENT_SOURCE = {
   },
   loadbalancer: {
     file: 'js/sim/loadbalancer.js',
+    excerpt: true,
     code: `createLoadBalancer({ address = '10.1', backends = ['10.11', '10.12'], network }) {
   const pool = [...backends];
   const perBackend = Object.fromEntries(pool.map((b) => [b, 0]));
@@ -89,6 +97,7 @@ export const COMPONENT_SOURCE = {
   },
   webserver: {
     file: 'js/sim/webserver.js',
+    excerpt: true,
     code: `createWebServer({ address = '10.1', serviceRate = 4, files = DEFAULT_FILES,
   cache = null, database = null } = {}) {
   const fs = new Map(Object.entries(files)); // '/' and '/about' on disk
@@ -145,6 +154,7 @@ export const COMPONENT_SOURCE = {
   },
   cache: {
     file: 'js/sim/cache.js',
+    excerpt: true,
     code: `createCache({ address = '10.20', ttlTicks = 10 } = {}) {
   // address must be "<net>.<host>" — a two-number mini-IP
   const entries = new Map(); // path -> { value, cachedAtTick, expiresAtTick }
@@ -192,6 +202,7 @@ export const COMPONENT_SOURCE = {
   },
   database: {
     file: 'js/sim/database.js',
+    excerpt: true,
     code: `createDatabase({ primaryAddress = '10.30', replicaAddress = '10.31',
   replicationLagTicks = 3, rows = DEFAULT_ROWS } = {}) {
   // addresses must be "<net>.<host>" — two-number mini-IPs
@@ -241,6 +252,7 @@ export const COMPONENT_SOURCE = {
   },
   workerqueue: {
     file: 'js/sim/queue.js',
+    excerpt: true,
     code: `createWorkerQueue({ address = '10.40', workerAddress = '10.41', jobDurationTicks = 2 } = {}) {
   let jobs = [];
   let enqueued = 0;

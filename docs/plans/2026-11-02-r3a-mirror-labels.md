@@ -65,9 +65,9 @@ on a dishonest surface is worse than an honest label.
 
 ## Ticks
 
-- [ ] Step 1 (Lead session): human sign-off (batch mode; option (b) gated
+- [x] Step 1 (Lead session): human sign-off (batch mode; option (b) gated
       2026-11-02; option (c) staged as a follow-up).
-- [ ] Step 2 (Executor sub-agent): cold implementation; `npm run verify`
+- [x] Step 2 (Executor sub-agent): cold implementation; `npm run verify`
       green; tick and commit.
 - [ ] Step 3 (Lead session): probe + telemetry `R3A-MIRROR-LABELS` +
       tick, commit.

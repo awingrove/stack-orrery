@@ -1,10 +1,13 @@
 // DOCUMENTS: Stage-6 component code mirrors for the bottom inspector, split
-// from inspector-source.js by responsibility (guard-file-size). js/sim/dns.js
-// and js/sim/router.js are the executable truth; these entries render the
-// same logic for learners.
+// from inspector-source.js by responsibility (guard-file-size). These are
+// simplified teaching excerpts, NOT the executable truth: the real
+// implementation lives at each entry's `file` path (js/sim/dns.js,
+// js/sim/router.js, js/sim/cdn.js) — read it for the machine the sim
+// actually runs.
 export const STAGE6_SOURCE = {
   dns: {
     file: 'js/sim/dns.js',
+    excerpt: true,
     code: `createDns({ address = '10.60', ttlTicks = 300 } = {}) {
   const answers = new Map([
     ['example.com', '10.1'],
@@ -46,6 +49,7 @@ export const STAGE6_SOURCE = {
   },
   router: {
     file: 'js/sim/router.js',
+    excerpt: true,
     code: `createRouter({ leftAddress = '10.65', rightAddress = '20.254',
   leftNetwork = null, rightNetwork = null } = {}) {
   let routed = 0;
@@ -80,6 +84,7 @@ export const STAGE6_SOURCE = {
   },
   cdn: {
     file: 'js/sim/cdn.js',
+    excerpt: true,
     code: `createCdnEdge({ address = '20.1', ttlTicks = 10, originAddress = '10.1' } = {}) {
   const ledger = new Map();  // path -> { path, body, filledAtTick, expiresAtTick }
   let hits = 0, misses = 0, fills = 0, lastPull = null;
