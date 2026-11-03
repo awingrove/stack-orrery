@@ -201,6 +201,11 @@ activities:
               - unit: test/panel/teaching.test.js::unknown stages degrade to a pending-entries placeholder, not a crash
               - e2e: teaching::should open the teaching drawer, trace it across stage switches, and show stage-1 content only on stage 1
               - e2e: teaching::should link to the system-design-primer section for the active stage
+          - title: every quoted sim fragment in the teaching tables appears verbatim in a real walk of that stage — the drawer cannot go stale silently
+            status: done
+            priority: medium
+            tests:
+              - unit: test/panel/teaching-vocab.test.js::every quoted sim fragment in the teaching tables appears verbatim in a real walk of that stage — the drawer cannot go stale silently
           - title: Work per-stage missions in the teaching drawer — the sim auto-verifies them from real snapshots, URL missions prefill the mini-browser without auto-send, and a stage switch clears the verified set
             status: done
             priority: medium
@@ -247,6 +252,11 @@ activities:
             tests:
               - unit: test/sim/final-hop.test.js::finalHop resolves the shape matrix — stage 1..5 nominal and refusal, stage-6 refusal at host-less 3 / hosted 4 / cdn 6, nx 2, cdn HIT 6 / MISS 9, host 9, host-less 8, and nominal for a null trace
               - unit: "test/sim/final-hop.test.js::engine walks confirm the paper arithmetic — all-down refusals land at their shape's own hop: 3 host-less, 4 hosted, 6 cdn (no replay, no [object Object], no LB-null narration)"
+          - title: the inspector mirrors carry honest labels and resolvable sources — every entry names a real js/sim file, every code string names its factory, and the excerpt notice rides every panel
+            status: done
+            priority: medium
+            tests:
+              - unit: test/panel/inspector-parity.test.js::the inspector mirrors carry honest labels and resolvable sources — every entry names a real js/sim file, every code string names its factory, and the excerpt notice rides every panel
 
   - name: 'Stage 2 — Load balancer and duplicated servers'
     tasks:

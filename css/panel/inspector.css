@@ -88,6 +88,16 @@
   font-size: 0.9rem;
 }
 
+/* The honest-excerpt notice line: EXCERPT_NOTE + the entry's real file
+   path, rendered under the component title above the mirrored code. */
+#inspector-excerpt {
+  margin: 0 0 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
 .comp-tabs {
   display: flex;
   /* CHECKS: the Stage 6 tab row (browser..cdn) is wider than its grid

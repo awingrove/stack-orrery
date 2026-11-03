@@ -3,7 +3,12 @@
 // the system-design-primer vocabulary, mirroring the scaling ladder
 // (content only; panel.js renders it). One entry per built stage, keyed by
 // shipped stage (1-6); each entry spells its trade-off sentence in the
-// primer's "everything is a trade-off" register.
+// primer's "everything is a trade-off" register. Quoted sim fragments
+// interpolate TRACE_VOCAB (js/sim/trace-helpers.js) — the prose around them
+// stays hand-written.
+import { TRACE_VOCAB } from '../sim/trace-helpers.js';
+import { DEFAULT_REPLICATION_LAG_TICKS } from '../sim/defaults.js';
+
 const PRIMER = 'https://github.com/donnemartin/system-design-primer#';
 
 export const STAGE_TEACHING = {
@@ -12,7 +17,7 @@ export const STAGE_TEACHING = {
     teaches: [
       "Every browser request lands in WebServer 10.1's FIFO queue and waits for the 4-requests-per-tick service rate.",
       'When arrivals per tick exceed service, queue depth keeps climbing and avg latency rises — a performance problem, not yet a scalability fix.',
-      'The wire speaks the slim protocol: "GET /about" out, "200 …" back, and the server\'s own "404 …" / "405 …" for unknown paths and methods.',
+      `The wire speaks the slim protocol: "${TRACE_VOCAB.requestToken()}" out, "200 …" back, and the server's own "404 …" / "405 …" for unknown paths and methods.`,
       'Flip the Faults rail tab switch to take WebServer 10.1 down — sends come back as connection refused, nothing enters the FIFO queue, and the next trace refuses too until you restore it.',
     ],
     try: [
@@ -36,18 +41,18 @@ export const STAGE_TEACHING = {
     headline: 'Round-robin LoadBalancer splits requests across duplicated servers 10.11 / 10.12',
     teaches: [
       'WebServer-1 (10.11) and WebServer-2 (10.12) are identical clones behind the LoadBalancer VIP 10.1.',
-      'The LoadBalancer deals requests strictly round-robin — Next -> alternates 10.11, 10.12, 10.11…',
+      `The LoadBalancer deals requests strictly round-robin — ${TRACE_VOCAB.nextChipPrefix} alternates 10.11, 10.12, 10.11…`,
       "Each duplicated backend serves half the arrivals, so each queue drains twice as fast as Stage 1's single queue.",
       'Fault #2 on the Faults tab shows graceful degradation: take 10.12 down and the pool keeps serving on 10.11 while the cursor skips it — restore and the rotation takes 10.12 back.',
     ],
     try: [
       "Double the Browsers slider and compare each backend's queue with Stage 1 at half the user count — depth ends up the same per server.",
-      'Send two requests in a row and watch Next -> flip from 10.11 to 10.12 in the backend pool list.',
+      `Send two requests in a row and watch ${TRACE_VOCAB.nextChipPrefix} flip from 10.11 to 10.12 in the backend pool list.`,
       'Open the loadbalancer tab and read forwardedTotal climb while each route item counts its own share.',
     ],
     watchFor: [
       'lb-backend-1 and lb-backend-2 counters moving in lockstep — the split is even by construction.',
-      'The "Next -> 10.11 / 10.12" chip on the LB card flipping every request.',
+      `The "${TRACE_VOCAB.nextChipPrefix} 10.11 / 10.12" chip on the LB card flipping every request.`,
       'One VIP still fronts both servers — every request passes through it.',
     ],
     tradeoff:
@@ -92,7 +97,7 @@ export const STAGE_TEACHING = {
     ],
     try: [
       'Send the POST trace and read db-rows-list: Primary steps to v2 while Replica stays at v1.',
-      'GET immediately after — hop 5/7 names "STALE (lag 3t)" mid-trace before the page renders.',
+      `GET immediately after — hop 5/7 names "${TRACE_VOCAB.staleTag(DEFAULT_REPLICATION_LAG_TICKS)}" mid-trace before the page renders.`,
       'Keep sending GETs until the hop text flips to fresh and the row pair reads P v2 · R v2.',
     ],
     watchFor: [
@@ -110,7 +115,7 @@ export const STAGE_TEACHING = {
   5: {
     headline: 'Async Worker Queue — 202 Accepted first, Worker 10.41 commits later',
     teaches: [
-      'POST /jobs answers "202 {"jobId": 1, "status": "queued"}" while the job still sits in the WorkerQueue 10.40 FIFO.',
+      `POST /jobs answers "${TRACE_VOCAB.accepted202(1)}" while the job still sits in the WorkerQueue 10.40 FIFO.`,
       'Worker 10.41 dequeues jobs one by one, runs each across its duration ticks, and commits the result to Primary 10.30.',
       'The browser renders the accepted job before any work ran — latency spikes become a backlog the worker drains.',
       'While the worker is crashed (Faults rail), async delivery pauses — jobs wait in the queue, the in-flight job re-delivers on restore, and nothing is lost.',
@@ -123,7 +128,7 @@ export const STAGE_TEACHING = {
     watchFor: [
       'The 202 landing in the browser viewport several hops before the job finishes.',
       'queue-jobs-list holding "#1 · /jobs · queued @ tick N" until the worker takes it.',
-      'Hop 8/8 — Worker (10.41) processed job and committed to Database (10.30).',
+      `Hop 8/8 — ${TRACE_VOCAB.workerCommit('10.41', '10.30')}.`,
     ],
     tradeoff:
       'Queuing flattens spikes by paying for them later in latency — the worker drains the backlog, but the client no longer sees the result right away.',
@@ -135,7 +140,7 @@ export const STAGE_TEACHING = {
   6: {
     headline: 'DNS 10.60 resolves names, the Router joins subnets, and CDN edge 20.1 fills on miss',
     teaches: [
-      'A hosted URL (example.com/about) asks DNS 10.60 first: "who is example.com?" — the answer re-points the GET at the resolved mini-IP.',
+      `A hosted URL (example.com/about) asks DNS 10.60 first: "${TRACE_VOCAB.dnsAsk('example.com')}" — the answer re-points the GET at the resolved mini-IP.`,
       'The ledger answers from cache inside ttlTicks = 300 ticks and consults the authoritative table only on a miss or expired entry.',
       'Cross-subnet: the Router (10.65 ⇄ 20.254) counts one hop per crossing, and the CDN edge (cd.example.com → 20.1) serves a GET inside its 10t TTL from the fill ledger — a miss pulls the origin through the real LB/backend chain, then fills.',
       'A dropped DNS record (Faults rail) is pre-transport failure — the browser renders the NX card and no GET is ever emitted; restoring re-arms the name for a fresh resolve.',
@@ -147,7 +152,7 @@ export const STAGE_TEACHING = {
     ],
     watchFor: [
       'The dns-entries-list row example.com · 10.1 · ttl <N>t draining toward 0t and vanishing at expiry.',
-      'The Router card counting Routed: 3 on a cd.example.com/about miss — the forward hop, the origin pull, and the reverse delivery each count once.',
+      `The Router card counting ${TRACE_VOCAB.routedToken} 3 on a cd.example.com/about miss — the forward hop, the origin pull, and the reverse delivery each count once.`,
       'A plain /about trace running the Stage 5 hop story byte-identically — plain paths never touch DNS or the edge.',
     ],
     tradeoff:

@@ -177,3 +177,38 @@ export function finalHop(stage, trace = null) {
   }
   return trace?.refused ? (stage === 1 ? 2 : 3) : (NOMINAL[stage] ?? 4);
 }
+
+// CHECKS: R3b, finding 5-02 — TRACE_VOCAB is the one vocabulary seam
+// between the machines and the teaching drawer — the drawer never
+// re-authors sim vocabulary; it interpolates these tokens where it quotes
+// sim output, so a machine reword reds the round-trip pin
+// (test/panel/teaching-vocab.test.js) until this export is fixed, and the
+// bound drawer follows that fix. Every value composes to the exact bytes
+// its minting site emits today.
+//
+// Minting sites (token -> file:line where the machine mints the literal):
+//   requestToken   js/sim/trace.js:103 (`${method} ${path}`), emit frame :114
+//   nextChipPrefix js/panel/model.js:232 (`Next -> ${nextBackend}`, fallback :233)
+//   staleTag       js/panel/model-dbop.js:20 (`STALE (lag ${lag}t)`; lag home js/sim/defaults.js:15)
+//   refusedCard    js/sim/trace.js:135 (stage-1 deliver frame) / this file :61 (lbRefusedFrame)
+//   skipSuffix     js/sim/trace-helpers.js:56 (lbEnqueuedFrame skip narration)
+//   routedToken    js/panel/model.js:267 (`Routed: ${router.routed}`)
+//   idleWorker     js/sim/trace-helpers.js:123 (workerTailFrame sync tail; mirror js/panel/model-stage5-chain.js:68)
+//   nxCard         js/sim/trace-stage6.js:236 (NX answer frame) / js/sim/browser.js:51 (NX card record)
+//   dnsAsk         js/sim/trace-stage6.js:223 (`who is ${host}?`)
+//   accepted202    js/sim/webserver.js:79 (`202 {"jobId": …, "status": "queued"}`)
+//   workerCommit   js/panel/model-stage5-chain.js:47 (async hop-8/8 sentence)
+export const TRACE_VOCAB = Object.freeze({
+  requestToken: (method = 'GET', path = '/about') => `${method} ${path}`,
+  nextChipPrefix: 'Next ->',
+  staleTag: (lag) => `STALE (lag ${lag}t)`,
+  refusedCard: 'connection refused (nothing enqueued)',
+  skipSuffix: (seat) => `— ${seat} is down — skipped`,
+  routedToken: 'Routed:',
+  idleWorker: 'idle — no async jobs in this trace',
+  nxCard: 'NX no record',
+  dnsAsk: (host) => `who is ${host}?`,
+  accepted202: (jobId) => `202 {"jobId": ${jobId}, "status": "queued"}`,
+  workerCommit: (worker, database) =>
+    `Worker (${worker}) processed job and committed to Database (${database})`,
+});

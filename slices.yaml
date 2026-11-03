@@ -207,6 +207,7 @@ slices:
       - unit: test/panel/teaching.test.js::describes all shipped stages with a headline, three lists, a tradeoff, and a primerLink
       - unit: test/panel/teaching.test.js::stage 1 content never mentions cache TTL names
       - unit: test/panel/teaching.test.js::unknown stages degrade to a pending-entries placeholder, not a crash
+      - unit: test/panel/teaching-vocab.test.js::every quoted sim fragment in the teaching tables appears verbatim in a real walk of that stage — the drawer cannot go stale silently
       - unit: 'test/panel/missions.test.js::stages 1 and 3-6 carry four; stage 2 carries two to three (B-6 recovery + B-6b failover + B-6c bypass-cold + B-6d write-fail + B-6e worker-crash + B-6f dns-drop)'
       - unit: test/panel/missions.test.js::the stage-1 404 mission completes only on a real 404 — a 405 does not
       - unit: test/panel/missions.test.js::the stage-1 recovery mission completes only after a refusal AND a served 200 — a refusal alone satisfies neither leg
@@ -280,6 +281,7 @@ slices:
       - unit: test/panel/model-stage5.test.js::stage-5 refused run narrates the 3-hop abort with the worker ladder absent
       - unit: "test/panel/model.test.js::an all-down stage-6 journey relabel resolves to the shape's own abort denominator (3 host-less / 4 hosted / 6 cdn), never the nominal 9"
       - unit: "test/panel/model-stage6.test.js::the three stage-6 refusal panel shapes (host-less / hosted / cdn) with the LB card and the shape's own totals"
+      - unit: test/panel/inspector-parity.test.js::the inspector mirrors carry honest labels and resolvable sources — every entry names a real js/sim file, every code string names its factory, and the excerpt notice rides every panel
     entry_point: index.html -> Diagram Panel link
 
 allowlist:

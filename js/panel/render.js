@@ -3,7 +3,7 @@
 // balancer backend counters, and inspector panes). Stage topology and hop
 // highlights live in render-stage.js; event wiring in panel.js.
 import { describeSnapshot } from './model.js';
-import { COMPONENT_SOURCE } from './inspector-source.js';
+import { COMPONENT_SOURCE, EXCERPT_NOTE } from './inspector-source.js';
 import { componentTitle, formatComponentState } from './inspector-state.js';
 import { renderFilesystems } from './fs-editor.js';
 import { updateMissions } from './missions-view.js';
@@ -43,6 +43,7 @@ export const els = {
   queueJobs: $('queue-jobs-list'),
   workerStats: $('worker-stats'),
   inspectorTitle: $('inspector-title'),
+  excerptNote: $('inspector-excerpt'),
   inspectorCode: $('inspector-code'),
   inspectorState: $('inspector-state'),
   exchange: $('exchange-inspector'),
@@ -171,6 +172,12 @@ export function renderInspector(selectedComponent, currentSnapshot, browserAddre
     selectedComponent,
     browserAddress,
   );
+  // CHECKS: finding 5-01 — the notice line under the component title names
+  // EXCERPT_NOTE plus the entry's real file path on every mirror (the
+  // workerqueue mirror omits the crashed/redelivery machinery; this label
+  // is the honesty fix for THIS batch, and the drift vector retires only in
+  // the follow-up fetch-render slice — option (c)).
+  els.excerptNote.textContent = `${EXCERPT_NOTE} ${source.file}`;
   els.inspectorCode.textContent = source.code;
   if (currentSnapshot) {
     els.inspectorState.textContent = formatComponentState(
