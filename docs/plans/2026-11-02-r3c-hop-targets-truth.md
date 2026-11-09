@@ -73,9 +73,9 @@ target).
 
 ## Ticks
 
-- [ ] Step 1 (Lead session): human sign-off (batch round 3; gemini-
+- [x] Step 1 (Lead session): human sign-off (batch round 3; gemini-
       adjudicated shape gated 2026-11-02).
-- [ ] Step 2 (Executor sub-agent): cold implementation; `npm run verify`
+- [x] Step 2 (Executor sub-agent): cold implementation; `npm run verify`
       green; tick and commit.
 - [ ] Step 3 (Lead session): probe + telemetry `R3C-HOP-TARGETS-TRUTH` +
       tick, commit.
