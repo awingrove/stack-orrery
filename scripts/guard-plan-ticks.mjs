@@ -15,6 +15,10 @@ const LEGACY_LONG_BRIEFS = new Set([
   'docs/plans/2026-10-18-orrery-plane-camera.md',
   'docs/plans/2026-10-20-stage3-cache.md',
   'docs/plans/2026-10-20-stage4-database.md',
+  // ste-brief-experiment protocol doc — an experiment protocol, not a
+  // factory brief; exempted per human ratification 2026-11-12 (see
+  // experiments/ste-briefs/DEVIATIONS.md).
+  'docs/plans/ste-brief-experiment.md',
 ]);
 
 function planFiles(dir) {
