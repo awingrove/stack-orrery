@@ -5,7 +5,7 @@
 - merged_commit: 17f0499265e589fb1ea481577f96b82a9c4b853b
 - merged_subject: "17f0499 Merge pull request #19 from awingrove/feat/b5-compare-tray"
 - executor_sessions: ses_e8ac597c0ffeV5012tyPdapBX1 (general, opencode/glm-5.3-flash-free, Execute B-5 compare tray Step 2)
-- executor_model_and_config: opencode/glm-5.3-flash-free; agent=general; variant=default; temperature/seed not configurable (not recorded in logs)
+- executor_model_and_config: opencode/glm-5.3-flash-free (original run); PILOT REPLAY: opencode-go/glm-5.3-flash — free-tier quota exhausted 2026-11-12, human-ratified whole-change tier switch (DEVIATIONS #13); agent=general; variant=default; temperature/seed not configurable (not recorded in logs)
 - instruction_files:
   - DESIGN.md
   - FACTORY.md

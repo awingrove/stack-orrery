@@ -1,0 +1,572 @@
+diff --git a/css/panel/panel.css b/css/panel/panel.css
+index 33b9692..ac8fb0f 100644
+--- a/css/panel/panel.css
++++ b/css/panel/panel.css
+@@ -162,3 +162,53 @@ button {
+   font-variant-numeric: tabular-nums;
+   font-size: 0.8rem;
+ }
++
++/* Compare tray (B-5): auto-pair diff inside the log-card — hop-aligned rows
++   over the two most recent completed trace runs, verbatim journey-log texts.
++   Mono like the log styling; rows grid n | left | right; cells ellipsize so
++   the tray stays inside the card. */
++.compare-tray {
++  margin-top: 0.75rem;
++  border-top: 1px solid var(--border);
++  padding-top: 0.6rem;
++}
++
++.compare-headline {
++  margin: 0 0 0.4rem;
++  font-size: 0.72rem;
++  text-transform: uppercase;
++  letter-spacing: 0.06em;
++  color: var(--text-muted);
++}
++
++.compare-rows {
++  margin: 0;
++  padding: 0;
++  list-style: none;
++  display: grid;
++  gap: 0.2rem;
++}
++
++.compare-row {
++  display: grid;
++  grid-template-columns: 1.6rem minmax(0, 1fr) minmax(0, 1fr);
++  gap: 0.5rem;
++  font-family: var(--mono);
++  font-size: 0.78rem;
++  line-height: 1.4;
++}
++
++.compare-n {
++  color: var(--text-muted);
++  font-variant-numeric: tabular-nums;
++}
++
++.compare-cell {
++  overflow: hidden;
++  text-overflow: ellipsis;
++  white-space: nowrap;
++}
++
++.compare-cell.exhausted {
++  color: var(--text-muted);
++}
+diff --git a/docs/plans/2026-10-25-b5-compare-tray.md b/docs/plans/2026-10-25-b5-compare-tray.md
+index 2bd904f..a9a0c77 100644
+--- a/docs/plans/2026-10-25-b5-compare-tray.md
++++ b/docs/plans/2026-10-25-b5-compare-tray.md
+@@ -48,5 +48,5 @@
+ ## Execution steps
+ 
+ - [x] Step 1 (Lead session): sign-off (auto pair) committed in `DESIGN.md` (Compare Tray pattern) and this brief.
+-- [ ] Step 2 (Executor sub-agent): cold implementation, unit & e2e tests, manifest updates, green `npm run verify`; tick and commit.
++- [x] Step 2 (Executor sub-agent): cold implementation, unit & e2e tests, manifest updates, green `npm run verify`; tick and commit.
+ - [ ] Step 3 (Lead session): run `npm run metrics:extract -- <subagentSessionID>`, append entry to `docs/factory/slice-metrics.yaml`, tick Step 3, commit.
+diff --git a/e2e/compare.spec.js b/e2e/compare.spec.js
+new file mode 100644
+index 0000000..21e2a8b
+--- /dev/null
++++ b/e2e/compare.spec.js
+@@ -0,0 +1,131 @@
++import { test, expect } from '@playwright/test';
++
++// Compare tray (B-5): the auto-pair diff of the two most recent completed
++// trace runs, asserted on the real page served by the real static server.
++// The tray reads the panel's real journey-log entries (no doubles), so every
++// cell text below is grounded in the sim's own frames: stage 3 traces are 6
++// hops (trace.js), and the stage-6b CDN shapes are 9 hops (MISS/pull) vs 6
++// (warm HIT) — cdn-chain.js. Crowd ticks (`addToJourney('tick …', { run })`)
++// cannot reach the push site (panel.js's completion branch only).
++
++const HOP = async (page) => page.getByTestId('btn-next-hop').click();
++
++// Stage 3 grounds the pair: run 1 (round-robin -> 10.11) MISSes the cold
++// cache, run 2 (-> 10.12) serves a warm HIT; both runs are 6 hops. The
++// grounded path is the plain '/about' — a hosted 'example.com/about' has no
++// DNS stage here, 404s, and cannot warm the cache (no MISS→HIT story).
++test('should compare the last two trace runs hop-by-hop in the compare tray', async ({ page }) => {
++  await page.goto('/panel.html');
++  await page.getByTestId('stage-pill-3').click();
++  await page.getByTestId('url-input').fill('/about');
++
++  // One completed run is an incomplete pair: the tray stays hidden.
++  for (let hop = 0; hop < 6; hop++) await HOP(page);
++  const tray = page.getByTestId('compare-tray');
++  await expect(tray).toBeHidden();
++
++  // The second completed run pairs with the first: 6 vs 6, rows aligned by
++  // hop over the run's own stored entries.
++  for (let hop = 0; hop < 6; hop++) await HOP(page);
++  await expect(tray).toBeVisible();
++  await expect(page.getByTestId('compare-headline')).toHaveText(
++    '6 vs 6 hops · GET /about vs GET /about',
++  );
++  const rowList = tray.getByTestId('compare-rows');
++  const rows = rowList.locator('.compare-row');
++  await expect(rows).toHaveCount(6);
++  // Row 1 is the run's own hop-1 frame, verbatim from the journey log.
++  await expect(rows.nth(0).locator('.compare-cell').first()).toHaveText(
++    '10.2 -> 10.1 | GET /about',
++  );
++  // The two runs really differ where the cache story differs: hop 4 is the
++  // backend's cache-aside lookup — MISS on the cold run, HIT on the warm one.
++  await expect(rows.nth(3)).toContainText('cache MISS (/about)');
++  await expect(rows.nth(3)).toContainText('cache HIT (/about)');
++});
++
++// Stage 6b grounds the em-dash: the first cd.example.com/about run MISSes
++// and pulls the origin (9 hops, filling the edge); the second rides the
++// warm ledger (6 hops). Rows align over max(9, 6) — rows 7-9 right = '—'.
++test('should show em-dash rows where one run is shorter (9 vs 6)', async ({ page }) => {
++  await page.goto('/panel.html');
++  await page.getByTestId('stage-pill-6').click();
++  await page.getByTestId('url-input').fill('cd.example.com/about');
++
++  for (let hop = 0; hop < 9; hop++) await HOP(page); // MISS: fills the edge
++  for (let hop = 0; hop < 6; hop++) await HOP(page); // warm HIT: 6 hops
++
++  await expect(page.getByTestId('compare-headline')).toHaveText(
++    '9 vs 6 hops · GET cd.example.com/about vs GET cd.example.com/about',
++  );
++  const rows = page.getByTestId('compare-rows').locator('.compare-row');
++  await expect(rows).toHaveCount(9);
++  // Rows 7-9: the HIT run has ended — right cell is the em-dash, left keeps
++  // the MISS run's frames (nothing drops).
++  for (const i of [6, 7, 8]) {
++    await expect(rows.nth(i).locator('.compare-cell.exhausted')).toHaveText('—');
++    await expect(rows.nth(i).locator('.compare-cell').first()).not.toHaveText('—');
++  }
++  // The runs really differ at hop 4: the edge's MISS vs its warm HIT frame.
++  await expect(rows.nth(3)).toContainText('MISS — pulling origin 10.1 via router');
++  await expect(rows.nth(3)).toContainText('edge HIT');
++});
++
++// Counter-example (trace-runs-only): crowd ticks are their own journey runs
++// but cannot enter the tray — the stored pair stays byte-identical while the
++// journey log fills with tick entries.
++test('should never compare crowd-tick runs into the tray', async ({ page }) => {
++  await page.goto('/panel.html');
++  await page.getByTestId('stage-pill-3').click();
++  await page.getByTestId('url-input').fill('example.com/about');
++  for (let hop = 0; hop < 6; hop++) await HOP(page);
++  for (let hop = 0; hop < 6; hop++) await HOP(page);
++
++  const beforeHeadline = await page.getByTestId('compare-headline').textContent();
++  const beforeRows = await page
++    .getByTestId('compare-rows')
++    .locator('.compare-row')
++    .allTextContents();
++
++  await page.getByTestId('start-button').click(); // crowd runs, ticks log
++  await expect
++    .poll(async () => page.getByTestId('journey-log').locator('.journey-entry').count(), {
++      timeout: 10_000,
++    })
++    .toBeGreaterThan(12);
++  await page.getByTestId('start-button').click(); // pause keeps state
++
++  // The crowd really produced tick runs in the journey log…
++  await expect(
++    page.getByTestId('journey-log').locator('.journey-entry').filter({ hasText: /^tick/ }),
++  ).not.toHaveCount(0);
++  // …and the tray still shows exactly the two trace runs, rows unchanged.
++  await expect(page.getByTestId('compare-headline')).toHaveText(beforeHeadline);
++  const afterRows = await page
++    .getByTestId('compare-rows')
++    .locator('.compare-row')
++    .allTextContents();
++  expect(afterRows).toEqual(beforeRows);
++});
++
++// Counter-example (stage switch clears): two pinned stage-3 runs, one pill
++// click — the tray renders empty (no stale rows, no crash).
++test('should clear the compare tray on a stage switch', async ({ page }) => {
++  const errors = [];
++  page.on('pageerror', (error) => errors.push(error));
++  page.on('console', (msg) => {
++    if (msg.type() === 'error') errors.push(msg.text());
++  });
++  await page.goto('/panel.html');
++  await page.getByTestId('stage-pill-3').click();
++  await page.getByTestId('url-input').fill('example.com/about');
++  for (let hop = 0; hop < 6; hop++) await HOP(page);
++  for (let hop = 0; hop < 6; hop++) await HOP(page);
++  await expect(page.getByTestId('compare-tray')).toBeVisible();
++
++  await page.getByTestId('stage-pill-1').click();
++  await expect(page.getByTestId('compare-tray')).toBeHidden();
++  await expect(page.getByTestId('compare-rows')).toHaveText('');
++  await expect(page.getByTestId('compare-headline')).toHaveText('');
++  expect(errors).toEqual([]);
++});
+diff --git a/js/panel/compare.js b/js/panel/compare.js
+new file mode 100644
+index 0000000..8fa64ae
+--- /dev/null
++++ b/js/panel/compare.js
+@@ -0,0 +1,113 @@
++// DOCUMENTS: compare tray (B-5) — DOM-bound module inside the log-card. Pure
++// slot/align logic lives in model.js (nextCompareSlots, alignCompareRows);
++// this module owns the DOM only: it stores verbatim copies of a run's
++// journey entries, taken at completion (immune to the journey-log cap),
++// renders the hop-aligned rows, and mints no hop text of its own
++// (DL-1/DL-3). Engine-free: no sim imports, DOM reads and model calls only.
++// CHECKS: pushCompareRun is called only from panel.js's completion branch
++// and clearCompare only from switchStage — crowd ticks cannot reach here,
++// and a run joins with its own entry snapshot (the named counter-examples
++// are pinned in e2e/compare.spec.js).
++import { alignCompareRows, nextCompareSlots } from './model.js';
++
++const slots = { a: null, b: null };
++let tray = null;
++let headline = null;
++let rows = null;
++
++export function initCompareTray() {
++  if (tray) return;
++  const logCard = document.querySelector('.log-card');
++  if (!logCard) return;
++  tray = document.createElement('div');
++  tray.id = 'compare-tray';
++  tray.dataset.testid = 'compare-tray';
++  tray.className = 'compare-tray';
++  headline = document.createElement('p');
++  headline.id = 'compare-headline';
++  headline.dataset.testid = 'compare-headline';
++  headline.className = 'compare-headline';
++  rows = document.createElement('ol');
++  rows.id = 'compare-rows';
++  rows.dataset.testid = 'compare-rows';
++  tray.append(headline, rows);
++  logCard.append(tray);
++  renderCompare();
++}
++
++function renderCompare() {
++  if (!tray) return;
++  const { a, b } = slots;
++  // CHECKS: hidden while the pair is incomplete or empty — fewer than two
++  // stored runs render no rows at all (the tray's one consistent state for
++  // the hidden/incomplete rule; the stage-switch e2e pin reads it).
++  tray.hidden = !(a && b);
++  if (!a || !b) {
++    headline.textContent = '';
++    rows.replaceChildren();
++    return;
++  }
++  headline.textContent = `${a.hops} vs ${b.hops} hops · ${a.label} vs ${b.label}`;
++  rows.replaceChildren(
++    ...alignCompareRows(a, b).map((row) => {
++      const li = document.createElement('li');
++      li.className = 'compare-row';
++      const n = document.createElement('span');
++      n.className = 'compare-n';
++      n.textContent = String(row.n);
++      const left = document.createElement('span');
++      left.className = 'compare-cell';
++      left.textContent = row.left;
++      const right = document.createElement('span');
++      right.className = `compare-cell${row.right === '—' ? ' exhausted' : ''}`;
++      right.textContent = row.right;
++      li.append(n, left, right);
++      return li;
++    }),
++  );
++}
++
++// CHECKS: entries arrive raw from render.js's getRunEntries and are stored
++// as verbatim copies — later journey-log trims, relabels, or crowd ticks
++// reorder the live log without touching these rows (snapshot-at-completion
++// contract; the run id keys the no-op/duplicate rule in model.js).
++export function pushCompareRun({ run, trace, entries }) {
++  if (!tray || !Array.isArray(entries) || entries.length === 0) return;
++  const label = labelFromTrace(trace) ?? fallbackLabel();
++  const next = nextCompareSlots(slots, {
++    run,
++    label,
++    hops: entries.length,
++    entries: entries.map((entry) => ({ ...entry })),
++  });
++  slots.a = next.a;
++  slots.b = next.b;
++  renderCompare();
++}
++
++// The run's own request descriptor: stages 1-5 and host-less stage-6 traces
++// carry `request` verbatim; a hosted stage-6 trace re-points `request` at
++// the resolved resource path at the answer hop, so the typed descriptor is
++// rebuilt from the trace's own host/path fields (trace-stage6.js).
++function labelFromTrace(trace) {
++  if (!trace) return null;
++  if (trace.host && typeof trace.path === 'string') {
++    return `${trace.method ?? 'GET'} ${trace.host}${trace.path}`;
++  }
++  return typeof trace.request === 'string' ? trace.request : null;
++}
++
++// URL-input fallback (brief-reported decision): snapshot.trace carries
++// request/path/host on every real trace, so this reads only when a trace
++// field is absent — the input values are the ones live at completion time.
++function fallbackLabel() {
++  const method = document.getElementById('req-method');
++  const input = document.getElementById('url-input');
++  return `${method?.value ?? 'GET'} ${input?.value ?? ''}`.trim();
++}
++
++export function clearCompare() {
++  slots.a = null;
++  slots.b = null;
++  renderCompare();
++}
+diff --git a/js/panel/model.js b/js/panel/model.js
+index 297e340..5a0467c 100644
+--- a/js/panel/model.js
++++ b/js/panel/model.js
+@@ -167,6 +167,42 @@ export function orderJourneyEntries(entries, entry) {
+   return ordered;
+ }
+ 
++// PINS: compare-tray slot machine (pure; the DOM side lives in compare.js).
++// A run enters only from panel.js's completion branch; crowd ticks cannot
++// call it, and a tick-shaped run (`{ hops: 0 }`) is rejected here as well —
++// runs with fewer than 2 hop entries are ignored, leaving both slots and
++// the changed flag untouched (named counter-example pinned in
++// test/panel/model.test.js).
++export function nextCompareSlots(slots, newRun) {
++  const valid =
++    newRun && newRun.hops >= 2 && Array.isArray(newRun.entries) && newRun.entries.length > 0;
++  if (!valid) return { ...slots, changed: false };
++  if (newRun.run === slots.a?.run || newRun.run === slots.b?.run) {
++    return { a: slots.a, b: slots.b, changed: false };
++  }
++  if (!slots.a) return { a: newRun, b: slots.b ?? null, changed: true };
++  if (!slots.b) return { a: slots.a, b: newRun, changed: true };
++  return { a: slots.b, b: newRun, changed: true };
++}
++
++// PINS: hop-aligned compare rows over max(left.hops, right.hops); the
++// exhausted side renders the em-dash (the 9-by-6 counter-example pins rows
++// 7-9 right = '—') and every cell is the stored entry's own text,
++// byte-for-byte — alignment reads, it never mutates or rewrites (verbatim
++// journey-log contract, DL-1/DL-3).
++export function alignCompareRows(left, right) {
++  const total = Math.max(left.hops, right.hops);
++  const rows = [];
++  for (let n = 1; n <= total; n += 1) {
++    rows.push({
++      n,
++      left: left.entries[n - 1]?.text ?? '—',
++      right: right.entries[n - 1]?.text ?? '—',
++    });
++  }
++  return rows;
++}
++
+ export function describeSnapshot(snapshot) {
+   const stage = snapshot.stage ?? 1;
+   const latencyMs = Math.round(snapshot.avgLatencyTicks * TICK_MS);
+diff --git a/js/panel/panel.js b/js/panel/panel.js
+index bfa4e15..d0049eb 100644
+--- a/js/panel/panel.js
++++ b/js/panel/panel.js
+@@ -7,6 +7,8 @@ import { createEngine } from '../sim/engine.js';
+ import { TICK_MS } from './model.js';
+ import { COMPONENT_SOURCE } from './inspector-source.js';
+ import { $, els, addToJourney, relabelJourneyRun, render, renderInspector } from './render.js';
++import { getRunEntries } from './render.js';
++import { clearCompare, initCompareTray, pushCompareRun } from './compare.js';
+ import { renderStageTopology, onStageRendered } from './render-stage.js';
+ import { ensureStage6Dom } from './stage6-registry.js';
+ import { initFilesystemEditor } from './fs-editor.js';
+@@ -99,6 +101,7 @@ function pause() {
+ function switchStage(stage) {
+   if (timer) pause();
+   currentStage = stage;
++  clearCompare(); // cross-stage shapes are not comparable (B-5)
+   renderStageTopology(currentStage);
+   engine = createEngineFromControls();
+   syncUrlState();
+@@ -191,6 +194,7 @@ function stepOneHop() {
+   });
+   if (snapshot.trace.hop === traceFinalHop(snapshot, snapshot.stage)) {
+     relabelJourneyRun(traceRunId, totalHops);
++    pushCompareRun({ run: traceRunId, trace: snapshot.trace, entries: getRunEntries(traceRunId) });
+   }
+   updateView(snapshot);
+   return snapshot;
+@@ -253,6 +257,8 @@ $('legend-toggle').addEventListener('click', () => {
+   $('legend-toggle').setAttribute('aria-expanded', String(open));
+ });
+ 
++initCompareTray(); // B-5 compare tray — callers: the completion branch and switchStage
++
+ // CHECKS: the teaching drawer lives in js/panel/teaching-drawer.js; panel.js
+ // hands it the current stage at boot and on every switch (see also the
+ // legend drawer above for the toggle pattern).
+diff --git a/js/panel/render.js b/js/panel/render.js
+index cc5344e..a8c68b1 100644
+--- a/js/panel/render.js
++++ b/js/panel/render.js
+@@ -81,6 +81,11 @@ export function relabelJourneyRun(run, totalHops) {
+   renderJourney();
+ }
+ 
++// CHECKS: the tray snapshots one run's real logged entries, hop-ascending; callers copy.
++export function getRunEntries(run) {
++  return journeyEntries.filter((entry) => entry.run === run);
++}
++
+ function renderJourney() {
+   els.journeyLog.replaceChildren(
+     ...journeyEntries.map((entry) => {
+diff --git a/slices.yaml b/slices.yaml
+index a6aef89..5a71de1 100644
+--- a/slices.yaml
++++ b/slices.yaml
+@@ -83,6 +83,7 @@ slices:
+         - e2e/fs-editor.spec.js
+         - e2e/panel-stage6.spec.js
+         - e2e/cdn-edge.spec.js
++        - e2e/compare.spec.js
+         - e2e/orrery-plane.spec.js
+         - e2e/teaching.spec.js
+     owns:
+diff --git a/storymap.yaml b/storymap.yaml
+index 2b24589..2eede0c 100644
+--- a/storymap.yaml
++++ b/storymap.yaml
+@@ -149,6 +149,14 @@ activities:
+               - unit: test/panel/teaching.test.js::unknown stages degrade to a pending-entries placeholder, not a crash
+               - e2e: teaching::should open the teaching drawer, trace it across stage switches, and show stage-1 content only on stage 1
+               - e2e: teaching::should link to the system-design-primer section for the active stage
++          - title: Compare the two most recent completed trace runs hop-by-hop in the compare tray — crowd ticks cannot enter and a stage switch clears it
++            status: done
++            priority: medium
++            tests:
++              - e2e: compare::should compare the last two trace runs hop-by-hop in the compare tray
++              - e2e: compare::should show em-dash rows where one run is shorter (9 vs 6)
++              - e2e: compare::should never compare crowd-tick runs into the tray
++              - e2e: compare::should clear the compare tray on a stage switch
+ 
+   - name: 'Stage 2 — Load balancer and duplicated servers'
+     tasks:
+diff --git a/test/panel/model.test.js b/test/panel/model.test.js
+index 5916d32..b4b4880 100644
+--- a/test/panel/model.test.js
++++ b/test/panel/model.test.js
+@@ -1,5 +1,11 @@
+ import { describe, it, expect } from 'vitest';
+-import { describeSnapshot, orderJourneyEntries, TICK_MS } from '../../js/panel/model.js';
++import {
++  alignCompareRows,
++  describeSnapshot,
++  nextCompareSlots,
++  orderJourneyEntries,
++  TICK_MS,
++} from '../../js/panel/model.js';
+ import { componentTitle, formatComponentState } from '../../js/panel/inspector-state.js';
+ 
+ describe('describeSnapshot', () => {
+@@ -294,3 +300,97 @@ describe('describeSnapshot', () => {
+     expect(ordered.map((e) => e.label)).toEqual(['hop 1/4', 'hop 2/4', 'hop 3/4', 'hop 4/4']);
+   });
+ });
++
++// Compare tray (B-5): the pure slot/align contract consumed by compare.js.
++// The DOM side is covered by e2e/compare.spec.js; these pins hold the
++// branch conditions and the verbatim-passthrough rule.
++describe('compare tray model', () => {
++  const runOf = (run, hops, label = 'GET /about') => ({
++    run,
++    label,
++    hops,
++    entries: Array.from({ length: hops }, (_, i) => ({
++      run,
++      hop: i + 1,
++      label: `hop ${i + 1}/${hops}`,
++      text: `${label} · frame ${i + 1} — answered`,
++    })),
++  });
++
++  it('aligns unequal 9-by-6 runs into 9 rows with rows 7-9 right side an em-dash', () => {
++    const rows = alignCompareRows(runOf(1, 9), runOf(2, 6));
++    expect(rows).toHaveLength(9);
++    expect(rows.map((row) => row.n)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
++    expect(rows.slice(6).map((row) => row.right)).toEqual(['—', '—', '—']);
++    // The longer run keeps all nine of its frames — nothing drops.
++    expect(rows.slice(6).map((row) => row.left)).toEqual([
++      'GET /about · frame 7 — answered',
++      'GET /about · frame 8 — answered',
++      'GET /about · frame 9 — answered',
++    ]);
++  });
++
++  it('aligns equal runs row-for-row with no em-dash', () => {
++    const rows = alignCompareRows(runOf(1, 6), runOf(2, 6));
++    expect(rows).toHaveLength(6);
++    expect(rows.every((row) => row.left !== '—' && row.right !== '—')).toBe(true);
++    expect(rows[3]).toEqual({
++      n: 4,
++      left: 'GET /about · frame 4 — answered',
++      right: 'GET /about · frame 4 — answered',
++    });
++  });
++
++  it('passes entry texts through verbatim — alignment never mutates a stored run', () => {
++    const left = runOf(1, 9);
++    const right = runOf(2, 6);
++    const beforeLeft = JSON.stringify(left);
++    const beforeRight = JSON.stringify(right);
++    const rows = alignCompareRows(left, right);
++    expect(JSON.stringify(left)).toBe(beforeLeft);
++    expect(JSON.stringify(right)).toBe(beforeRight);
++    // Every rendered cell is the byte-identical stored text.
++    expect(rows[1].left).toBe(left.entries[1].text);
++    expect(rows[1].right).toBe(right.entries[1].text);
++  });
++
++  it('first run fills slot A, second fills B with changed true', () => {
++    const empty = { a: null, b: null };
++    const first = runOf(1, 6);
++    const afterFirst = nextCompareSlots(empty, first);
++    expect(afterFirst).toEqual({ a: first, b: null, changed: true });
++    const second = runOf(2, 9);
++    const afterSecond = nextCompareSlots(afterFirst, second);
++    expect(afterSecond).toEqual({ a: first, b: second, changed: true });
++  });
++
++  it('a third distinct run shifts A <- old B and B <- new', () => {
++    const first = runOf(1, 6);
++    const second = runOf(2, 9);
++    const third = runOf(3, 4);
++    const after = nextCompareSlots({ a: first, b: second }, third);
++    expect(after).toEqual({ a: second, b: third, changed: true });
++  });
++
++  it('a same-run re-push is a no-op with changed false and slots unchanged', () => {
++    const first = runOf(1, 6);
++    const second = runOf(2, 9);
++    const slots = { a: first, b: second };
++    // The right slot's own run id (the tray does not duplicate a run).
++    expect(nextCompareSlots(slots, runOf(2, 9))).toEqual({ a: first, b: second, changed: false });
++    // The left slot's run id is a no-op too.
++    expect(nextCompareSlots(slots, runOf(1, 6))).toEqual({ a: first, b: second, changed: false });
++  });
++
++  it('a tick-shaped run with no hop entries is rejected — slots untouched', () => {
++    // Named counter-example: crowd ticks (`addToJourney('tick …', { run })`)
++    // cannot reach the tray, and a tick-shaped run fed here changes nothing.
++    const first = runOf(1, 6);
++    const second = runOf(2, 9);
++    const slots = { a: first, b: second };
++    const tickRun = { run: 3, label: 'tick 5', hops: 0, entries: [] };
++    expect(nextCompareSlots(slots, tickRun)).toEqual({ a: first, b: second, changed: false });
++    // The hops < 2 rule is the same rejection: a one-entry run is ignored.
++    expect(nextCompareSlots(slots, runOf(4, 1))).toEqual({ a: first, b: second, changed: false });
++  });
++});

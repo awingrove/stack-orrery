@@ -79,3 +79,62 @@ gemini-4-argon-contributor` was planned but is not dispatchable; used
     `docs/plans/ste-brief-experiment.md`. No guard weakened — both are
     scope extensions for experiment artifacts, recorded here and in the
     freeze commit message.
+
+## 2026-11-12 — pilot: free-tier quota exhaustion (human ratification)
+
+13. **Executor tier switch, whole change, human ratification (option B,
+    2026-11-12 ~22:35).** Pilot wave 2 (runs A-3, C-1, B-2) died on arrival:
+    the free-tier quota for the recorded executor
+    (`opencode/glm-5.3-flash-free`) was exhausted. Wave 1 (A-1, B-3, C-2)
+    had completed on the free tier; runs A-3/C-1/B-2 errored with zero work
+    done (dirs pristine). The human ratified switching the WHOLE change to
+    the ratified primary executor `opencode-go/glm-5.3-flash` for all 9
+    runs, re-running wave 1 — the repo's own 2026-10-29 ratification makes
+    paid-glm <-> free-glm tier fallbacks interchangeable for the executor,
+    and the ledger has standing human-approved "pinned executor model over
+    usage limit" fallbacks. Same underlying model, different provider tier;
+    uniform across all arms. Wave-1 free-tier artifacts kept on disk as
+    `run.free-tier-superseded.json`; the paid wave-1 runs are the data of
+    record. Session ids: free wave-1 (ses_e2e275dbeffe…, ses_e2e275dbdffe…,
+    ses_e2e275dbaffe…), DOA wave-2 (ses_e2e1ccaf9…, ses_e2e1ccaf6…,
+    ses_e2e1ccaf3…).
+
+14. **Harness error: paid wave 1 dispatched into non-reset dirs (2026-11-12
+    ~22:36, self-caught ~22:37).** The paid wave-1 dispatches (A-1, B-3, C-2)
+    went into dirs still holding the completed free-tier wave-1 commits; the
+    harness reset landed ~80 s into the sessions, after the executors had
+    already observed a completed solution to their own task. Consequence:
+    all three wave-1-paid sessions are contaminated by solution exposure
+    and are DISCARDED as data (B-3's executor additionally adopted the
+    free-tier commit after diagnosing the reset via reflog — an honest
+    restore, but still not independent authoring). Recovery: waves 2+3
+    (pristine dirs) run tonight on the paid tier; wave 1 re-runs tomorrow
+    in freshly reset dirs. Rule going forward: the harness resets a run dir
+    BEFORE dispatch, never after; a mid-session reset is contamination.
+    Contaminated paid session ids: ses_e2e17624fffe… (C-2), ses_e2e17624e… (B-3),
+    ses_e2e17624b… (A-1).
+
+15. **Executor cwd leak: parent-repo reads (2026-11-12 ~22:50, §11 stop
+    condition).** Subagent executors inherit the LIVE repo as their process
+    cwd; relative-path reads in the frozen brief text resolve there before
+    the harness frame's working-directory note can prevent it. Run B-2's
+    executor read 6 parent-repo files early (incl. `js/panel/model.js` and
+    `js/panel/panel.js` — which contain the SHIPPED B-5 implementation,
+    i.e. this run's own reference solution), then self-corrected to
+    absolute paths. Contamination presumed; B-2 paid run DISCARDED, dir
+    reset. Audit of every run now scans the session log for non-run-dir
+    read calls: A-3 clean (0), C-1 clean (0), B-2 contaminated (6).
+    Standing report to the human per §11; wave 3 held pending human word.
+    Harness fix for future runs (options): strengthen the frame with an
+    explicit absolute-path rule before the brief text; and/or relocate the
+    executor session into the run dir at dispatch (session_move) so
+    relative paths resolve correctly by construction.
+
+16. **Harness fix applied before any further dispatch (2026-11-13 morning).**
+    The executor frame now leads with an explicit absolute-path rule: the
+    LIVE repo is named as out of bounds, every read/write/git command must
+    target the run dir, and relative paths in the task text must be
+    prefixed with the run dir. The contamination audit was extended to all
+    tool calls (bash/glob/grep, not only read) and passed retroactively for
+    A-3 and C-1 (0 suspect calls each), so those runs remain valid. Every
+    remaining run carries the rule; the audit gates every run's data.
