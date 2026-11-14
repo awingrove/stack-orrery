@@ -138,3 +138,17 @@ gemini-4-argon-contributor` was planned but is not dispatchable; used
     tool calls (bash/glob/grep, not only read) and passed retroactively for
     A-3 and C-1 (0 suspect calls each), so those runs remain valid. Every
     remaining run carries the rule; the audit gates every run's data.
+
+17. **Rubric v2 frozen (human-approved, 2026-11-14).** The §8.3 human check
+    was performed by the human via a 5-question multiple-choice interview
+    (delegated external model assessments by ChatGPT Free and Claude
+    Sonnet 5.5 were also supplied by the human and analyzed). Result: the
+    human's scoring policy diverges from all three model graders — strict
+    on fidelity misses (P3) and churn (P4), lenient on sanctioned cap
+    extractions (P2), assume-met for diff-invisible process requirements
+    (P1). Under the human policy the pilot's run-4 (B-3) vs run-2 (C-3)
+    ranking FLIPS (models: B-3 ahead; human: C-3 ahead), exposing a
+    potential confound: extraction-penalty stance could manufacture an
+    arm effect. Rubric amended per the human policy (P1-P4 + tightened
+    anchors) and frozen as v2; the C10 arms (brief.A/B/C) are untouched.
+    Pilot runs re-scored under v2 below (addendum in PILOT-REPORT.md).

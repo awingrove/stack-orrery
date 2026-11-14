@@ -31,5 +31,8 @@
   "requirements_score": 68,
   "requirements_max": 68,
   "quality_checks_score": 8,
-  "human_graded": false
+  "human_graded": false,
+  "req_score_v2": 68,
+  "checks_score_v2": 7,
+  "scorer_policy": "rubric-v2 (human P1-P4) as-scored"
 }

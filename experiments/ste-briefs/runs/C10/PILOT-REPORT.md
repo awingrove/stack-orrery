@@ -104,3 +104,56 @@ per-arm data, and one change cannot resolve a wording effect.
 2 runs (20%): blind diffs at `/tmp/opencode/ste-score/C10/run-4.diff` and
 `run-2.diff` with `requirements.md` + `rubric.md` beside them. Arm labels
 revealed after the human grades. Agreement threshold: 70%.
+
+## 8. Re-score addendum — rubric v2 (human policy, 2026-11-14)
+
+The §8.3 human check (5-question interview; delegated ChatGPT Free and
+Claude Sonnet 5.5 assessments analyzed) produced a frozen scoring policy
+(P1–P4, see `C10/rubric.md`). All 9 runs re-scored blind under rubric v2.
+
+| run | arm | req v1 | checks v1 | req v2 | checks v2 |
+| --- | --- | ------ | --------- | ------ | --------- |
+| A-1 | A   | 68     | 8         | 67     | 6         |
+| A-2 | A   | 68     | 8         | 68     | 8         |
+| A-3 | A   | 68     | 8         | 68     | 7         |
+| B-1 | B   | 68     | 8         | 68     | 8         |
+| B-2 | B   | 67     | 8         | 67     | 7         |
+| B-3 | B   | 68     | 8         | 67     | 7         |
+| C-1 | C   | 68     | 8         | 68     | 7         |
+| C-2 | C   | 67     | 8         | 66     | 6         |
+| C-3 | C   | 66     | 8         | 67     | 7         |
+
+Arm means v2 — requirements: A 67.67 · B 67.33 · C 67.00; checks:
+A 7.00 · B 7.33 · C 6.67.
+
+**Findings:**
+
+1. **v2 is more discriminating.** v1 clustered at 66–68/8; v2 spread to
+   66–68 with checks 6–8 and surfaced real defects v1 missed — most
+   notably B-3's `nextCompareSlots` re-push check covering only the right
+   slot, and missing 20-entry-cap counter-example pins in several runs'
+   e2e suites. The tightened anchors are doing their job.
+2. **The human-policy ranking flip did NOT materialize in aggregate.** The
+   interview predicted C-3 ≥ B-3 once extractions were forgiven; v2 scored
+   them tied at 67 — C-3 gained the extraction back (P2) but lost points
+   to v2's stricter fidelity/test anchors; B-3 lost its extraction-free
+   status to the churn ding (P4) and the re-push bug. The two effects
+   cancelled: pilot verdict **unchanged — inconclusive**, now with a
+   better instrument.
+3. **Instrument defect found and fixed (rubric v2.1):** the v2
+   no_unrelated_changes anchor ("new files not asked for … = 1")
+   contradicted P2 — it re-penalized sanctioned extractions on a second
+   axis. v2.1 limits no_unrelated dings to churn/reformatting (P4) and
+   cross-boundary moves; sanctioned extractions are penalized nowhere.
+   One run (C-3) was affected as-scored; its v2.1-normalized value is
+   68/68 with checks 7/8. Arm means under v2.1: A 67.33 · B 67.33 ·
+   C 67.33 — identical.
+4. **Scorer reliability:** 5 of 18 v2 scorer sessions returned empty
+   (retried successfully with a mandatory-output instruction). The full
+   run must dispatch scorers with that instruction from the start.
+5. **Blind-naming integrity held:** no scorer session saw an arm label.
+
+**Bottom line:** rubric v2.1 (human policy, churn-only no_unrelated) is
+the frozen instrument for the full run. The pilot's headline finding
+stands: no arm effect beyond noise on a single change; the instrument is
+now sharp enough to detect real quality differences when they exist.
