@@ -6,8 +6,8 @@
   "executor_model": "opencode/glm-5.3-flash-free",
   "executor_session_id": "ses_e2e1407b0ffemTfY3h5w46iLcS",
   "gate_pass": true,
-  "first_attempt_gate_pass": null,
-  "guardrail_failures": 0,
+  "first_attempt_gate_pass": true,
+  "guardrail_failures": 1,
   "files_changed": 11,
   "lines_added": 526,
   "lines_removed": 40,
@@ -27,12 +27,5 @@
   "wall_seconds": 619,
   "cost": 0,
   "stop_reason": "finished",
-  "gate_runs_seen": 0,
-  "requirements_score": 68,
-  "requirements_max": 68,
-  "quality_checks_score": 8,
-  "human_graded": false,
-  "req_score_v2": 68,
-  "checks_score_v2": 7,
-  "scorer_policy": "rubric-v2 (human P1-P4) as-scored"
+  "gate_runs_seen": 5
 }

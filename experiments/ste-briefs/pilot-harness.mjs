@@ -19,12 +19,14 @@ import { DatabaseSync } from 'node:sqlite';
 const HOME = process.env.HOME;
 const REPO = '/home/awingrove/repos/stack-orrery/stack-orrery';
 const EXP = REPO + '/experiments/ste-briefs';
-const RUNS = '/tmp/opencode/ste-runs/C10';
-const CHANGE = 'C10';
+const RUNS = '/tmp/opencode/ste-runs';
+const CHANGE = process.env.STE_CHANGE ?? 'C10';
+const RUN_ROOT = RUNS + '/' + CHANGE;
+const PORT_BASE =
+  4242 + Number(process.env.STE_PORT_OFFSET ?? (CHANGE.match(/\d+/)?.[0] ?? 0) * 20);
 const SEED = 20261112;
 const ARMS = ['A', 'B', 'C'];
 const RUNS_PER_ARM = 3;
-const PORT_BASE = 4242;
 
 const startSha = readFileSync(EXP + '/' + CHANGE + '/start.sha', 'utf8').trim();
 
@@ -53,10 +55,13 @@ function shuffledRuns() {
 
 function setup() {
   const order = shuffledRuns();
-  writeFileSync(EXP + '/runs-order.json', JSON.stringify({ SEED, order }, null, 2) + '\n');
+  writeFileSync(
+    EXP + '/runs/' + CHANGE + '/runs-order.json',
+    JSON.stringify({ SEED, order }, null, 2) + '\n',
+  );
   mkdirSync(RUNS, { recursive: true });
   for (const r of order) {
-    const dir = `${RUNS}/${r.arm}-${r.n}`;
+    const dir = `${RUN_ROOT}/${r.arm}-${r.n}`;
     rmSync(dir, { recursive: true, force: true });
     mkdirSync(dir, { recursive: true });
     execFileSync('bash', ['-c', `git archive ${startSha} | tar -x -C ${dir}`], { cwd: REPO });
@@ -102,7 +107,7 @@ function dbSession(sid) {
 }
 
 function measure(arm, n, sid) {
-  const dir = `${RUNS}/${arm}-${n}`;
+  const dir = `${RUN_ROOT}/${arm}-${n}`;
   const outDir = `${EXP}/runs/${CHANGE}/${arm}-${n}`;
   mkdirSync(outDir, { recursive: true });
 
@@ -175,16 +180,18 @@ function measure(arm, n, sid) {
   let guardFails = 0;
   for (const m of asst) {
     for (const c of m.data.content ?? []) {
-      if (c.type !== 'tool' || c.name !== 'bash') continue;
+      if (c.type !== 'tool') continue;
+      if (c.name !== 'shell' && c.name !== 'bash') continue;
       const cmd = c.state?.input?.command ?? '';
-      const result = JSON.stringify(c.state?.output ?? c.state?.result ?? '');
+      const rawOut = c.state?.content ?? c.state?.output ?? c.state?.result ?? '';
+      const result = typeof rawOut === 'string' ? rawOut : JSON.stringify(rawOut);
       if (/npm run (verify|unit|guard)/.test(cmd)) {
         const failed =
-          /FAIL|✖|exit code 1|ELIFECYCLE/i.test(result) &&
-          !/guard summary:[\s\S]*?all PASS/i.test(result);
+          /FAIL|✖|exit code [1-9]|ELIFECYCLE|Error:/i.test(result) &&
+          !/guard summary:[\s\S]*?(all PASS|[1-7] PASS)/i.test(result);
         gateRuns.push({ cmd: cmd.slice(0, 80), failed });
         if (failed) guardFails++;
-      } else if (/guard/.test(cmd) && /FAIL/.test(result)) {
+      } else if (/guard-all|npm run guard/.test(cmd) && /FAIL/.test(result)) {
         guardFails++;
       }
     }
@@ -288,7 +295,9 @@ function csv() {
     'human_graded',
   ];
   const rows = [COLS.join(',')];
-  const order = JSON.parse(readFileSync(EXP + '/runs-order.json', 'utf8')).order;
+  const order = JSON.parse(
+    readFileSync(EXP + '/runs/' + CHANGE + '/runs-order.json', 'utf8'),
+  ).order;
   for (const { arm, n } of order) {
     const p = `${EXP}/runs/${CHANGE}/${arm}-${n}/run.json`;
     if (!existsSync(p)) {
