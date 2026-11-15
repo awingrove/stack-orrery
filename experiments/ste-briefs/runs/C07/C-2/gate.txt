@@ -1,0 +1,12 @@
+
+> verify
+> npm run format:check && npm run lint && npm run unit && npm run guard && npm run test:e2e
+
+
+> format:check
+> prettier --check .
+
+Checking formatting...
+[warn] panel.html
+[warn] Code style issues found in the above file. Run Prettier with --write to fix.
+1

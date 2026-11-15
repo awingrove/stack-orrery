@@ -1,0 +1,22 @@
+
+> verify
+> npm run format:check && npm run lint && npm run unit && npm run guard && npm run test:e2e
+
+
+> format:check
+> prettier --check .
+
+Checking formatting...
+All matched files use Prettier code style!
+
+> lint
+> eslint .
+
+
+/tmp/opencode/ste-runs/C07/C-1/js/sim/trace.js
+  28:10  error  'finalHopFor' is defined but never used      no-unused-vars
+  35:10  error  'runsStage5Chain' is defined but never used  no-unused-vars
+
+✖ 2 problems (2 errors, 0 warnings)
+
+1

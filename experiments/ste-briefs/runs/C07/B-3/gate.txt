@@ -1,0 +1,62 @@
+
+> verify
+> npm run format:check && npm run lint && npm run unit && npm run guard && npm run test:e2e
+
+
+> format:check
+> prettier --check .
+
+Checking formatting...
+All matched files use Prettier code style!
+
+> lint
+> eslint .
+
+
+> unit
+> vitest run
+
+
+ RUN  v5.0.4 /tmp/opencode/ste-runs/C07/B-3
+
+ ❯ test/panel/model-stage6.test.js (3 tests | 1 failed) 56ms
+   ❯ Stage 6 trace narrative branches (3)
+     × adds exactly two DNS hops on the hosted path and resolves example.com through the ledger 29ms
+
+ Test Files  1 failed | 15 passed (16)
+      Tests  1 failed | 64 passed (65)
+   Start at  23:15:05
+   Duration  1.08s (import 37%, tests 36%, transform 18%, worker 9%)
+
+    Isolate  16 workers spawned · ~292ms startup each (spawn + environment, per file)
+             at least ~375ms faster with isolate: false — reuses workers across files instead of one per file
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel/model-stage6.test.js > Stage 6 trace narrative branches > adds exactly two DNS hops on the hosted path and resolves example.com through the ledger
+AssertionError: expected { address: '10.60', …(6) } to match object { lookups: 2, cachedHits: 1, …(1) }
+(7 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "authoritative": 1,
+-   "cachedHits": 1,
+-   "lookups": 2,
++   "cachedHits": 5,
++   "lookups": 6,
+  }
+
+ ❯ test/panel/model-stage6.test.js:62:35
+     60|     for (let hop = 0; hop < 10; hop++)
+     61|       engine.traceHop({ method: 'GET', path: 'example.com/about' });
+     62|     expect(engine.snapshot().dns).toMatchObject({ lookups: 2, cachedHi…
+       |                                   ^
+     63|     expect(hopLabel(2)).toBe('Hop 2/10: DNS (10.60) -> Browser (10.2) …
+     64|     // The upper bound for a hosted path is the full 10.
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+1

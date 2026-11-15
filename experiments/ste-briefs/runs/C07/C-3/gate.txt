@@ -1,0 +1,15 @@
+
+> verify
+> npm run format:check && npm run lint && npm run unit && npm run guard && npm run test:e2e
+
+
+> format:check
+> prettier --check .
+
+Checking formatting...
+[warn] e2e/stage6.spec.js
+[warn] test/panel/model-stage6.test.js
+[warn] test/sim/dns.test.js
+[warn] test/sim/engine.test.js
+[warn] Code style issues found in 4 files. Run Prettier with --write to fix.
+1

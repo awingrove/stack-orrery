@@ -152,3 +152,14 @@ gemini-4-argon-contributor` was planned but is not dispatchable; used
     arm effect. Rubric amended per the human policy (P1-P4 + tightened
     anchors) and frozen as v2; the C10 arms (brief.A/B/C) are untouched.
     Pilot runs re-scored under v2 below (addendum in PILOT-REPORT.md).
+
+18. **C07 attempt-1 killed by the Go 5-hour usage window (2026-11-12
+    ~22:42-23:10).** All 9 concurrent C07 runs were cut by a shared quota
+    window: 7 ran ~28 min / 142-187 turns (simultaneous cutoff ~23:10),
+    2 died at ~1.5 min. No run committed; 31-37 dirty files each.
+    Partial work snapshotted as `runs/C07/<id>/partial-work.attempt1.tgz`
+    (real signal: how far each arm got in 28 min); attempt-1 telemetry
+    kept as `run.attempt1-limit-killed.json`. Dirs reset; attempt-2
+    dispatched 2026-11-15 with 3-concurrent pacing so one window is not
+    consumed by 9 parallel executors. Lesson recorded for the full run:
+    concurrent-run count is a quota-pacing knob, not just a machine one.
