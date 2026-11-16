@@ -13,10 +13,72 @@ All matched files use Prettier code style!
 > eslint .
 
 
-/tmp/opencode/ste-runs/C07/C-1/js/sim/trace.js
-  28:10  error  'finalHopFor' is defined but never used      no-unused-vars
-  35:10  error  'runsStage5Chain' is defined but never used  no-unused-vars
+> unit
+> vitest run
 
-✖ 2 problems (2 errors, 0 warnings)
 
-1
+ RUN  v5.0.4 /tmp/opencode/ste-runs/C07/C-1
+
+
+ Test Files  17 passed (17)
+      Tests  75 passed (75)
+   Start at  09:17:10
+   Duration  1.32s (import 36%, tests 35%, transform 18%, worker 11%)
+
+    Isolate  17 workers spawned · ~365ms startup each (spawn + environment, per file)
+             at least ~521ms faster with isolate: false — reuses workers across files instead of one per file
+
+
+> guard
+> node scripts/guard-all.mjs
+
+guard-plan-ticks: OK (12 plan(s), every ticked path exists)
+guard-debt: OK (4 entries, 4 unique ids, schema + dates + open where-paths)
+guard-metrics: OK (11 entries, 7 cheap-model proof(s), all briefs & slices resolve)
+guard-slices: meta-rule 7 skipped (no --base) — runs on PR CI only.
+guard-slices: OK (3 slices, 13 tasks, 106 repo files all claimed exactly once, no vacuous globs)
+guard-story-refs: OK (140 refs — 91 unit, 49 e2e — all files and fragments resolve)
+guard-file-size: OK (64 source files scanned; js/css ≤ 300, test/e2e ≤ 450, html ≤ 550)
+guard-claims: OK (59 files, 127 claim(s), strict CHECKS/PINS/DOCUMENTS)
+
+guard summary:
+  PASS  guard-plan-ticks.mjs
+  PASS  guard-debt.mjs
+  PASS  guard-metrics.mjs
+  PASS  guard-slices.mjs
+  PASS  guard-story-refs.mjs
+  PASS  guard-file-size.mjs
+  PASS  guard-claims.mjs
+
+> test:e2e
+> playwright test
+
+
+Running 24 tests using 4 workers
+
+  ✓   1 [chromium] › e2e/orrery-plane.spec.js:91:1 › should expand Ring 3 browsers by clicking their compact nodes and return to 10.2 (830ms)
+  ✓   4 [chromium] › e2e/panel-stage6.spec.js:44:1 › should trace example.com/about with DNS ask + answer hops (1.5s)
+  ✓   2 [chromium] › e2e/orrery-plane.spec.js:12:1 › should pan and zoom the concentric orrery plane and reset with Fit to view (1.6s)
+  ✓   3 [chromium] › e2e/panel-stage6.spec.js:13:1 › should switch to Stage 6, resolve example.com through DNS 10.60, and inspect DNS code + TTL ledger (1.7s)
+  ✓   6 [chromium] › e2e/panel-stage6.spec.js:100:1 › should render NX no record for nope.example without emitting a GET (711ms)
+  ✓   7 [chromium] › e2e/panel-stage6.spec.js:126:1 › should extend the ?stage deep-link live set to 6 and still fall back to 1 on unknowns (635ms)
+  ✓   5 [chromium] › e2e/panel-stage6.spec.js:72:1 › should keep GET /about on Stage 6 at the Stage 5 hop story (2.0s)
+  ✓   8 [chromium] › e2e/panel.spec.js:7:1 › should show queue depth climbing as simulated users increase (1.2s)
+  ✓  10 [chromium] › e2e/panel.spec.js:65:1 › should trace a custom URL hop-by-hop into the browser viewport and inspect component code (672ms)
+  ✓   9 [chromium] › e2e/panel.spec.js:41:1 › should step a single tick and display the slim HTTP exchange over mini-IP 10.1 (815ms)
+  ✓  11 [chromium] › e2e/panel.spec.js:86:1 › should switch to Stage 2, alternate requests across 10.11 and 10.12 via the load balancer, and inspect its code (972ms)
+  ✓  15 [chromium] › e2e/panel.spec.js:338:1 › should show the stage-1 webserver headline naming 10.1 only (607ms)
+  ✓  12 [chromium] › e2e/panel.spec.js:117:1 › should switch to Stage 3, warm Cache 10.20 on a miss from 10.11, serve a hit from 10.12, and inspect cache code (1.4s)
+  ✓  17 [chromium] › e2e/panel.spec.js:371:1 › should open the legend drawer and read the tick = 100 ms mapping and lane labels (566ms)
+  ✓  16 [chromium] › e2e/panel.spec.js:357:1 › should render a full-trace journey log with hop 1/4 to 4/4 in ascending order (604ms)
+  ✓  18 [chromium] › e2e/panel.spec.js:395:1 › should give every trace, camera, and load control a non-empty title (390ms)
+  ✓  19 [chromium] › e2e/panel.spec.js:417:1 › should deep-link ?stage=5&users=30 to stage 5 with 30 browsers (415ms)
+  ✓  13 [chromium] › e2e/panel.spec.js:156:1 › should switch to Stage 4, write to Primary 10.30 on POST, observe replica lag on GET, and inspect database code (2.8s)
+  ✓  20 [chromium] › e2e/panel.spec.js:428:1 › should fall back to stage 1 on unknown ?stage=9 without errors (335ms)
+  ✓  14 [chromium] › e2e/panel.spec.js:219:1 › should switch to Stage 5, process an async POST /jobs job through worker 10.41, and inspect queue state (2.7s)
+  ✓  21 [chromium] › e2e/panel.spec.js:442:1 › should show the SERVED card tallying per tick without NaN at tick 0 (460ms)
+  ✓  22 [chromium] › e2e/shell.spec.js:5:1 › should reach the diagram panel from the landing page (512ms)
+  ✓  23 [chromium] › e2e/teaching.spec.js:14:1 › should open the teaching drawer, trace it across stage switches, and show stage-1 content only on stage 1 (670ms)
+  ✓  24 [chromium] › e2e/teaching.spec.js:51:1 › should link to the system-design-primer section for the active stage (720ms)
+
+  24 passed (8.1s)

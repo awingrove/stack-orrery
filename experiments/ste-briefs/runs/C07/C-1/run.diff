@@ -1,0 +1,2851 @@
+diff --git a/css/panel/canvas.css b/css/panel/canvas.css
+index ca85b33..f635030 100644
+--- a/css/panel/canvas.css
++++ b/css/panel/canvas.css
+@@ -32,14 +32,14 @@
+ 
+ /* World-space backdrop: concentric rings, spokes, satellites. The SVG's box
+    is shifted so its viewBox origin lines up with world (0,0). Covers full
+-   circles up to r = 3000, so Stage 3's five rings at the max ring gap
+-   (r5 = 5 * 560 = 2800) do not clip. */
++   circles up to r = 4700, so Stage 6's eight rings at the max ring gap
++   (r8 = 8 * 560 = 4480) do not clip. */
+ .orrery-svg {
+   position: absolute;
+-  left: -3000px;
+-  top: -3000px;
+-  width: 6000px;
+-  height: 6000px;
++  left: -4700px;
++  top: -4700px;
++  width: 9400px;
++  height: 9400px;
+   pointer-events: none;
+ }
+ 
+diff --git a/docs/plans/2026-10-24-stage6a-dns-crossnet.md b/docs/plans/2026-10-24-stage6a-dns-crossnet.md
+index 4a79e5a..184eae9 100644
+--- a/docs/plans/2026-10-24-stage6a-dns-crossnet.md
++++ b/docs/plans/2026-10-24-stage6a-dns-crossnet.md
+@@ -90,5 +90,5 @@ cachedHits, authoritative, cache: [{ name, target, expiresAtTick }] }`.
+ ## Execution steps
+ 
+ - [x] Step 1 (Lead session): human design sign-off committed in `DESIGN.md` and this brief.
+-- [ ] Step 2 (Executor sub-agent): cold implementation from brief contracts, unit & e2e tests, manifest updates, and green `npm run verify`; tick this box and commit.
++- [x] Step 2 (Executor sub-agent): cold implementation from brief contracts, unit & e2e tests, manifest updates, and green `npm run verify`; tick this box and commit.
+ - [ ] Step 3 (Lead session): run `npm run metrics:extract -- <subagentSessionID>`, append entry to `docs/factory/slice-metrics.yaml`, tick Step 3, and commit.
+diff --git a/e2e/panel-stage6.spec.js b/e2e/panel-stage6.spec.js
+new file mode 100644
+index 0000000..cf51293
+--- /dev/null
++++ b/e2e/panel-stage6.spec.js
+@@ -0,0 +1,145 @@
++import { test, expect } from '@playwright/test';
++
++// Stage 6 — DNS (10.60, tick-TTL ledger) + cross-subnet Router (10.65 ⇄
++// 20.1). These assertions live in their own spec (guard-file-size splits
++// e2e by responsibility, as with orrery-plane.spec.js — panel.spec.js sits
++// at its 450-line cap). The sim runs from a fixed seed, so the trace
++// sequences — and therefore these pins — are identical on every run.
++
++// The full hosted story: stage 6 renders 8 rings with the DNS card and the
++// Router side-card, a 10-hop "example.com/about" trace resolves through
++// DNS 10.60 (ask, answer, then the Stage 5 chain), warms the ledger entry,
++// and the DNS code + live TTL ledger open in the inspector.
++test('should switch to Stage 6, resolve example.com through DNS 10.60, and inspect DNS code + TTL ledger', async ({
++  page,
++}) => {
++  await page.goto('/panel.html?stage=6');
++
++  await expect(page.getByTestId('stage-pill-6')).toHaveAttribute('aria-current', 'true');
++  await expect(page.getByTestId('node-dns')).toBeVisible();
++  await expect(page.getByTestId('node-router')).toBeVisible();
++  await expect(page.getByTestId('node-queue')).toBeVisible();
++  await expect(page.locator('.orrery-ring')).toHaveCount(8);
++  await expect(page.locator('.orrery-ring').first()).toHaveAttribute('r', '400');
++  await expect(page.locator('.orrery-ring').last()).toHaveAttribute('r', '3200');
++  await expect(page.getByTestId('dns-stats')).toHaveText('Lookups: 0 · Cached hits: 0 · TTL: 300t');
++  await expect(page.getByTestId('router-stats')).toHaveText('Routed: 0 · 10.65 ⇄ 20.1');
++
++  await page.getByTestId('url-input').fill('example.com/about');
++  for (let hop = 0; hop < 10; hop++) await page.getByTestId('btn-next-hop').click();
++  await expect(page.getByTestId('hop-status')).toContainText('Hop 10/10');
++  await expect(page.getByTestId('browser-rendered-body')).toHaveText('This is the about page');
++  await expect(page.getByTestId('dns-stats')).toHaveText('Lookups: 1 · Cached hits: 0 · TTL: 300t');
++  await expect(page.getByTestId('dns-entries-list')).toContainText('example.com -> 10.1 · ttl');
++
++  await page.getByTestId('node-dns').click();
++  await expect(page.getByTestId('inspector-code')).toContainText('createDns');
++  await expect(page.getByTestId('inspector-state')).toContainText('"lookups": 1');
++  await expect(page.getByTestId('node-router').locator('.ip-chip')).toHaveText('10.65 ⇄ 20.1');
++});
++
++// The two DNS hops are their own narrated hops: the ask, the answer naming
++// the resolved mini-IP, and then the browser emits the GET — and a second
++// hosted trace answers from the ledger (Cached hits 1, no new consult).
++test('should trace example.com/about with DNS ask + answer hops', async ({ page }) => {
++  await page.goto('/panel.html?stage=6');
++
++  await page.getByTestId('url-input').fill('example.com/about');
++  await page.getByTestId('btn-next-hop').click();
++  await expect(page.getByTestId('hop-status')).toHaveText(
++    'Hop 1/10: Browser (10.2) asks DNS (10.60) for example.com',
++  );
++  await page.getByTestId('btn-next-hop').click();
++  await expect(page.getByTestId('hop-status')).toHaveText(
++    'Hop 2/10: DNS (10.60) -> 10.2 | example.com is 10.1 (authoritative)',
++  );
++  await page.getByTestId('btn-next-hop').click();
++  await expect(page.getByTestId('hop-status')).toHaveText(
++    'Hop 3/10: Browser (10.2) emits "GET /about"',
++  );
++  for (let hop = 0; hop < 7; hop++) await page.getByTestId('btn-next-hop').click();
++  await expect(page.getByTestId('hop-status')).toContainText('Hop 10/10');
++
++  await page.getByTestId('btn-url-go').click();
++  await expect(page.getByTestId('dns-stats')).toHaveText('Lookups: 2 · Cached hits: 1 · TTL: 300t');
++  await expect(page.getByTestId('dns-entries-list')).toContainText('example.com -> 10.1');
++  await expect(page.getByTestId('browser-rendered-body')).toHaveText('This is the about page');
++});
++
++// Negative-case pin (the brief's named counter-example): a host-less GET
++// /about on Stage 6 produces the Stage 5 hop story byte-identical — same 8
++// hop sentences, and the DNS ledger stays untouched (no ask, no consult).
++test('should keep GET /about on Stage 6 at the Stage 5 hop story', async ({ page }) => {
++  const collectHops = async (count) => {
++    const sentences = [];
++    for (let hop = 0; hop < count; hop++) {
++      await page.getByTestId('btn-next-hop').click();
++      sentences.push(await page.getByTestId('hop-status').textContent());
++    }
++    return sentences;
++  };
++
++  await page.goto('/panel.html?stage=6');
++  await page.getByTestId('url-input').fill('/about');
++  const stage6Hops = await collectHops(8);
++  expect(stage6Hops[0]).toBe('Hop 1/8: Browser (10.2) emits "GET /about"');
++  expect(stage6Hops[7]).toBe('Hop 8/8: Worker (10.41) idle — no async jobs in this trace');
++  await expect(page.getByTestId('dns-stats')).toHaveText('Lookups: 0 · Cached hits: 0 · TTL: 300t');
++  await expect(page.getByTestId('browser-rendered-body')).toHaveText('This is the about page');
++
++  // The same 8 sentences on Stage 5 — the two stages' stories match exactly.
++  await page.getByTestId('stage-pill-5').click();
++  await page.getByTestId('url-input').fill('/about');
++  const stage5Hops = await collectHops(8);
++  expect(stage5Hops).toEqual(stage6Hops);
++});
++
++// Negative-case pin: an unknown name ends the trace at hop 3/3 — DNS ask,
++// "NX no record" answer, the browser renders the NX card — and no GET ever
++// reaches the load balancer's backends.
++test('should render NX no record for nope.example without emitting a GET', async ({ page }) => {
++  await page.goto('/panel.html?stage=6');
++
++  await page.getByTestId('url-input').fill('nope.example/about');
++  await page.getByTestId('btn-next-hop').click();
++  await expect(page.getByTestId('hop-status')).toHaveText(
++    'Hop 1/3: Browser (10.2) asks DNS (10.60) for nope.example',
++  );
++  await page.getByTestId('btn-next-hop').click();
++  await expect(page.getByTestId('hop-status')).toHaveText(
++    'Hop 2/3: DNS (10.60) -> 10.2 | NX no record',
++  );
++  await page.getByTestId('btn-next-hop').click();
++  await expect(page.getByTestId('hop-status')).toHaveText(
++    'Hop 3/3: Browser (10.2) renders NX — no record for nope.example',
++  );
++  await expect(page.getByTestId('browser-status-badge')).toContainText('NX');
++  await expect(page.getByTestId('browser-rendered-body')).toHaveText('no record');
++  // No GET was queued: both backends still show 0 served.
++  await expect(page.getByTestId('lb-backend-1')).toHaveText('10.11 WebServer-1 (0)');
++  await expect(page.getByTestId('lb-backend-2')).toHaveText('10.12 WebServer-2 (0)');
++  await expect(page.getByTestId('dns-stats')).toHaveText('Lookups: 1 · Cached hits: 0 · TTL: 300t');
++});
++
++// Negative-case pin: the deep-link live set extends to 6 (?stage=6 boots the
++// Stage 6 topology) and unknown values still fall back to Stage 1.
++test('should extend the ?stage deep-link live set to 6 and still fall back to 1 on unknowns', async ({
++  page,
++}) => {
++  const errors = [];
++  page.on('pageerror', (error) => errors.push(error));
++  page.on('console', (msg) => {
++    if (msg.type() === 'error') errors.push(msg.text());
++  });
++
++  await page.goto('/panel.html?stage=6&users=3');
++  await expect(page.getByTestId('stage-pill-6')).toHaveAttribute('aria-current', 'true');
++  await expect(page.getByTestId('node-dns')).toBeVisible();
++  await expect(page.getByTestId('user-dots').locator('> *')).toHaveCount(3);
++
++  await page.goto('/panel.html?stage=9');
++  await expect(page.getByTestId('stage-pill-1')).toHaveAttribute('aria-current', 'true');
++  await expect(page.getByTestId('server-address')).toHaveText('10.1');
++  await expect(page.getByTestId('node-dns')).toBeHidden();
++  expect(errors).toEqual([]);
++});
+diff --git a/e2e/teaching.spec.js b/e2e/teaching.spec.js
+index 586f39a..4433666 100644
+--- a/e2e/teaching.spec.js
++++ b/e2e/teaching.spec.js
+@@ -63,6 +63,7 @@ test('should link to the system-design-primer section for the active stage', asy
+     [3, '#cache-aside'],
+     [4, '#availability-patterns'],
+     [5, '#asynchronism'],
++    [6, '#domain-name-system'],
+   ]) {
+     if (stage > 1) await page.getByTestId(`stage-pill-${stage}`).click();
+     await expect(link, `stage ${stage} primer link`).toHaveAttribute(
+diff --git a/index.html b/index.html
+index bcb3971..e03d2bb 100644
+--- a/index.html
++++ b/index.html
+@@ -126,10 +126,13 @@
+         <article class="ladder-card">
+           <div class="ladder-head">
+             <h3>6 · Multi-Net / CDN</h3>
+-            <span class="stage-badge">Planned</span>
++            <span class="stage-badge is-live">Live</span>
+           </div>
+           <p>
+-            DNS resolution, cross-subnet routing (<code class="mono">20.x</code>), and edge CDN.
++            8 rings: <code class="mono">DNS (10.60)</code> resolves
++            <code class="mono">example.com</code> through a tick-TTL ledger and a
++            <code class="mono">Router (10.65 ⇄ 20.1)</code> joins the subnets — the CDN edge on 20.1
++            is coming next.
+           </p>
+         </article>
+       </section>
+diff --git a/js/panel/camera.js b/js/panel/camera.js
+index b637dec..6e58ab8 100644
+--- a/js/panel/camera.js
++++ b/js/panel/camera.js
+@@ -5,9 +5,10 @@
+ export const MIN_ZOOM = 0.25;
+ export const MAX_ZOOM = 2.0;
+ // DOCUMENTS: the pannable world frame for all per-stage ring geometry —
+-// widened for Stage 3's five rings and Stage 4's six (r_k = k * ringGap) so
+-// their left arcs and node cards stay reachable by pan and fit.
+-export const WORLD_BOUNDS = { minX: -3100, maxX: 600, minY: -900, maxY: 900 };
++// widened for Stage 3's five rings, Stage 4's six, and Stage 6's eight
++// (r_k = k * ringGap) so their left arcs and node cards stay reachable by
++// pan and fit.
++export const WORLD_BOUNDS = { minX: -4700, maxX: 600, minY: -900, maxY: 900 };
+ 
+ const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
+ 
+diff --git a/js/panel/inspector-source-stage6.js b/js/panel/inspector-source-stage6.js
+new file mode 100644
+index 0000000..734c80b
+--- /dev/null
++++ b/js/panel/inspector-source-stage6.js
+@@ -0,0 +1,76 @@
++// DOCUMENTS: the Stage 6 inspector entries — DNS resolver and cross-subnet
++// Router code mirrors, split from inspector-source.js by responsibility
++// (guard-file-size: that module sits near its 300-line cap). js/sim/dns.js
++// and js/sim/router.js are the executable truth; these strings render the
++// same logic for learners.
++export const STAGE6_SOURCE = {
++  dns: {
++    file: 'js/sim/dns.js',
++    code: `createDns({ address = '10.60', ttlTicks = 300 } = {}) {
++  // address must be "<net>.<host>" — a two-number mini-IP
++  const AUTHORITATIVE = new Map([['example.com', '10.1']]); // Stage 6b adds a CDN name
++  const cache = new Map();  // name -> { name, target, expiresAtTick }
++  let lookups = 0, cachedHits = 0, authoritative = 0, evictions = 0, lastLookup = null;
++  function evictExpired(currentTick = 0) {
++    for (const entry of cache.values()) {
++      if (currentTick >= entry.expiresAtTick) {  // TTL elapsed
++        cache.delete(entry.name);
++        evictions += 1;
++      }
++    }
++  }
++  function lookup(name, currentTick = 0) {
++    lookups += 1;
++    const entry = cache.get(name);
++    if (entry && currentTick < entry.expiresAtTick) {  // live ledger entry
++      cachedHits += 1;
++      lastLookup = { name, status: 'HIT', target: entry.target, atTick: currentTick };
++      return { status: 'HIT', target: entry.target };
++    }
++    if (entry) { cache.delete(name); evictions += 1; }  // expired: miss, not a stale hit
++    authoritative += 1;   // the cache branch above skips this consult
++    const record = AUTHORITATIVE.get(name);
++    if (!record) {  // NX is a normal answer here, not a throw
++      lastLookup = { name, status: 'NX', atTick: currentTick };
++      return { status: 'NX' };
++    }
++    cache.set(name, { name, target: record, expiresAtTick: currentTick + ttlTicks });
++    lastLookup = { name, status: 'MISS', target: record, atTick: currentTick };
++    return { status: 'MISS', target: record };
++  }
++  function snapshot(currentTick = 0) {
++    evictExpired(currentTick);
++    return { address, ttlTicks, lookups, cachedHits, authoritative, evictions, lastLookup,
++      cache: [...cache.values()].map((e) => ({ ...e,
++        ttlRemaining: e.expiresAtTick - currentTick })) };
++  }
++  return { get address() { return address; }, lookup, evictExpired, snapshot };
++}`,
++  },
++  router: {
++    file: 'js/sim/router.js',
++    code: `createRouter({ leftAddress = '10.65', rightAddress = '20.1' } = {}) {
++  // both interfaces must be two-number mini-IPs on different subnets
++  let routed = 0, lastRoute = null;
++  const handleRequest = () => \`200 router \${rightAddress}\`;
++  function forward(record, farNetwork) {
++    routed += 1;   // exactly one router hop per cross-subnet frame
++    lastRoute = \`\${record.from} -> \${record.to} via \${leftAddress} ⇄ \${rightAddress}\`;
++    return farNetwork.receiveCrossSubnet(record);
++  }
++  return {
++    get leftAddress() { return leftAddress; },
++    get rightAddress() { return rightAddress; },
++    handleRequest,
++    join(leftNetwork, rightNetwork) {
++      leftNetwork.attachGateway((record) => forward(record, rightNetwork));
++      rightNetwork.attachGateway((record) => forward(record, leftNetwork));
++      leftNetwork.registerServer(leftAddress, { handleRequest });
++      rightNetwork.registerServer(rightAddress, { handleRequest });
++      return this;
++    },
++    snapshot() { return { leftAddress, rightAddress, routed, lastRoute }; },
++  };
++}`,
++  },
++};
+diff --git a/js/panel/inspector-source.js b/js/panel/inspector-source.js
+index 52ae8ef..57b81d9 100644
+--- a/js/panel/inspector-source.js
++++ b/js/panel/inspector-source.js
+@@ -5,6 +5,8 @@
+ // inspector-state.js (split by responsibility, guard-file-size), which also
+ // builds the per-snapshot inspector headline in componentTitle — this file
+ // keeps only the static file/code entries, no per-stage address pins.
++import { STAGE6_SOURCE } from './inspector-source-stage6.js';
++
+ export const COMPONENT_SOURCE = {
+   browser: {
+     file: 'js/sim/browser.js',
+@@ -264,3 +266,5 @@ export const COMPONENT_SOURCE = {
+ }`,
+   },
+ };
++
++Object.assign(COMPONENT_SOURCE, STAGE6_SOURCE);
+diff --git a/js/panel/inspector-state.js b/js/panel/inspector-state.js
+index a56462e..ce8c794 100644
+--- a/js/panel/inspector-state.js
++++ b/js/panel/inspector-state.js
+@@ -41,6 +41,12 @@ export function componentTitle(snapshot = null, component, browserAddress = '10.
+       return `Worker Queue — Queue ${snapshot?.workerQueue?.address ?? '10.40'} / Worker ${
+         snapshot?.workerQueue?.workerAddress ?? '10.41'
+       }`;
++    case 'dns':
++      return `DNS — mini-IP ${snapshot?.dns?.address ?? '10.60'}`;
++    case 'router':
++      return `Router — ${snapshot?.router?.leftAddress ?? '10.65'} ⇄ ${
++        snapshot?.router?.rightAddress ?? '20.1'
++      }`;
+     default:
+       throw new Error(`inspector-source: unknown component ${component}`);
+   }
+@@ -62,11 +68,11 @@ const STATE_BUILDERS = {
+     };
+   },
+   network: (snapshot) => ({
+-    subnet: '10.x',
++    subnet: snapshot.stage === 6 ? '10.x ⇄ 20.x' : '10.x',
+     // CHECKS: mini-IP keys are quoted strings — a bare `10.20:` literal
+     // collapses to the number 10.2 and collides with the browser's mini-IP.
+     interfaces:
+-      snapshot.stage === 5
++      snapshot.stage === 6
+         ? {
+             10.1: 'LoadBalancer',
+             10.11: 'WebServer-1',
+@@ -77,9 +83,12 @@ const STATE_BUILDERS = {
+             10.31: 'Database (Replica)',
+             '10.40': 'WorkerQueue',
+             10.41: 'Worker',
++            '10.60': 'DNS',
++            10.65: 'Router (left)',
++            20.1: 'Router (right)',
+             Crowd: `${snapshot.users} simulated browsers`,
+           }
+-        : snapshot.stage === 4
++        : snapshot.stage === 5
+           ? {
+               10.1: 'LoadBalancer',
+               10.11: 'WebServer-1',
+@@ -88,30 +97,43 @@ const STATE_BUILDERS = {
+               '10.20': 'Cache',
+               '10.30': 'Database (Primary)',
+               10.31: 'Database (Replica)',
++              '10.40': 'WorkerQueue',
++              10.41: 'Worker',
+               Crowd: `${snapshot.users} simulated browsers`,
+             }
+-          : snapshot.stage === 3
++          : snapshot.stage === 4
+             ? {
+                 10.1: 'LoadBalancer',
+                 10.11: 'WebServer-1',
+                 10.12: 'WebServer-2',
+                 10.2: 'Browser (You)',
+                 '10.20': 'Cache',
++                '10.30': 'Database (Primary)',
++                10.31: 'Database (Replica)',
+                 Crowd: `${snapshot.users} simulated browsers`,
+               }
+-            : snapshot.stage === 2
++            : snapshot.stage === 3
+               ? {
+                   10.1: 'LoadBalancer',
+                   10.11: 'WebServer-1',
+                   10.12: 'WebServer-2',
+                   10.2: 'Browser (You)',
++                  '10.20': 'Cache',
+                   Crowd: `${snapshot.users} simulated browsers`,
+                 }
+-              : {
+-                  10.1: 'WebServer',
+-                  10.2: 'Browser (You)',
+-                  Crowd: `${snapshot.users} simulated browsers`,
+-                },
++              : snapshot.stage === 2
++                ? {
++                    10.1: 'LoadBalancer',
++                    10.11: 'WebServer-1',
++                    10.12: 'WebServer-2',
++                    10.2: 'Browser (You)',
++                    Crowd: `${snapshot.users} simulated browsers`,
++                  }
++                : {
++                    10.1: 'WebServer',
++                    10.2: 'Browser (You)',
++                    Crowd: `${snapshot.users} simulated browsers`,
++                  },
+     lastFrame: snapshot.lastFrame ?? null,
+   }),
+   loadbalancer: (snapshot) => ({
+@@ -176,4 +198,20 @@ const STATE_BUILDERS = {
+     pendingJobs: snapshot.workerQueue?.pendingJobs ?? [],
+     lastJobResult: snapshot.workerQueue?.lastJobResult ?? null,
+   }),
++  dns: (snapshot) => ({
++    address: snapshot.dns?.address ?? '10.60',
++    ttlTicks: snapshot.dns?.ttlTicks ?? 300,
++    lookups: snapshot.dns?.lookups ?? 0,
++    cachedHits: snapshot.dns?.cachedHits ?? 0,
++    authoritative: snapshot.dns?.authoritative ?? 0,
++    evictions: snapshot.dns?.evictions ?? 0,
++    lastLookup: snapshot.dns?.lastLookup ?? null,
++    cache: snapshot.dns?.cache ?? [],
++  }),
++  router: (snapshot) => ({
++    leftAddress: snapshot.router?.leftAddress ?? '10.65',
++    rightAddress: snapshot.router?.rightAddress ?? '20.1',
++    routed: snapshot.router?.routed ?? 0,
++    lastRoute: snapshot.router?.lastRoute ?? null,
++  }),
+ };
+diff --git a/js/panel/lanes.js b/js/panel/lanes.js
+new file mode 100644
+index 0000000..5443a71
+--- /dev/null
++++ b/js/panel/lanes.js
+@@ -0,0 +1,48 @@
++// DOCUMENTS: wire-lane anchoring config, split from viewport.js by
++// responsibility (guard-file-size: viewport.js sits at its 300-line cap and
++// Stage 6 adds the DNS and Router lanes). Each stage maps a lane element id
++// to the wire it sits on (optionally at a fraction t down that wire —
++// Stage 5 anchors the cache→db lane at t = 0.3 so it clears the queue→worker
++// crossing); LANES_BETWEEN anchors a lane between two parallel wires, with
++// an optional cap toward a card the lane would otherwise clip.
++export const LANE_WIRES = {
++  1: { 'wire-col-left': 'wire-browser-network', 'wire-col-right': 'wire-network-webserver' },
++  2: { 'wire-col-left': 'wire-browser-network', 'wire-col-right': 'wire-network-lb' },
++  3: { 'wire-col-left': 'wire-browser-network', 'wire-col-right': 'wire-network-lb' },
++  4: {
++    'wire-col-left': 'wire-browser-network',
++    'wire-col-right': 'wire-network-lb',
++    'wire-cache-db': 'wire-cache-db',
++  },
++  5: {
++    'wire-col-left': 'wire-browser-network',
++    'wire-col-right': 'wire-network-lb',
++    'wire-cache-db': ['wire-cache-db', 0.3],
++    'wire-cache-queue': 'wire-cache-queue',
++    'wire-queue-worker': 'wire-queue-worker',
++  },
++  6: {
++    'wire-col-left': 'wire-browser-network',
++    'wire-col-right': 'wire-network-lb',
++    'wire-col-dns': 'wire-browser-dns',
++    'wire-col-router': 'wire-network-router',
++    'wire-cache-db': ['wire-cache-db', 0.3],
++    'wire-cache-queue': 'wire-cache-queue',
++    'wire-queue-worker': 'wire-queue-worker',
++  },
++};
++
++export const LANES_BETWEEN = [
++  {
++    laneId: 'wire-lb-backends',
++    stages: [2, 3, 4, 5, 6],
++    wireIds: ['wire-lb-webserver', 'wire-lb-webserver-2'],
++  },
++  {
++    laneId: 'wire-servers-cache',
++    stages: [3, 4, 5, 6],
++    wireIds: ['wire-webserver-cache', 'wire-webserver-2-cache'],
++    capTo: 'node-cache',
++    capDx: -175, // 15.5rem card half + chip half + margin, in world px
++  },
++];
+diff --git a/js/panel/layout-satellites.js b/js/panel/layout-satellites.js
+new file mode 100644
+index 0000000..4357a06
+--- /dev/null
++++ b/js/panel/layout-satellites.js
+@@ -0,0 +1,26 @@
++// DOCUMENTS: browser-slot arc geometry, split from layout.js by
++// responsibility (guard-file-size: layout.js sits at its 300-line cap and
++// Stage 6 needs room for its 8-ring registry). The satellite arcs place the
++// non-expanded browsers around the outer client ring; slot 0 keeps the
++// expanded card's 180° seat by construction.
++export function computeSatellites(users, outerRadius) {
++  const count = Math.max(0, Math.round(users));
++  const leftCount = Math.ceil(count / 2);
++  const rightCount = count - leftCount;
++  const satellites = [];
++  const place = (arcCount, startAngle) => {
++    for (let j = 0; j < arcCount; j += 1) {
++      const angleDeg = startAngle + ((j + 1) / (arcCount + 1)) * 37;
++      const { x, y } = polarToWorld(outerRadius, angleDeg);
++      satellites.push({ index: satellites.length, x, y, angleDeg });
++    }
++  };
++  place(leftCount, 135);
++  place(rightCount, 188);
++  return satellites;
++}
++
++export function polarToWorld(radius, angleDeg) {
++  const rad = (angleDeg * Math.PI) / 180;
++  return { x: Math.round(radius * Math.cos(rad)), y: Math.round(radius * Math.sin(rad)) };
++}
+diff --git a/js/panel/layout-stage6.js b/js/panel/layout-stage6.js
+new file mode 100644
+index 0000000..c4f60e8
+--- /dev/null
++++ b/js/panel/layout-stage6.js
+@@ -0,0 +1,44 @@
++// DOCUMENTS: Stage 6 orrery additions — the 8-ring registry (DNS 10.60 on
++// Ring 7, the Router side-card beside the 10.x hub on Ring 6) and the two
++// wires the stage adds (browser -> DNS ask, Network -> Router). Split from
++// layout.js by responsibility (guard-file-size: layout.js sits at its
++// 300-line cap); layout.js hands in its geometry helpers so the Stage 1-5
++// outputs stay byte-identical.
++export function stage6RingSpecs(stage) {
++  if (stage !== 6) return null;
++  return [
++    ['ring-db', 'RING 1 · DATABASE'],
++    ['ring-workers', 'RING 2 · WORKERS'],
++    ['ring-cache', 'RING 3 · CACHE'],
++    ['ring-compute', 'RING 4 · WEBSERVERS'],
++    ['ring-lb', 'RING 5 · LOADBALANCER'],
++    ['ring-network', 'RING 6 · NETWORK'],
++    ['ring-dns', 'RING 7 · DNS'],
++    ['ring-clients', 'RING 8 · BROWSERS'],
++  ];
++}
++
++export function addStage6Nodes({ rings, nodes, wires, pos, makeWire }) {
++  const dnsRing = rings.find((ring) => ring.id === 'ring-dns');
++  const networkRing = rings.find((ring) => ring.id === 'ring-network');
++  nodes['node-dns'] = pos('node-dns', 'ring-dns', dnsRing.radius, 180);
++  // The Router renders as a side-card on the Network ring, off the 10.x
++  // hub's 180° seat, with its own chord wire.
++  nodes['node-router'] = pos('node-router', 'ring-network', networkRing.radius, 160);
++  wires.push(
++    makeWire(
++      'wire-browser-dns',
++      'node-browser',
++      'node-dns',
++      nodes['node-browser'],
++      nodes['node-dns'],
++    ),
++    makeWire(
++      'wire-network-router',
++      'node-network',
++      'node-router',
++      nodes['node-network'],
++      nodes['node-router'],
++    ),
++  );
++}
+diff --git a/js/panel/layout.js b/js/panel/layout.js
+index eef99cb..b2b519a 100644
+--- a/js/panel/layout.js
++++ b/js/panel/layout.js
+@@ -1,3 +1,8 @@
++import { computeSatellites, polarToWorld } from './layout-satellites.js';
++import { stage6RingSpecs, addStage6Nodes } from './layout-stage6.js';
++
++export { polarToWorld };
++
+ export const DEFAULT_RING_GAP = 400;
+ 
+ const STAGE_RINGS = {
+@@ -44,36 +49,14 @@ export function buildOrreryRings(ringGap = DEFAULT_RING_GAP, stage = 1) {
+   if (!Number.isFinite(ringGap) || ringGap <= 0) {
+     throw new Error('layout: ringGap must be a finite number > 0');
+   }
+-  const ringSpecs = STAGE_RINGS[stage];
++  const ringSpecs = STAGE_RINGS[stage] ?? stage6RingSpecs(stage);
+   if (!ringSpecs) {
+-    throw new Error(`layout: unknown stage ${stage} (expected 1-5)`);
++    throw new Error(`layout: unknown stage ${stage} (expected 1-6)`);
+   }
+   const gap = Math.round(ringGap);
+   return ringSpecs.map(([id, label], k) => ({ id, radius: (k + 1) * gap, label }));
+ }
+ 
+-export function polarToWorld(radius, angleDeg) {
+-  const rad = (angleDeg * Math.PI) / 180;
+-  return { x: Math.round(radius * Math.cos(rad)), y: Math.round(radius * Math.sin(rad)) };
+-}
+-
+-function computeSatellites(users, outerRadius) {
+-  const count = Math.max(0, Math.round(users));
+-  const leftCount = Math.ceil(count / 2);
+-  const rightCount = count - leftCount;
+-  const satellites = [];
+-  const place = (arcCount, startAngle) => {
+-    for (let j = 0; j < arcCount; j += 1) {
+-      const angleDeg = startAngle + ((j + 1) / (arcCount + 1)) * 37;
+-      const { x, y } = polarToWorld(outerRadius, angleDeg);
+-      satellites.push({ index: satellites.length, x, y, angleDeg });
+-    }
+-  };
+-  place(leftCount, 135);
+-  place(rightCount, 188);
+-  return satellites;
+-}
+-
+ function makeWire(id, fromId, toId, from, to) {
+   return {
+     id,
+@@ -95,8 +78,8 @@ export function computeStageLayout(
+   users = 5,
+   { ringGap = DEFAULT_RING_GAP, activeBrowser = '10.2' } = {},
+ ) {
+-  if (stage < 1 || stage > 5) {
+-    throw new Error(`layout: unknown stage ${stage} (expected 1-5)`);
++  if (stage < 1 || stage > 6) {
++    throw new Error(`layout: unknown stage ${stage} (expected 1-6)`);
+   }
+   const rings = buildOrreryRings(ringGap, stage);
+   const gap = Math.round(ringGap);
+@@ -242,7 +225,7 @@ export function computeStageLayout(
+         ),
+       );
+     }
+-    if (stage === 4 || stage === 5) {
++    if (stage >= 4) {
+       nodes['node-db'] = pos(
+         'node-db',
+         'ring-db',
+@@ -253,7 +236,7 @@ export function computeStageLayout(
+         makeWire('wire-cache-db', 'node-cache', 'node-db', nodes['node-cache'], nodes['node-db']),
+       );
+     }
+-    if (stage === 5) {
++    if (stage >= 5) {
+       const workersRing = rings.find((ring) => ring.id === 'ring-workers');
+       nodes['node-queue'] = pos('node-queue', 'ring-workers', workersRing.radius, 200);
+       nodes['node-worker'] = pos('node-worker', 'ring-workers', workersRing.radius, 160);
+@@ -281,6 +264,7 @@ export function computeStageLayout(
+         ),
+       );
+     }
++    if (stage === 6) addStage6Nodes({ rings, nodes, wires, pos, makeWire });
+   }
+   return {
+     stage,
+diff --git a/js/panel/model.js b/js/panel/model.js
+index 14d32c3..26eacf9 100644
+--- a/js/panel/model.js
++++ b/js/panel/model.js
+@@ -3,8 +3,20 @@
+ // render.js own all DOM writes.
+ export const TICK_MS = 100;
+ const QUEUE_BAR_SATURATION = 20; // bar reads full at 20 queued requests
+-// Total hops per stage's trace shape (trace.js and engine.traceHop agree).
+-const TOTAL_HOPS = { 1: 4, 2: 5, 3: 6, 4: 7, 5: 8 };
++// Total hops per stage's default trace shape (trace.js, trace-stage6.js, and
++// engine.traceHop agree). Stage 6's live count is trace-shaped: hosted
++// lookups ride 2 DNS hops on top of Stage 5's 8, host-less paths keep 8,
++// and an NX resolution ends at 3 with no GET emitted.
++const TOTAL_HOPS = { 1: 4, 2: 5, 3: 6, 4: 7, 5: 8, 6: 10 };
++
++// CHECKS: totalHops reads the trace shape, not just the stage — the named
++// counter-example is a host-less Stage 6 trace keeping Stage 5's 8 hops
++// (pinned in test/panel/model-stage6.test.js).
++export function totalHopsFor(stage, trace = null) {
++  if (stage !== 6) return TOTAL_HOPS[stage] ?? 4;
++  if (trace?.nx) return 3;
++  return trace?.hosted ? TOTAL_HOPS[6] : TOTAL_HOPS[5];
++}
+ 
+ const HOP_START_SENTENCE = 'Idle — type a path and click Go or Step 1 Hop ->';
+ 
+@@ -12,52 +24,82 @@ function fillPercent(depth) {
+   return `${Math.min(100, Math.round((depth / QUEUE_BAR_SATURATION) * 100))}%`;
+ }
+ 
++// Stage 5's trace story, parameterized by the denominator and the first hop
++// number so Stage 6's hosted tail renumbers the same sentences onto hops
++// 3-10 of 10. Stage 5 passes denom 8 / start 1 — byte-identical to the
++// pre-Stage-6 strings.
++function stage5Sentences(t, snapshot, from, serverAddress, denom, start = 1) {
++  const target = t.targetServer ?? '10.11';
++  const worker = snapshot.workerQueue?.workerAddress ?? '10.41';
++  const at = (k) => `Hop ${start + k - 1}/${denom}`;
++  if (t.asyncJob) {
++    return [
++      `${at(1)}: Browser (${from}) emits "${t.request}"`,
++      `${at(2)}: Network (10.x) routes to LoadBalancer (${serverAddress})`,
++      `${at(3)}: LoadBalancer (${serverAddress}) -> ${target} queue`,
++      `${at(4)}: WebServer (${target}) enqueues job to WorkerQueue (10.40)`,
++      `${at(5)}: WebServer (${target}) -> "202 Accepted"`,
++      `${at(6)}: Network delivers 202 response to ${from}`,
++      `${at(7)}: Browser (${from}) received and displayed 202 Accepted`,
++      `${at(8)}: Worker (${worker}) processed job and committed to Database (10.30)`,
++    ];
++  }
++  // Requests served synchronously keep the Stage 4 cache/database story;
++  // the worker does not see them, so the tail hop reads idle.
++  const db = snapshot.database ?? {};
++  const primary = db.primaryAddress ?? '10.30';
++  const replica = db.replicaAddress ?? '10.31';
++  const lag = db.replicationLagTicks ?? 3;
++  const dbOp =
++    t.dbOp === 'WRITE'
++      ? `Database WRITE @ Primary (${primary}) — replica lags ${lag}t`
++      : t.dbOp === 'SELECT' && t.dbStale
++        ? `Database SELECT @ Replica (${replica}) — STALE (lag ${lag}t)`
++        : t.dbOp === 'SELECT'
++          ? `Database SELECT @ Replica (${replica}) — fresh`
++          : `Database SKIP — warm cache HIT (${snapshot.cache?.address ?? '10.20'})`;
++  return [
++    `${at(1)}: Browser (${from}) emits "${t.request}"`,
++    `${at(2)}: Network (10.x) routes to LoadBalancer (${serverAddress})`,
++    `${at(3)}: LoadBalancer (${serverAddress}) -> ${target} queue`,
++    `${at(4)}: ${dbOp}`,
++    `${at(5)}: WebServer (${target}) -> "${t.response}" (cache ${t.cacheStatus})`,
++    `${at(6)}: Network delivers ${t.status} response to ${from}`,
++    `${at(7)}: Browser (${from}) received and displayed ${t.status}`,
++    `${at(8)}: Worker (${worker}) idle — no async jobs in this trace`,
++  ];
++}
++
+ // One hop-status sentence per hop, in hop order, for each stage's trace
+ // shape: 4 hops in Stage 1 (emit, route, serve, render), 5 in Stage 2 (LB
+ // round-robin pick), 6 in Stage 3 (cache check, then response emit), 7 in
+-// Stage 4 (the database hop after the cache check).
++// Stage 4 (the database hop after the cache check), 8 in Stage 5, and in
++// Stage 6 two DNS hops ahead of the Stage 5 chain for hosted paths only.
+ function hopSentences(stage, snapshot, from, serverAddress) {
+   const t = snapshot.trace ?? {};
+-  const target = t.targetServer ?? '10.11';
+-  if (stage === 5) {
+-    const worker = snapshot.workerQueue?.workerAddress ?? '10.41';
+-    if (t.asyncJob) {
++  if (stage === 5) return stage5Sentences(t, snapshot, from, serverAddress, 8);
++  if (stage === 6) {
++    const dnsAddress = t.dnsAddress ?? '10.60';
++    // CHECKS: the narrative branches on host syntax — a host-less path
++    // keeps Stage 5's sentences byte-identical (no DNS hop), a hosted path
++    // prepends the ask/answer pair, and an NX answer renders the NX card
++    // with no GET emitted (all pinned in test/panel/model-stage6.test.js).
++    if (!t.hosted) return stage5Sentences(t, snapshot, from, serverAddress, 8);
++    if (t.nx) {
++      const host = t.dnsName ?? 'unknown.example';
+       return [
+-        `Hop 1/8: Browser (${from}) emits "${t.request}"`,
+-        `Hop 2/8: Network (10.x) routes to LoadBalancer (${serverAddress})`,
+-        `Hop 3/8: LoadBalancer (${serverAddress}) -> ${target} queue`,
+-        `Hop 4/8: WebServer (${target}) enqueues job to WorkerQueue (10.40)`,
+-        `Hop 5/8: WebServer (${target}) -> "202 Accepted"`,
+-        `Hop 6/8: Network delivers 202 response to ${from}`,
+-        `Hop 7/8: Browser (${from}) received and displayed 202 Accepted`,
+-        `Hop 8/8: Worker (${worker}) processed job and committed to Database (10.30)`,
++        `Hop 1/3: Browser (${from}) asks DNS (${dnsAddress}) for ${host}`,
++        `Hop 2/3: DNS (${dnsAddress}) -> ${from} | ${t.dnsAnswer ?? 'NX no record'}`,
++        `Hop 3/3: Browser (${from}) renders NX — no record for ${host}`,
+       ];
+     }
+-    // Requests served synchronously keep the Stage 4 cache/database story;
+-    // the worker does not see them, so the tail hop reads idle.
+-    const db = snapshot.database ?? {};
+-    const primary = db.primaryAddress ?? '10.30';
+-    const replica = db.replicaAddress ?? '10.31';
+-    const lag = db.replicationLagTicks ?? 3;
+-    const dbOp =
+-      t.dbOp === 'WRITE'
+-        ? `Database WRITE @ Primary (${primary}) — replica lags ${lag}t`
+-        : t.dbOp === 'SELECT' && t.dbStale
+-          ? `Database SELECT @ Replica (${replica}) — STALE (lag ${lag}t)`
+-          : t.dbOp === 'SELECT'
+-            ? `Database SELECT @ Replica (${replica}) — fresh`
+-            : `Database SKIP — warm cache HIT (${snapshot.cache?.address ?? '10.20'})`;
+     return [
+-      `Hop 1/8: Browser (${from}) emits "${t.request}"`,
+-      `Hop 2/8: Network (10.x) routes to LoadBalancer (${serverAddress})`,
+-      `Hop 3/8: LoadBalancer (${serverAddress}) -> ${target} queue`,
+-      `Hop 4/8: ${dbOp}`,
+-      `Hop 5/8: WebServer (${target}) -> "${t.response}" (cache ${t.cacheStatus})`,
+-      `Hop 6/8: Network delivers ${t.status} response to ${from}`,
+-      `Hop 7/8: Browser (${from}) received and displayed ${t.status}`,
+-      `Hop 8/8: Worker (${worker}) idle — no async jobs in this trace`,
++      `Hop 1/10: Browser (${from}) asks DNS (${dnsAddress}) for ${t.dnsName}`,
++      `Hop 2/10: DNS (${dnsAddress}) -> ${from} | ${t.dnsAnswer}`,
++      ...stage5Sentences(t, snapshot, from, serverAddress, 10, 3),
+     ];
+   }
++  const target = t.targetServer ?? '10.11';
+   if (stage === 4) {
+     const db = snapshot.database ?? null;
+     const primary = db?.primaryAddress ?? '10.30';
+@@ -153,7 +195,7 @@ export function describeSnapshot(snapshot) {
+   const servedPerTick = snapshot.tick > 0 ? (snapshot.served ?? 0) / snapshot.tick : 0;
+   return {
+     stage,
+-    totalHops: TOTAL_HOPS[stage] ?? 4,
++    totalHops: totalHopsFor(stage, snapshot.trace ?? null),
+     tick: String(snapshot.tick),
+     users: String(snapshot.users),
+     queueDepth: String(snapshot.queueDepth),
+@@ -188,6 +230,13 @@ export function describeSnapshot(snapshot) {
+         : `Worker ${snapshot.workerQueue.workerAddress} Idle`
+       : 'Worker 10.41 Idle',
+     queueJobs: snapshot.workerQueue?.pendingJobs ?? [],
++    dnsStatsLabel: snapshot.dns
++      ? `Lookups: ${snapshot.dns.lookups} · Cached hits: ${snapshot.dns.cachedHits} · TTL: ${snapshot.dns.ttlTicks}t`
++      : 'Lookups: 0 · Cached hits: 0 · TTL: 300t',
++    dnsEntries: snapshot.dns?.cache ?? [],
++    routerLabel: snapshot.router
++      ? `Routed: ${snapshot.router.routed} · ${snapshot.router.leftAddress} ⇄ ${snapshot.router.rightAddress}`
++      : 'Routed: 0 · 10.65 ⇄ 20.1',
+     exchangeSummary: last
+       ? `${last.from} -> ${last.to} ${last.request} => ${last.response}`
+       : 'No requests served yet',
+diff --git a/js/panel/panel.js b/js/panel/panel.js
+index 617266a..8678fc7 100644
+--- a/js/panel/panel.js
++++ b/js/panel/panel.js
+@@ -4,12 +4,17 @@
+ // AGENTS.md CSP rule; the static server enforces it), and DOM updates are
+ // delegated to render.js.
+ import { createEngine } from '../sim/engine.js';
+-import { TICK_MS } from './model.js';
++import { TICK_MS, totalHopsFor } from './model.js';
+ import { COMPONENT_SOURCE } from './inspector-source.js';
+ import { $, els, addToJourney, render, renderInspector } from './render.js';
+ import { renderStageTopology, onStageRendered } from './render-stage.js';
+ import { initViewport } from './viewport.js';
+ import { initTeachingDrawer, renderTeaching } from './teaching-drawer.js';
++import { buildStage6Nodes } from './stage6-nodes.js';
++
++// Stage 6 DOM (dns/router cards + lanes, the live stage-6 pill, inspector
++// tabs) exists before any wiring or topology render touches it.
++buildStage6Nodes();
+ 
+ let currentStage = 1;
+ let engine = null;
+@@ -19,10 +24,10 @@ let currentSnapshot = null;
+ // The browser currently expanded into #node-browser (mini-IP on Ring 3);
+ // every other browser renders as a compact clickable node in its slot.
+ let activeBrowserAddress = '10.2';
+-// Total hops per stage; trace.js's machine and model.js's labels agree.
+-const TOTAL_HOPS = { 1: 4, 2: 5, 3: 6, 4: 7, 5: 8 };
+ 
+-const totalHopsFor = (stage) => TOTAL_HOPS[stage] ?? TOTAL_HOPS[1];
++// Total hops of the trace currently in flight: stage 6 branches on the
++// trace shape (hosted 10, host-less 8, NX 3) — model.js owns the rule.
++const totalHopsInFlight = (snapshot) => totalHopsFor(snapshot.stage, snapshot.trace ?? null);
+ 
+ function createEngineFromControls() {
+   return createEngine({
+@@ -84,17 +89,17 @@ function switchStage(stage) {
+ }
+ 
+ // CHECKS: deep-linked state reads exactly once at load — ?stage=N selects a
+-// live stage 1-5 and ?users=U clamps into the slider's 1-50 range; anything
++// live stage 1-6 and ?users=U clamps into the slider's 1-50 range; anything
+ // unknown, out of range, or non-numeric falls back to the fresh-load
+ // defaults (Stage 1, five users) without a console error. Named
+ // counter-example (pinned in e2e/panel.spec.js): ?stage=9 renders Stage 1 —
+-// it must never select the disabled 6 · Multi-Net / CDN pill or crash.
++// it must never select a pill outside the live set or crash.
+ function readDeepLink() {
+   const params = new URLSearchParams(window.location.search);
+   const stage = Number.parseInt(params.get('stage') ?? '', 10);
+   const users = Number.parseFloat(params.get('users') ?? '');
+   return {
+-    stage: stage >= 1 && stage <= 5 ? stage : 1,
++    stage: stage >= 1 && stage <= 6 ? stage : 1,
+     users: Number.isFinite(users) ? Math.min(50, Math.max(1, Math.round(users))) : 5,
+   };
+ }
+@@ -155,7 +160,7 @@ function stepOneHop() {
+     path: els.urlInput.value,
+     from: activeBrowserAddress,
+   });
+-  const totalHops = totalHopsFor(snapshot.stage);
++  const totalHops = totalHopsInFlight(snapshot);
+   // PINS: hop 1 emission starts a new trace run — that run (whole, hops
+   // ascending) floats above the previous run in #journey-log.
+   if (snapshot.trace.hop === 1) traceRunId = nextJourneyRun();
+@@ -171,17 +176,19 @@ $('btn-next-hop').addEventListener('click', stepOneHop);
+ 
+ $('btn-play-request').addEventListener('click', () => {
+   if (timer) pause();
+-  const finalHop = totalHopsFor(currentStage);
+   const iv = setInterval(() => {
+-    if (stepOneHop().trace.hop === finalHop) clearInterval(iv);
++    const snapshot = stepOneHop();
++    if (snapshot.trace.hop === totalHopsInFlight(snapshot)) clearInterval(iv);
+   }, TICK_MS);
+ });
+ 
+ $('btn-url-go').addEventListener('click', () => {
+   if (timer) pause();
+-  const finalHop = totalHopsFor(currentStage);
+-  for (let i = 0; i < finalHop + 1; i += 1) {
+-    if (stepOneHop().trace.hop === finalHop) break;
++  // The live trace shape (hosted/host-less/NX) decides the hop count, so
++  // the loop breaks at whatever total the trace actually carries.
++  for (let i = 0; i < 24; i += 1) {
++    const snapshot = stepOneHop();
++    if (snapshot.trace.hop === totalHopsInFlight(snapshot)) break;
+   }
+ });
+ 
+diff --git a/js/panel/render-stage.js b/js/panel/render-stage.js
+index 107dc27..fd7a595 100644
+--- a/js/panel/render-stage.js
++++ b/js/panel/render-stage.js
+@@ -5,22 +5,28 @@
+ // engine knowledge: snapshots and layout geometry in, DOM writes out.
+ const $ = (id) => document.getElementById(id);
+ 
+-const LANES = {
+-  'packet-req-left': $('packet-req-left'),
+-  'packet-res-left': $('packet-res-left'),
+-  'packet-req-right': $('packet-req-right'),
+-  'packet-res-right': $('packet-res-right'),
+-  'packet-req-lb': $('packet-req-lb'),
+-  'packet-res-lb': $('packet-res-lb'),
+-  'packet-req-cache': $('packet-req-cache'),
+-  'packet-res-cache': $('packet-res-cache'),
+-  'packet-req-db': $('packet-req-db'),
+-  'packet-res-db': $('packet-res-db'),
+-  'packet-req-queue': $('packet-req-queue'),
+-  'packet-res-queue': $('packet-res-queue'),
+-  'packet-req-worker': $('packet-req-worker'),
+-  'packet-res-worker': $('packet-res-worker'),
+-};
++// Lazy lookups (not a cached map): the Stage 6 lane elements are built by
++// stage6-nodes.js at boot, after this module evaluates.
++const LANE_IDS = [
++  'packet-req-left',
++  'packet-res-left',
++  'packet-req-right',
++  'packet-res-right',
++  'packet-req-lb',
++  'packet-res-lb',
++  'packet-req-cache',
++  'packet-res-cache',
++  'packet-req-db',
++  'packet-res-db',
++  'packet-req-queue',
++  'packet-res-queue',
++  'packet-req-worker',
++  'packet-res-worker',
++  'packet-req-dns',
++  'packet-res-dns',
++  'packet-req-router',
++  'packet-res-router',
++];
+ 
+ // Stage-switch hook: viewport.js registers a callback so camera + world
+ // layout resync the moment the topology toggles.
+@@ -34,7 +40,8 @@ export function renderStageTopology(stage) {
+   const hasLb = stage >= 2;
+   const hasCache = stage >= 3;
+   const hasDb = stage >= 4;
+-  const hasWorkers = stage === 5;
++  const hasWorkers = stage >= 5;
++  const hasDnsRouter = stage === 6;
+   $('node-lb').hidden = !hasLb;
+   $('wire-lb-backends').hidden = !hasLb;
+   $('node-webserver-2').hidden = !hasLb;
+@@ -46,6 +53,10 @@ export function renderStageTopology(stage) {
+   $('wire-cache-queue').hidden = !hasWorkers;
+   $('node-worker').hidden = !hasWorkers;
+   $('wire-queue-worker').hidden = !hasWorkers;
++  $('node-dns').hidden = !hasDnsRouter;
++  $('node-router').hidden = !hasDnsRouter;
++  $('wire-col-dns').hidden = !hasDnsRouter;
++  $('wire-col-router').hidden = !hasDnsRouter;
+   $('network-role-10-1').textContent = hasLb ? 'LoadBalancer -> 10.11, 10.12' : 'WebServer';
+   for (const pill of document.querySelectorAll('.stage-pill[data-stage]')) {
+     const active = Number(pill.dataset.stage) === stage;
+@@ -61,58 +72,89 @@ export function renderStageTopology(stage) {
+ // round-robin pick; Stage 3 splits the backend serve into the cache
+ // lookup (Cache 10.20 answers) and the response emission; Stage 4 adds
+ // the database hop; Stage 5 adds async worker queue processing.
++// CHECKS: the Stage 6 mapping branches on the trace shape — host-less
++// traces reuse the Stage 5 owners/lanes per hop, hosted traces shift the
++// Stage 5 chain two hops out behind the DNS ask/answer pair, and an NX
++// trace lights the browser and DNS cards with no server card at all.
++function stage5HopTarget(snapshot) {
++  const hop = snapshot.trace?.hop ?? 0;
++  const backendCard =
++    snapshot.trace?.targetServer === '10.12' ? 'node-webserver-2' : 'node-webserver';
++  const dbLane = snapshot.trace?.dbOp === 'WRITE' ? 'packet-req-db' : 'packet-res-db';
++  if (snapshot.trace?.asyncJob) {
++    const owners = {
++      1: 'node-browser',
++      2: 'node-network',
++      3: 'node-lb',
++      4: 'node-queue',
++      5: 'node-webserver',
++      6: 'node-network',
++      7: 'node-browser',
++      8: 'node-worker',
++    };
++    const lanes = {
++      1: 'packet-req-left',
++      2: 'packet-req-right',
++      3: 'packet-req-lb',
++      4: 'packet-req-queue',
++      5: 'packet-res-cache',
++      6: 'packet-res-right',
++      7: 'packet-res-left',
++      8: 'packet-res-db',
++    };
++    return { cardId: owners[hop], laneId: lanes[hop] ?? 'packet-req-left' };
++  }
++  const owners = {
++    1: 'node-browser',
++    2: 'node-network',
++    3: 'node-lb',
++    4: 'node-db',
++    5: backendCard,
++    6: 'node-network',
++    7: 'node-browser',
++    8: 'node-worker',
++  };
++  const lanes = {
++    1: 'packet-req-left',
++    2: 'packet-req-right',
++    3: 'packet-req-lb',
++    4: dbLane,
++    5: 'packet-res-cache',
++    6: 'packet-res-right',
++    7: 'packet-res-left',
++    8: 'packet-res-worker',
++  };
++  return { cardId: owners[hop], laneId: lanes[hop] };
++}
++
+ function activeHopTarget(snapshot) {
+   const hop = snapshot.trace?.hop ?? 0;
+-  if (snapshot.stage === 5) {
+-    // Async POST /jobs walks browser -> lb -> enqueue -> 202 -> worker
+-    // commit; every other request keeps the Stage 4 cache/db story and the
+-    // worker reads idle on the tail hop.
+-    const backendCard =
+-      snapshot.trace?.targetServer === '10.12' ? 'node-webserver-2' : 'node-webserver';
+-    const dbLane = snapshot.trace?.dbOp === 'WRITE' ? 'packet-req-db' : 'packet-res-db';
+-    const owners = snapshot.trace?.asyncJob
+-      ? {
+-          1: 'node-browser',
+-          2: 'node-network',
+-          3: 'node-lb',
+-          4: 'node-queue',
+-          5: 'node-webserver',
+-          6: 'node-network',
+-          7: 'node-browser',
+-          8: 'node-worker',
+-        }
+-      : {
+-          1: 'node-browser',
+-          2: 'node-network',
+-          3: 'node-lb',
+-          4: 'node-db',
+-          5: backendCard,
+-          6: 'node-network',
+-          7: 'node-browser',
+-          8: 'node-worker',
++  if (snapshot.stage === 6) {
++    const t = snapshot.trace ?? {};
++    if (t.nx) {
++      const owners = { 1: 'node-browser', 2: 'node-dns', 3: 'node-browser' };
++      const lanes = {
++        1: 'packet-req-dns',
++        2: 'packet-res-dns',
++        3: 'packet-res-left',
++      };
++      return { cardId: owners[hop] ?? 'node-browser', laneId: lanes[hop] ?? 'packet-req-dns' };
++    }
++    if (t.hosted) {
++      const dnsOwners = { 1: 'node-browser', 2: 'node-dns' };
++      const dnsLanes = { 1: 'packet-req-dns', 2: 'packet-res-dns' };
++      if (hop <= 2) {
++        return {
++          cardId: dnsOwners[hop] ?? 'node-browser',
++          laneId: dnsLanes[hop] ?? 'packet-req-dns',
+         };
+-    const lanes = snapshot.trace?.asyncJob
+-      ? {
+-          1: 'packet-req-left',
+-          2: 'packet-req-right',
+-          3: 'packet-req-lb',
+-          4: 'packet-req-queue',
+-          5: 'packet-res-cache',
+-          6: 'packet-res-right',
+-          7: 'packet-res-left',
+-          8: 'packet-res-db',
+-        }
+-      : {
+-          1: 'packet-req-left',
+-          2: 'packet-req-right',
+-          3: 'packet-req-lb',
+-          4: dbLane,
+-          5: 'packet-res-cache',
+-          6: 'packet-res-right',
+-          7: 'packet-res-left',
+-          8: 'packet-res-worker',
+-        };
+-    return { cardId: owners[hop] ?? 'node-browser', laneId: lanes[hop] ?? 'packet-req-left' };
++      }
++      return stage5HopTarget({ ...snapshot, trace: { ...t, hop: hop - 2 } });
++    }
++    return stage5HopTarget(snapshot);
++  }
++  if (snapshot.stage === 5) {
++    return stage5HopTarget(snapshot);
+   }
+   if (snapshot.stage === 4) {
+     const backendCard =
+@@ -194,8 +236,8 @@ export function renderHopHighlights(snapshot, selectedComponent) {
+     card.classList.toggle('active-hop', card.id === cardId);
+     card.classList.toggle('selected-node', card.dataset.component === selectedComponent);
+   }
+-  for (const [id, node] of Object.entries(LANES)) {
+-    node.classList.toggle('lane-active', id === laneId);
++  for (const id of LANE_IDS) {
++    document.getElementById(id)?.classList.toggle('lane-active', id === laneId);
+   }
+ }
+ 
+diff --git a/js/panel/render.js b/js/panel/render.js
+index 6fd2594..863b94b 100644
+--- a/js/panel/render.js
++++ b/js/panel/render.js
+@@ -39,6 +39,17 @@ export const els = {
+   queueStats: $('queue-stats'),
+   queueJobs: $('queue-jobs-list'),
+   workerStats: $('worker-stats'),
++  // Stage 6 elements are built by stage6-nodes.js at panel boot, after this
++  // module evaluates — resolve them lazily at render time.
++  get dnsStats() {
++    return $('dns-stats');
++  },
++  get dnsEntries() {
++    return $('dns-entries-list');
++  },
++  get routerStats() {
++    return $('router-stats');
++  },
+   inspectorTitle: $('inspector-title'),
+   inspectorCode: $('inspector-code'),
+   inspectorState: $('inspector-state'),
+@@ -148,6 +159,20 @@ function renderJobsInto(container, jobs) {
+   );
+ }
+ 
++// DOCUMENTS: Stage 6 DNS ledger rows render one row per live resolver-cache
++// entry with its target mini-IP and remaining TTL — the ledger on screen,
++// not an aggregate hit rate.
++function renderDnsEntries(entries) {
++  els.dnsEntries.replaceChildren(
++    ...entries.map((e) => {
++      const item = document.createElement('li');
++      item.className = 'route-item';
++      item.textContent = `${e.name} -> ${e.target} · ttl ${e.ttlRemaining}t`;
++      return item;
++    }),
++  );
++}
++
+ function activeBrowserDisplay(snapshot, activeAddress) {
+   const browsers = Array.isArray(snapshot.browsers) ? snapshot.browsers : [];
+   const slot = browsers.find((b) => b.address === activeAddress) ?? browsers[0] ?? null;
+@@ -228,11 +253,18 @@ export function render(snapshot, selectedComponent, { layout, activeAddress = '1
+     els.dbStats.textContent = labels.dbStatsLabel;
+     renderDbRows(labels.dbRows);
+   }
+-  if (snapshot.stage === 5 && snapshot.workerQueue) {
++  if (snapshot.stage >= 5 && snapshot.workerQueue) {
+     els.queueStats.textContent = labels.queueStatsLabel;
+     els.workerStats.textContent = labels.workerStatsLabel;
+     renderJobsInto(els.queueJobs, labels.queueJobs);
+   }
++  if (snapshot.stage >= 6 && snapshot.dns) {
++    els.dnsStats.textContent = labels.dnsStatsLabel;
++    renderDnsEntries(labels.dnsEntries);
++  }
++  if (snapshot.stage >= 6 && snapshot.router) {
++    els.routerStats.textContent = labels.routerLabel;
++  }
+   renderHopHighlights(snapshot, selectedComponent);
+   renderDots(snapshot.users);
+   renderRingBrowsers(layout?.browserSlots ?? [], activeAddress);
+diff --git a/js/panel/stage6-nodes.js b/js/panel/stage6-nodes.js
+new file mode 100644
+index 0000000..970b8a9
+--- /dev/null
++++ b/js/panel/stage6-nodes.js
+@@ -0,0 +1,141 @@
++// DOCUMENTS: Stage 6 DOM additions — the #node-dns and #node-router
++// inspector cards, the DNS and Router wire lanes, the live stage-pill-6
++// button, and the dns/router inspector tabs. Built here rather than in
++// panel.html because that page sits at its 550-line cap (the same pattern
++// as teaching-drawer.js); every node reuses the classes DESIGN.md already
++// tokens, panel.js owns all event wiring, and nothing here sets inline
++// styles (CSP).
++function el(tag, { className, id, testId, text, hidden, aria } = {}) {
++  const node = document.createElement(tag);
++  if (className) node.className = className;
++  if (id) node.id = id;
++  if (testId) node.dataset.testid = testId;
++  if (text !== undefined) node.textContent = text;
++  if (hidden) node.hidden = true;
++  if (aria) node.setAttribute('aria-label', aria);
++  return node;
++}
++
++function wireLane(id, text, reverse) {
++  return el('div', { id, className: `wire-lane${reverse ? ' reverse' : ''}`, text });
++}
++
++function buildLane(id, outbound, inbound) {
++  const column = el('div', {
++    id,
++    className: 'wire-column',
++    hidden: true,
++    aria: 'Wire directions',
++  });
++  column.append(wireLane(outbound.id, outbound.text), wireLane(inbound.id, inbound.text, true));
++  document.getElementById('orrery-world').append(column);
++}
++
++function buildCard({
++  id,
++  component,
++  roleName,
++  subtitle,
++  chip,
++  statsId,
++  statsText,
++  listId,
++  listAria,
++}) {
++  const card = el('article', {
++    id,
++    className: 'node-card',
++    testId: id,
++    hidden: true,
++  });
++  card.dataset.component = component;
++  const head = el('header', { className: 'node-head' });
++  const name = el('div', { className: 'node-name' });
++  name.append(el('span', { className: 'role-name', text: roleName }));
++  name.append(el('span', { className: 'node-subtitle', text: subtitle }));
++  head.append(name, el('span', { className: 'ip-chip', text: chip }));
++  head.append(el('span', { className: 'code-chip', text: '</> Code' }));
++  card.append(head);
++  card.append(
++    el('p', { id: statsId, testId: statsId, className: 'mono last-frame', text: statsText }),
++  );
++  if (listAria) {
++    card.append(
++      el('ul', {
++        id: listId,
++        testId: listId,
++        className: 'route-list',
++        aria: listAria,
++      }),
++    );
++  }
++  document.getElementById('orrery-world').append(card);
++}
++
++// The ladder's stage-6 rung ships as a disabled span (pages at the 550-line
++// cap); it promotes to the live button here so stage 6 is clickable like
++// every other stage pill.
++function promoteStage6Pill() {
++  const span = document.querySelector('.stage-ladder .stage-pill:not([data-stage])');
++  if (!span || !span.textContent.trim().startsWith('6')) return;
++  const button = el('button', {
++    className: 'stage-pill',
++    testId: 'stage-pill-6',
++    text: span.textContent.trim(),
++  });
++  button.type = 'button';
++  button.dataset.stage = '6';
++  span.replaceWith(button);
++}
++
++function buildStage6Tabs() {
++  const tabs = document.querySelector('.comp-tabs');
++  if (!tabs) return;
++  for (const name of ['dns', 'router']) {
++    const tab = el('button', { className: 'comp-tab', text: name });
++    tab.type = 'button';
++    tab.dataset.select = name;
++    tabs.append(tab);
++  }
++}
++
++// CHECKS: buildStage6Nodes runs once at panel boot, before render-stage.js
++// reads the stage-6 lane ids and before panel.js wires .node-card and
++// .comp-tab clicks — calling it twice would duplicate cards, so it is
++// idempotent on the pill and the cards' fixed ids.
++export function buildStage6Nodes() {
++  promoteStage6Pill();
++  buildLane(
++    'wire-col-dns',
++    { id: 'packet-req-dns', text: 'ask =>' },
++    { id: 'packet-res-dns', text: '<- answer' },
++  );
++  buildLane(
++    'wire-col-router',
++    { id: 'packet-req-router', text: 'forward =>' },
++    { id: 'packet-res-router', text: '<- return' },
++  );
++  buildCard({
++    id: 'node-dns',
++    component: 'dns',
++    roleName: 'DNS',
++    subtitle: 'resolver · tick-TTL ledger',
++    chip: '10.60',
++    statsId: 'dns-stats',
++    statsText: 'Lookups: 0 · Cached hits: 0 · TTL: 300t',
++    listId: 'dns-entries-list',
++    listAria: 'DNS ledger entries',
++  });
++  buildCard({
++    id: 'node-router',
++    component: 'router',
++    roleName: 'Router',
++    subtitle: 'cross-subnet gateway',
++    chip: '10.65 ⇄ 20.1',
++    statsId: 'router-stats',
++    statsText: 'Routed: 0 · 10.65 ⇄ 20.1',
++    listId: null,
++    listAria: null,
++  });
++  buildStage6Tabs();
++}
+diff --git a/js/panel/teaching.js b/js/panel/teaching.js
+index d2b59b3..2824b7d 100644
+--- a/js/panel/teaching.js
++++ b/js/panel/teaching.js
+@@ -1,7 +1,7 @@
+ // DOCUMENTS: per-stage teaching content for the teaching drawer — the
+ // narrative layer that names the mechanism the app shows (from js/sim) AND
+ // the system-design-primer vocabulary, mirroring the scaling ladder
+-// (content only; panel.js renders it). One entry per built stage, keyed 1–5;
++// (content only; panel.js renders it). One entry per built stage, keyed 1–6;
+ // each entry spells its trade-off sentence in the primer's
+ // "everything is a trade-off" register.
+ const PRIMER = 'https://github.com/donnemartin/system-design-primer#';
+@@ -127,10 +127,35 @@ export const STAGE_TEACHING = {
+       url: `${PRIMER}asynchronism`,
+     },
+   },
++  6: {
++    headline:
++      'DNS 10.60 resolves names with a tick-TTL ledger; Router 10.65 ⇄ 20.1 joins the subnets',
++    teaches: [
++      'A hosted path ("example.com/about") splits host from path and asks DNS 10.60 first; the browser only emits the GET once the name resolves to 10.1.',
++      'The resolver keeps a ledger of answered names, each alive for ttlTicks — a hit inside the TTL counts Cached hits and skips the authoritative consult; an expired entry is a miss again.',
++      'The Router (10.65 ⇄ 20.1) is the only tenant of subnet 20 in this stage: cross-subnet frames cross exactly one router hop, and an unregistered 20.x host fails loud.',
++    ],
++    try: [
++      'Trace "example.com/about" and read hop 1/10 (the ask) and hop 2/10 (the answer naming 10.1) before the Stage 5 chain repeats.',
++      'Trace it twice: the second ask answers from the ledger (Cached hits 1) without consulting the authoritative table.',
++      'Trace "nope.example/about" and watch the trace end at hop 3/3 — DNS ask, "NX no record", the browser renders the NX card, and no GET is emitted.',
++    ],
++    watchFor: [
++      'A plain "GET /about" keeping the Stage 5 8-hop story — host-less paths touch neither DNS nor the Router.',
++      'The dns-entries-list row "example.com -> 10.1 · ttl" draining toward 0t before the next miss wave.',
++      'The Router card counting Routed frames — zero in this stage, because nothing in 10.x has a reason to call subnet 20 yet.',
++    ],
++    tradeoff:
++      'A resolver with TTLs buys decoupling — names can move without code changes — at the price of a staleness window where the ledger still answers with the old address.',
++    primerLink: {
++      label: 'Domain name system (DNS) — system-design-primer',
++      url: `${PRIMER}domain-name-system`,
++    },
++  },
+ };
+ 
+ // CHECKS: describeStageTeaching falls back to a minimal pending placeholder
+-// for any key outside 1–5 (a stage landing before its notes) — a real
++// for any key outside 1–6 (a stage landing before its notes) — a real
+ // headline, a pending marker, and no throw; the named counter-example is the
+ // drawer staying readable instead of blank or crashed.
+ export function describeStageTeaching(stage = 1) {
+diff --git a/js/panel/viewport.js b/js/panel/viewport.js
+index 864e033..b773373 100644
+--- a/js/panel/viewport.js
++++ b/js/panel/viewport.js
+@@ -4,6 +4,7 @@
+ // only (no inline handlers — AGENTS.md CSP rule). Camera math lives in
+ // camera.js, geometry in layout.js; both are pure and unit-pinned.
+ import { computeStageLayout } from './layout.js';
++import { LANE_WIRES, LANES_BETWEEN } from './lanes.js';
+ import {
+   panCamera,
+   zoomCameraAt,
+@@ -28,46 +29,6 @@ const KEY_PANS = {
+   ArrowDown: [0, PAN_PX],
+ };
+ 
+-// PINS: each wire lane sits on its wire in world coordinates (col-left on
+-// browser↔network, col-right on network↔webserver/lb, lb-backends centered
+-// between the two backend wires, servers-cache centered between the two
+-// cache wires). A value may pin a lane at a fraction t down its wire:
+-// Stage 5 anchors the cache→db lane at t=0.3 so it clears the queue→worker
+-// crossing.
+-const LANE_WIRES = {
+-  1: { 'wire-col-left': 'wire-browser-network', 'wire-col-right': 'wire-network-webserver' },
+-  2: { 'wire-col-left': 'wire-browser-network', 'wire-col-right': 'wire-network-lb' },
+-  3: { 'wire-col-left': 'wire-browser-network', 'wire-col-right': 'wire-network-lb' },
+-  4: {
+-    'wire-col-left': 'wire-browser-network',
+-    'wire-col-right': 'wire-network-lb',
+-    'wire-cache-db': 'wire-cache-db',
+-  },
+-  5: {
+-    'wire-col-left': 'wire-browser-network',
+-    'wire-col-right': 'wire-network-lb',
+-    'wire-cache-db': ['wire-cache-db', 0.3],
+-    'wire-cache-queue': 'wire-cache-queue',
+-    'wire-queue-worker': 'wire-queue-worker',
+-  },
+-};
+-// Lanes anchored between parallel wires — lb-backends shared across stages
+-// 2-5; servers-cache capped left of the Cache card it would otherwise clip.
+-const LANES_BETWEEN = [
+-  {
+-    laneId: 'wire-lb-backends',
+-    stages: [2, 3, 4, 5],
+-    wireIds: ['wire-lb-webserver', 'wire-lb-webserver-2'],
+-  },
+-  {
+-    laneId: 'wire-servers-cache',
+-    stages: [3, 4, 5],
+-    wireIds: ['wire-webserver-cache', 'wire-webserver-2-cache'],
+-    capTo: 'node-cache',
+-    capDx: -175, // 15.5rem card half + chip half + margin, in world px
+-  },
+-];
+-
+ function byId(id) {
+   return document.getElementById(id);
+ }
+diff --git a/js/sim/browser.js b/js/sim/browser.js
+index 35787f1..2b361ff 100644
+--- a/js/sim/browser.js
++++ b/js/sim/browser.js
+@@ -26,8 +26,11 @@ export function createBrowser({ name = 'Browser-1', address = '10.2', network =
+       return `${method} ${path}`;
+     },
+ 
++    // Stage 6: a DNS "NX no record" answer renders as an NX card — the
++    // status token stays the literal NX instead of collapsing to NaN.
+     parseResponse(raw) {
+       const [statusToken, ...bodyParts] = String(raw).trim().split(' ');
++      if (statusToken === 'NX') return { status: 'NX', body: bodyParts.join(' ') };
+       return { status: Number(statusToken), body: bodyParts.join(' ') };
+     },
+ 
+diff --git a/js/sim/dns.js b/js/sim/dns.js
+new file mode 100644
+index 0000000..0f2ce13
+--- /dev/null
++++ b/js/sim/dns.js
+@@ -0,0 +1,92 @@
++// DOCUMENTS: the Stage 6 DNS resolver — an authoritative name table plus a
++// resolver cache with tick-based TTL, mirroring the Cache ledger pattern
++// (js/sim/cache.js): a lookup consults the authoritative table only on a
++// cache miss or an expired entry; a hit inside ttlTicks increments
++// cachedHits with no authoritative consult. Deterministic by construction:
++// no clock, no RNG — time arrives as the `currentTick` argument.
++//
++// CHECKS: the constructor rejects an address that is not a two-number
++// mini-IP and a ttlTicks that is not a positive integer (fail-loud over
++// silent mis-configuration). An unknown name answers { status: 'NX' } — the
++// NX case is a normal answer at the DNS layer, not a throw (the fail-loud
++// throw rule applies to cross-subnet addresses in network.js).
++export function createDns({ address = '10.60', ttlTicks = 300 } = {}) {
++  if (!/^\d+\.\d+$/.test(address)) {
++    throw new Error(`dns: invalid mini-IP address ${address}`);
++  }
++  if (!Number.isInteger(ttlTicks) || ttlTicks < 1) {
++    throw new Error(`dns: ttlTicks must be a positive integer, got ${ttlTicks}`);
++  }
++  // Authoritative table lives in-component: Stage 6a resolves example.com;
++  // Stage 6b adds the CDN name.
++  const AUTHORITATIVE = new Map([['example.com', '10.1']]);
++  const cache = new Map(); // name -> { name, target, expiresAtTick }
++  let lookups = 0;
++  let cachedHits = 0;
++  let authoritative = 0;
++  let evictions = 0;
++  let lastLookup = null;
++
++  // CHECKS: an expired entry is deleted before it can answer — the named
++  // counter-example (an expired entry answered from the ledger) is pinned in
++  // test/sim/dns.test.js.
++  function evictExpired(currentTick = 0) {
++    for (const entry of cache.values()) {
++      if (currentTick >= entry.expiresAtTick) {
++        cache.delete(entry.name);
++        evictions += 1;
++      }
++    }
++  }
++
++  function lookup(name, currentTick = 0) {
++    lookups += 1;
++    const entry = cache.get(name);
++    if (entry && currentTick < entry.expiresAtTick) {
++      cachedHits += 1;
++      lastLookup = { name, status: 'HIT', target: entry.target, atTick: currentTick };
++      return { status: 'HIT', target: entry.target };
++    }
++    if (entry) {
++      cache.delete(name);
++      evictions += 1;
++    }
++    authoritative += 1;
++    const record = AUTHORITATIVE.get(name);
++    if (!record) {
++      lastLookup = { name, status: 'NX', atTick: currentTick };
++      return { status: 'NX' };
++    }
++    cache.set(name, { name, target: record, expiresAtTick: currentTick + ttlTicks });
++    lastLookup = { name, status: 'MISS', target: record, atTick: currentTick };
++    return { status: 'MISS', target: record };
++  }
++
++  function snapshot(currentTick = 0) {
++    evictExpired(currentTick);
++    return {
++      address,
++      ttlTicks,
++      lookups,
++      cachedHits,
++      authoritative,
++      evictions,
++      lastLookup,
++      cache: [...cache.values()].map((e) => ({
++        name: e.name,
++        target: e.target,
++        expiresAtTick: e.expiresAtTick,
++        ttlRemaining: e.expiresAtTick - currentTick,
++      })),
++    };
++  }
++
++  return {
++    get address() {
++      return address;
++    },
++    lookup,
++    evictExpired,
++    snapshot,
++  };
++}
+diff --git a/js/sim/engine.js b/js/sim/engine.js
+index 3d0ce56..14d0b38 100644
+--- a/js/sim/engine.js
++++ b/js/sim/engine.js
+@@ -8,13 +8,16 @@
+ // traceHop() call across the same network/LB/queue/cache machinery the
+ // crowd uses — it does not fake a shortcut.
+ //
++// Stage 6 instantiates DNS 10.60 (tick-TTL resolver ledger) and the
++// cross-subnet Router (10.65 ⇄ 20.1) and hands the trace to the Stage 6
++// wrapper in trace-stage6.js; the crowd path stays host-less and untouched.
++//
+ // PINS: a fixed seed with a fixed action sequence replays the identical
+ // tick sequence — pinned by "same seed replays the identical tick sequence"
+ // in test/sim/engine.test.js.
+ //
+ // CHECKS: constructor validates config ranges via its components (seed is
+-// coerced uint32; arrivalProb must be within [0, 1]; stage must be 1, 2, 3,
+-// or 4).
++// coerced uint32; arrivalProb must be within [0, 1]; stage must be 1-6).
+ import { createRng } from './rng.js';
+ import { createNetwork } from './network.js';
+ import { createBrowser } from './browser.js';
+@@ -23,8 +26,11 @@ import { createLoadBalancer } from './loadbalancer.js';
+ import { createCache } from './cache.js';
+ import { createDatabase } from './database.js';
+ import { createWorkerQueue } from './queue.js';
++import { createDns } from './dns.js';
++import { createRouter } from './router.js';
+ import { createUsers } from './users.js';
+ import { createTraceMachine } from './trace.js';
++import { createStage6Trace } from './trace-stage6.js';
+ 
+ export function createEngine({
+   seed = 42,
+@@ -42,12 +48,16 @@ export function createEngine({
+   workerQueueAddress = '10.40',
+   workerAddress = '10.41',
+   jobDurationTicks = 2,
++  dnsAddress = '10.60',
++  dnsTtlTicks = 300,
++  routerLeftAddress = '10.65',
++  routerRightAddress = '20.1',
+ } = {}) {
+   if (typeof arrivalProb !== 'number' || arrivalProb < 0 || arrivalProb > 1) {
+     throw new Error(`engine: arrivalProb must be within [0, 1], got ${arrivalProb}`);
+   }
+-  if (stage !== 1 && stage !== 2 && stage !== 3 && stage !== 4 && stage !== 5) {
+-    throw new Error(`engine: stage must be 1, 2, 3, 4, or 5, got ${stage}`);
++  if (stage !== 1 && stage !== 2 && stage !== 3 && stage !== 4 && stage !== 5 && stage !== 6) {
++    throw new Error(`engine: stage must be 1, 2, 3, 4, 5, or 6, got ${stage}`);
+   }
+   const rng = createRng(seed);
+   const network = createNetwork();
+@@ -61,13 +71,22 @@ export function createEngine({
+         })
+       : null;
+   const workerQueue =
+-    stage === 5
++    stage >= 5
+       ? createWorkerQueue({
+           address: workerQueueAddress,
+           workerAddress,
+           jobDurationTicks,
+         })
+       : null;
++  const dns = stage >= 6 ? createDns({ address: dnsAddress, ttlTicks: dnsTtlTicks }) : null;
++  const router =
++    stage >= 6
++      ? createRouter({ leftAddress: routerLeftAddress, rightAddress: routerRightAddress })
++      : null;
++  // Stage 6 joins the 20.x fabric through the Router: nothing registers
++  // there in 6a besides the router's own 20-side interface.
++  const subnet20 = stage >= 6 ? createNetwork({ subnet: '20' }) : null;
++  if (router) router.join(network, subnet20);
+   let servers;
+   let lb = null;
+   if (stage === 1) {
+@@ -77,7 +96,8 @@ export function createEngine({
+   } else {
+     // Stage 2 wires the LB in front of two duplicated backends; Stage 3
+     // attaches the shared cache-aside Cache to both backends; Stage 4 adds
+-    // the primary/replica Database; Stage 5 adds the WorkerQueue & Worker.
++    // the primary/replica Database; Stage 5 adds the WorkerQueue & Worker;
++    // Stage 6 keeps that stack and adds DNS + Router.
+     servers = backendAddresses.map((addr) =>
+       createWebServer({ address: addr, serviceRate, cache, database, workerQueue }),
+     );
+@@ -98,7 +118,7 @@ export function createEngine({
+   // The trace machine owns the hop-by-hop trace state; the engine owns the
+   // clock, the served-exchange record, and browser delivery — the machine
+   // calls back into these closures as hops execute.
+-  const traceMachine = createTraceMachine({
++  const traceConfig = {
+     stage,
+     serverAddress,
+     servers,
+@@ -107,6 +127,7 @@ export function createEngine({
+     cache,
+     database,
+     workerQueue,
++    dns,
+     bumpTick: () => {
+       tick += 1;
+       return tick;
+@@ -120,7 +141,9 @@ export function createEngine({
+       userPool.receiveResponse(record);
+       if (record.from === '10.2') clientBrowser.receiveResponse(record);
+     },
+-  });
++  };
++  const traceMachine =
++    stage === 6 ? createStage6Trace(traceConfig) : createTraceMachine(traceConfig);
+ 
+   return {
+     step() {
+@@ -128,6 +151,7 @@ export function createEngine({
+       // TTL eviction happens once per tick, before anything is served:
+       // expired entries are gone before this tick's work is priced.
+       if (cache) cache.evictExpired(tick);
++      if (dns) dns.evictExpired(tick);
+       // Stage 4+: replication advances one tick at a time.
+       if (database) database.stepReplication(tick);
+       // Stage 5: worker queue advances jobs and writes to database.
+@@ -161,7 +185,9 @@ export function createEngine({
+     // One hop per call, delegated to the trace machine: 4 hops in Stage 1
+     // (emit, route, serve, render); 5 in Stage 2 (LB round-robin between
+     // route and serve); 6 in Stage 3 (cache check, then response emit);
+-    // 7 in Stage 4 (the database hop inserted after the cache check).
++    // 7 in Stage 4 (the database hop inserted after the cache check); 8 in
++    // Stage 5; 10 in Stage 6 when the path carries a host (2 DNS hops first)
++    // and the Stage 5 8 when it does not.
+     // `from` is the mini-IP of the browser the trace originates from
+     // (default the learner's own 10.2).
+     traceHop({ method = 'GET', path = '/about', from = '10.2' } = {}) {
+@@ -204,6 +230,8 @@ export function createEngine({
+         cache: cache ? cache.snapshot(tick) : null,
+         database: database ? database.snapshot(tick) : null,
+         workerQueue: workerQueue ? workerQueue.snapshot(tick) : null,
++        dns: dns ? dns.snapshot(tick) : null,
++        router: router ? router.snapshot() : null,
+         lastMatchedRoute,
+         lastFrame,
+         browserDisplay: clientBrowser.last(),
+diff --git a/js/sim/network.js b/js/sim/network.js
+index 745d2a8..293d8f3 100644
+--- a/js/sim/network.js
++++ b/js/sim/network.js
+@@ -1,14 +1,23 @@
+ // DOCUMENTS: the network — the wiring that lets two-number mini-IP
+ // addressable components exchange messages. Today it carries slim HTTP
+ // requests to a registered server; later stages attach more components
+-// without changing the send/enqueue contract.
++// without changing the send/enqueue contract. Stage 6 adds cross-subnet
++// support: a network owns one subnet, and a frame addressed outside it is
++// handed to the attached Router gateway instead of resolved locally — the
++// far network delivers it after the single router hop.
+ //
+ // CHECKS: every address crossing the wire is validated as a two-number
+-// mini-IP (<net>.<host>), and sends to unregistered hosts fail loud.
++// mini-IP (<net>.<host>), and sends to unregistered hosts fail loud —
++// including cross-subnet sends into an unregistered far host (20.9), whose
++// error surfaces from the far network's own resolve.
+ const MINI_IP = /^\d+\.\d+$/;
+ 
+-export function createNetwork() {
++export function createNetwork({ subnet = '10' } = {}) {
++  if (!/^\d+$/.test(String(subnet))) {
++    throw new Error(`network: subnet must be a numeric label, got ${subnet}`);
++  }
+   const servers = new Map();
++  let gateway = null; // router closure: record -> far network delivery
+ 
+   function validate(addr) {
+     if (!MINI_IP.test(addr)) {
+@@ -25,6 +34,12 @@ export function createNetwork() {
+     return server;
+   }
+ 
++  // A target outside this network's own subnet crosses the router; without
++  // an attached gateway the local resolve throws its usual no-server error.
++  function isCrossSubnet(address) {
++    return String(address).split('.')[0] !== String(subnet);
++  }
++
+   return {
+     registerServer(address, server) {
+       validate(address);
+@@ -33,8 +48,16 @@ export function createNetwork() {
+ 
+     resolve,
+ 
++    attachGateway(fn) {
++      gateway = fn;
++    },
++
+     send({ from, to, request }) {
+       validate(from);
++      validate(to);
++      if (gateway && isCrossSubnet(to)) {
++        return gateway({ kind: 'send', from, to, request });
++      }
+       const server = resolve(to);
+       const response = server.handleRequest(request);
+       return { from, to, request, response };
+@@ -44,8 +67,32 @@ export function createNetwork() {
+     // interactive-browser request, the server stores it on the queue row.
+     deliverToQueue({ id, from, to, request, atTick, isYou = false }) {
+       validate(from);
++      validate(to);
++      if (gateway && isCrossSubnet(to)) {
++        return gateway({ kind: 'queue', id, from, to, request, atTick, isYou });
++      }
+       const server = resolve(to);
+       server.enqueue({ id, from, to, request, atTick, isYou });
+     },
++
++    // A frame the Router has already forwarded into this subnet is local
++    // here: deliver it by the same send/enqueue contract, no second hop.
++    receiveCrossSubnet(record) {
++      if (record.kind === 'queue') {
++        const server = resolve(record.to);
++        server.enqueue({
++          id: record.id,
++          from: record.from,
++          to: record.to,
++          request: record.request,
++          atTick: record.atTick,
++          isYou: record.isYou,
++        });
++        return null;
++      }
++      const server = resolve(record.to);
++      const response = server.handleRequest(record.request);
++      return { from: record.from, to: record.to, request: record.request, response };
++    },
+   };
+ }
+diff --git a/js/sim/router.js b/js/sim/router.js
+new file mode 100644
+index 0000000..f7325e6
+--- /dev/null
++++ b/js/sim/router.js
+@@ -0,0 +1,68 @@
++// DOCUMENTS: the Stage 6 cross-subnet Router — joins two Network instances
++// (the 10.x fabric and the 20.x fabric) so a frame addressed outside its own
++// subnet crosses exactly one router hop: the near network hands the record
++// to the router's gateway closure, the router counts it in `routed`, and the
++// far network delivers it locally. `isYou` rides through untouched on queue
++// deliveries. In Stage 6a nothing lives in subnet 20 besides the router's
++// own presence: its 20-side interface (20.1) is the only reachable target,
++// and an unregistered 20.x host (20.9) fails loud through the far network's
++// resolve.
++//
++// CHECKS: the constructor rejects a non two-number mini-IP interface and two
++// interfaces on the same subnet (a router between one subnet is not a
++// router).
++const MINI_IP = /^\d+\.\d+$/;
++
++export function createRouter({ leftAddress = '10.65', rightAddress = '20.1' } = {}) {
++  for (const [name, addr] of [
++    ['leftAddress', leftAddress],
++    ['rightAddress', rightAddress],
++  ]) {
++    if (!MINI_IP.test(addr)) {
++      throw new Error(`router: invalid mini-IP address ${name}=${addr}`);
++    }
++  }
++  const leftNet = String(leftAddress).split('.')[0];
++  const rightNet = String(rightAddress).split('.')[0];
++  if (leftNet === rightNet) {
++    throw new Error(`router: both interfaces live in subnet ${leftNet}`);
++  }
++  let routed = 0;
++  let lastRoute = null;
++
++  // The router's own interface answer — in Stage 6a the 20.1 side is the
++  // only thing alive in subnet 20 (Stage 6b occupies it with the CDN edge).
++  const handleRequest = () => `200 router ${rightAddress}`;
++
++  // CHECKS: one forward call per cross-subnet frame — `routed` counts frames
++  // entering the router, so a delivery that then fails loud in the far
++  // subnet still counted its single hop (pinned in test/sim/router.test.js).
++  function forward(record, farNetwork) {
++    routed += 1;
++    lastRoute = `${record.from} -> ${record.to} via ${leftAddress} ⇄ ${rightAddress}`;
++    return farNetwork.receiveCrossSubnet(record);
++  }
++
++  return {
++    get leftAddress() {
++      return leftAddress;
++    },
++    get rightAddress() {
++      return rightAddress;
++    },
++
++    handleRequest,
++
++    join(leftNetwork, rightNetwork) {
++      leftNetwork.attachGateway((record) => forward(record, rightNetwork));
++      rightNetwork.attachGateway((record) => forward(record, leftNetwork));
++      leftNetwork.registerServer(leftAddress, { handleRequest });
++      rightNetwork.registerServer(rightAddress, { handleRequest });
++      return this;
++    },
++
++    snapshot() {
++      return { leftAddress, rightAddress, routed, lastRoute };
++    },
++  };
++}
+diff --git a/js/sim/trace-stage6.js b/js/sim/trace-stage6.js
+new file mode 100644
+index 0000000..12a747d
+--- /dev/null
++++ b/js/sim/trace-stage6.js
+@@ -0,0 +1,169 @@
++// DOCUMENTS: the Stage 6 trace wrapper around the hop-by-hop machine. A
++// hosted browser path ("<host>/<path>") prepends two DNS hops — Browser ->
++// DNS 10.60 ask, then the DNS answer — before the resolved path is handed to
++// an inner Stage 5 machine unmodified, so the Stage 6 host-less story stays
++// byte-identical to Stage 5's (named counter-example: GET /about on Stage 6
++// keeps the Stage 5 hop count and hop texts). A name the resolver answers NX
++// short-circuits: DNS ask + "NX no record" answer + the browser rendering
++// the NX card, and no GET is emitted.
++//
++// CHECKS: the wrapper fails loud at construction unless the stage is 6 and a
++// DNS component is attached. Hosted runs delegate to a fresh inner machine
++// per run, so a trace abandoned mid-flight (host-less then hosted) starts
++// clean instead of riding the previous run's hop state.
++import { createTraceMachine } from './trace.js';
++
++export function createStage6Trace({ stage, dns, ...config }) {
++  if (stage !== 6) {
++    throw new Error(`trace-stage6: stage must be 6, got ${stage}`);
++  }
++  if (!dns) {
++    throw new Error('trace-stage6: no DNS component attached');
++  }
++  const inner = createTraceMachine({ ...config, stage: 5 });
++
++  // Host split on the first "/": "example.com/about" -> { host, rest }.
++  // A path starting with "/" (or any string with no leading host token) is
++  // host-less; a bare name ("example.com") resolves against the root path.
++  function splitHost(path) {
++    const raw = String(path ?? '');
++    const slashAt = raw.indexOf('/');
++    if (slashAt <= 0) return null;
++    return { host: raw.slice(0, slashAt), rest: raw.slice(slashAt) };
++  }
++
++  // Per-run hosted state; null means the current trace is host-less and the
++  // inner machine owns everything. `next` names the NEXT action; `hop` is
++  // the hop the snapshot reports (the one just executed).
++  let run = null;
++
++  function startRun(split, method, from) {
++    return {
++      host: split.host,
++      rest: split.rest,
++      method,
++      from,
++      next: 'ask',
++      hop: 0,
++      nx: false,
++      done: false,
++      answer: null,
++      inner: createTraceMachine({ ...config, stage: 5 }),
++    };
++  }
++
++  function hostTrace(response, status, body) {
++    return {
++      hop: run.hop,
++      method: run.method,
++      path: `${run.host}${run.rest}`,
++      request: `${run.method} ${run.host}${run.rest}`,
++      from: run.from,
++      targetServer: null,
++      cacheStatus: null,
++      dbOp: null,
++      dbStale: false,
++      asyncJob: false,
++      response,
++      status,
++      body,
++      routeId: null,
++      hosted: true,
++      nx: run.nx,
++      dnsName: run.host,
++      dnsAddress: dns.address,
++      dnsAnswer: run.answer,
++    };
++  }
++
++  return {
++    // One hop per call, mirroring the inner machine's contract: the hop's
++    // lastFrame string, or null when nothing moved. An in-flight hosted run
++    // continues on its own state (the caller's path argument only matters
++    // when the next trace starts), the same way the inner machine owns its
++    // state mid-trace.
++    step({ method = 'GET', path = '/about', from = '10.2' } = {}) {
++      if (!run || run.done) {
++        const split = splitHost(path);
++        if (!split) {
++          run = null;
++          return inner.step({ method, path, from });
++        }
++        run = startRun(split, method, from);
++      }
++      if (run.next === 'ask') {
++        run.next = 'answer';
++        run.hop = 1;
++        // The consult happens when the ask lands: the answer hop narrates
++        // the stored result, so an NX verdict is known from hop 1 on and
++        // the trace's total reads 3, not 10.
++        const result = dns.lookup(run.host, config.getTick());
++        if (result.status === 'NX') {
++          run.nx = true;
++          run.answer = 'NX no record';
++        } else {
++          const how = result.status === 'HIT' ? 'cache HIT' : 'authoritative';
++          run.answer = `${run.host} is ${result.target} (${how})`;
++        }
++        return `${run.from} -> ${dns.address} | resolve ${run.host}`;
++      }
++      if (run.next === 'answer') {
++        run.hop = 2;
++        if (run.nx) {
++          run.next = 'nx-render';
++        } else {
++          run.next = 'delegate';
++        }
++        return `${dns.address} -> ${run.from} | ${run.answer}`;
++      }
++      if (run.next === 'nx-render') {
++        run.next = 'done';
++        run.hop = 3;
++        run.done = true;
++        // The NX record is what the browser card renders; no GET is emitted,
++        // so nothing is served and no queue row exists.
++        config.onFinish({
++          from: run.from,
++          to: run.from,
++          request: `${run.method} ${run.host}${run.rest}`,
++          response: 'NX no record',
++        });
++        return `Browser ${run.from} renders NX — no record for ${run.host}`;
++      }
++      // delegate: the browser emits the GET with the resolved target; the
++      // inner Stage 5 machine runs the tail of the story unmodified.
++      const frame = run.inner.step({ method: run.method, path: run.rest, from: run.from });
++      run.hop = 2 + run.inner.snapshot().hop;
++      if (run.hop >= 10) run.done = true;
++      return frame;
++    },
++
++    snapshot() {
++      if (!run) {
++        return {
++          ...inner.snapshot(),
++          hosted: false,
++          nx: false,
++          dnsName: null,
++          dnsAddress: dns.address,
++          dnsAnswer: null,
++        };
++      }
++      if (run.next === 'delegate') {
++        return {
++          ...run.inner.snapshot(),
++          hop: run.hop,
++          hosted: true,
++          nx: false,
++          dnsName: run.host,
++          dnsAddress: dns.address,
++          dnsAnswer: run.answer,
++        };
++      }
++      // NX carries its answer as the rendered record from hop 2 onward; the
++      // ask and answer hops report no served exchange yet.
++      const nx = run.nx && run.hop >= 2;
++      return hostTrace(nx ? 'NX no record' : null, nx ? 'NX' : null, nx ? 'no record' : null);
++    },
++  };
++}
+diff --git a/panel.html b/panel.html
+index 87c0b9f..4277649 100644
+--- a/panel.html
++++ b/panel.html
+@@ -179,7 +179,7 @@
+             id="orrery-svg"
+             data-testid="orrery-svg"
+             class="orrery-svg"
+-            viewBox="-3000 -3000 6000 6000"
++            viewBox="-4700 -4700 9400 9400"
+             aria-hidden="true"
+           ></svg>
+ 
+diff --git a/slices.yaml b/slices.yaml
+index 9a3a7c6..95e7b51 100644
+--- a/slices.yaml
++++ b/slices.yaml
+@@ -44,6 +44,14 @@ slices:
+       - unit: test/sim/database.test.js::replicates primary writes to the read replica after replicationLagTicks and tracks stale reads
+       - unit: test/sim/database.test.js::stage 4 engine writes to Primary 10.30, invalidates Cache 10.20, serves stale replica reads during lag, and catches up
+       - unit: test/sim/queue.test.js::worker queue sim component
++      - unit: test/sim/dns.test.js::a DNS cache hit inside ttlTicks increments cachedHits with no authoritative consult
++      - unit: test/sim/dns.test.js::an expired entry never answers from the ledger
++      - unit: test/sim/dns.test.js::unknown names answer NX instead of throwing at the DNS layer
++      - unit: test/sim/router.test.js::cross-subnet frames take exactly one router hop through 10.65 ⇄ 20.1
++      - unit: test/sim/router.test.js::a send into subnet 20 to an unregistered host 20.9 throws
++      - unit: test/sim/stage6.test.js::hosted example.com/about adds exactly 2 DNS hops to the stage-5 story
++      - unit: test/sim/stage6.test.js::nope.example/about never emits a GET — DNS ask plus NX answer only
++      - unit: test/sim/stage6.test.js::GET /about on stage 6 keeps the stage-5 hop story byte-identical — no DNS hop
+     entry_point: n/a (engine logic; rendered by PANEL-1)
+ 
+   - id: PANEL
+@@ -59,6 +67,7 @@ slices:
+         - test/panel/**
+       e2e_specs:
+         - e2e/panel.spec.js
++        - e2e/panel-stage6.spec.js
+         - e2e/orrery-plane.spec.js
+         - e2e/teaching.spec.js
+     owns:
+@@ -82,6 +91,10 @@ slices:
+       - unit: test/panel/model-stage34.test.js::describes Stage 3 6-hop cache-aside trace labels and cache inspector state
+       - unit: test/panel/model-stage34.test.js::describes Stage 4 7-hop database trace labels and database inspector state
+       - unit: test/panel/model-stage5.test.js::describes Stage 5 8-hop async queue trace labels and workerqueue inspector state
++      - unit: test/panel/model-stage6.test.js::GET /about on stage 6 keeps the stage-5 hop story byte-identical — no DNS hop
++      - unit: test/panel/model-stage6.test.js::hosted example.com/about adds exactly 2 DNS hops to the stage-5 story
++      - unit: test/panel/model-stage6.test.js::nope.example/about renders NX without emitting a GET
++      - unit: test/panel/model-stage6.test.js::lays out the eight-ring Stage 6 orrery with DNS on Ring 7 and the Router on Ring 6
+       - unit: test/panel/model.test.js::stage 1 webserver headline derives mini-IP 10.1 from the live snapshot, not from the static 10.11 / 10.12 entry
+       - unit: test/panel/model.test.js::stages 2-5 webserver headline derives the snapshot backends as mini-IP 10.11 / 10.12
+       - unit: test/panel/model.test.js::journey entries order by run key then ascending hop, keeping labels whole
+@@ -94,7 +107,7 @@ slices:
+       - e2e: panel::should switch to Stage 3, warm Cache 10.20 on a miss from 10.11, serve a hit from 10.12, and inspect cache code
+       - e2e: panel::should switch to Stage 4, write to Primary 10.30 on POST, observe replica lag on GET, and inspect database code
+       - e2e: panel::should switch to Stage 5, process an async POST /jobs job through worker 10.41, and inspect queue state
+-      - unit: test/panel/teaching.test.js::describes all five stages with a headline, three lists, a tradeoff, and a primerLink
++      - unit: test/panel/teaching.test.js::describes all six stages with a headline, three lists, a tradeoff, and a primerLink
+       - unit: test/panel/teaching.test.js::stage 1 content never mentions cache TTL names
+       - unit: test/panel/teaching.test.js::unknown stages degrade to a pending-entries placeholder, not a crash
+       - e2e: teaching::should open the teaching drawer, trace it across stage switches, and show stage-1 content only on stage 1
+@@ -107,6 +120,11 @@ slices:
+       - e2e: panel::should give every trace, camera, and load control a non-empty title
+       - e2e: panel::should deep-link ?stage=5&users=30 to stage 5 with 30 browsers
+       - e2e: panel::should fall back to stage 1 on unknown ?stage=9 without errors
++      - e2e: panel-stage6::should switch to Stage 6, resolve example.com through DNS 10.60, and inspect DNS code + TTL ledger
++      - e2e: panel-stage6::should trace example.com/about with DNS ask + answer hops
++      - e2e: panel-stage6::should keep GET /about on Stage 6 at the Stage 5 hop story
++      - e2e: panel-stage6::should render NX no record for nope.example without emitting a GET
++      - e2e: panel-stage6::should extend the ?stage deep-link live set to 6 and still fall back to 1 on unknowns
+       - e2e: panel::should show the SERVED card tallying per tick without NaN at tick 0
+     entry_point: index.html -> Diagram Panel link
+ 
+diff --git a/storymap.yaml b/storymap.yaml
+index 7d7cbb1..2620cca 100644
+--- a/storymap.yaml
++++ b/storymap.yaml
+@@ -130,7 +130,7 @@ activities:
+             status: done
+             priority: medium
+             tests:
+-              - unit: test/panel/teaching.test.js::describes all five stages with a headline, three lists, a tradeoff, and a primerLink
++              - unit: test/panel/teaching.test.js::describes all six stages with a headline, three lists, a tradeoff, and a primerLink
+               - unit: test/panel/teaching.test.js::stage 1 content never mentions cache TTL names
+               - unit: test/panel/teaching.test.js::unknown stages degrade to a pending-entries placeholder, not a crash
+               - e2e: teaching::should open the teaching drawer, trace it across stage switches, and show stage-1 content only on stage 1
+@@ -234,3 +234,60 @@ activities:
+             tests:
+               - unit: test/panel/model-stage5.test.js::describes Stage 5 8-hop async queue trace labels and workerqueue inspector state
+               - e2e: panel::should switch to Stage 5, process an async POST /jobs job through worker 10.41, and inspect queue state
++
++  - name: 'Stage 6 — DNS resolution and cross-subnet routing'
++    tasks:
++      - id: SIM-6
++        name: Resolve names through DNS 10.60 with a tick-TTL ledger and route cross-subnet via Router 10.65 ⇄ 20.1
++        entry_point: n/a (engine behavior, not navigable)
++        stories:
++          - title: Resolve example.com through the DNS ledger — hits inside ttlTicks skip the authoritative consult and expired entries never answer
++            status: done
++            priority: high
++            tests:
++              - unit: test/sim/dns.test.js::a DNS cache hit inside ttlTicks increments cachedHits with no authoritative consult
++              - unit: test/sim/dns.test.js::an expired entry never answers from the ledger
++          - title: Answer unknown names with NX at the DNS layer and route cross-subnet frames over exactly one router hop, failing loud on unregistered 20.x hosts
++            status: done
++            priority: high
++            tests:
++              - unit: test/sim/dns.test.js::unknown names answer NX instead of throwing at the DNS layer
++              - unit: test/sim/router.test.js::cross-subnet frames take exactly one router hop through 10.65 ⇄ 20.1
++              - unit: test/sim/router.test.js::a send into subnet 20 to an unregistered host 20.9 throws
++          - title: Trace hosted paths through 2 DNS hops ahead of the stage-5 chain, keep host-less paths byte-identical, and never emit a GET on the NX path
++            status: done
++            priority: high
++            tests:
++              - unit: test/sim/stage6.test.js::hosted example.com/about adds exactly 2 DNS hops to the stage-5 story
++              - unit: test/sim/stage6.test.js::GET /about on stage 6 keeps the stage-5 hop story byte-identical — no DNS hop
++              - unit: test/sim/stage6.test.js::nope.example/about never emits a GET — DNS ask plus NX answer only
++
++      - id: PANEL-6
++        name: Switch to Stage 6 and trace DNS + cross-subnet routing
++        entry_point: index.html -> Diagram Panel link -> 6 · Multi-Net / CDN pill
++        stories:
++          - title: Switch to Stage 6, resolve example.com through DNS 10.60 on the 8-ring orrery, and inspect DNS code and TTL ledger state
++            status: done
++            priority: high
++            tests:
++              - unit: test/panel/model-stage6.test.js::lays out the eight-ring Stage 6 orrery with DNS on Ring 7 and the Router on Ring 6
++              - e2e: panel-stage6::should switch to Stage 6, resolve example.com through DNS 10.60, and inspect DNS code + TTL ledger
++          - title: Trace example.com/about with DNS ask + answer hops and answer the second lookup from the ledger
++            status: done
++            priority: high
++            tests:
++              - unit: test/panel/model-stage6.test.js::hosted example.com/about adds exactly 2 DNS hops to the stage-5 story
++              - e2e: panel-stage6::should trace example.com/about with DNS ask + answer hops
++          - title: Keep a host-less GET /about at the Stage 5 hop story and render NX for unknown names without emitting a GET
++            status: done
++            priority: high
++            tests:
++              - unit: test/panel/model-stage6.test.js::GET /about on stage 6 keeps the stage-5 hop story byte-identical — no DNS hop
++              - unit: test/panel/model-stage6.test.js::nope.example/about renders NX without emitting a GET
++              - e2e: panel-stage6::should keep GET /about on Stage 6 at the Stage 5 hop story
++              - e2e: panel-stage6::should render NX no record for nope.example without emitting a GET
++          - title: Deep-link ?stage=6 into the live set while unknown values still fall back to Stage 1
++            status: done
++            priority: medium
++            tests:
++              - e2e: panel-stage6::should extend the ?stage deep-link live set to 6 and still fall back to 1 on unknowns
+diff --git a/test/panel/camera.test.js b/test/panel/camera.test.js
+index b805033..cd87db7 100644
+--- a/test/panel/camera.test.js
++++ b/test/panel/camera.test.js
+@@ -117,14 +117,15 @@ describe('orrery layout', () => {
+     expect(buildOrreryRings(400).map((r) => r.radius)).toEqual([400, 800, 1200]);
+     expect(() => buildOrreryRings(0)).toThrow(/ringGap/);
+     expect(() => buildOrreryRings(Number.NaN)).toThrow(/ringGap/);
+-    expect(() => buildOrreryRings(400, 6)).toThrow(/stage/);
++    expect(() => buildOrreryRings(400, 7)).toThrow(/stage/);
+     expect(polarToWorld(1200, 180)).toEqual({ x: -1200, y: 0 });
+     expect(polarToWorld(400, 210)).toEqual({ x: -346, y: -200 });
+     expect(polarToWorld(400, 150)).toEqual({ x: -346, y: 200 });
+ 
+-    // CHECKS: the world frame widens for Stage 3's five rings and Stage 4's
+-    // six (pan and fit reach the outer client ring and the innermost node).
+-    expect(WORLD_BOUNDS).toEqual({ minX: -3100, maxX: 600, minY: -900, maxY: 900 });
++    // CHECKS: the world frame widens for Stage 3's five rings, Stage 4's
++    // six, and Stage 6's eight (pan and fit reach the outer client ring and
++    // the innermost node).
++    expect(WORLD_BOUNDS).toEqual({ minX: -4700, maxX: 600, minY: -900, maxY: 900 });
+ 
+     // Stage 1: 3 layers -> 3 rings, one component seated per layer ring.
+     const stage1 = computeStageLayout(1, 5);
+@@ -165,7 +166,7 @@ describe('orrery layout', () => {
+       expect(node.radius).toBeGreaterThan(0);
+       expect(node.x !== 0 || node.y !== 0).toBe(true);
+     }
+-    expect(() => computeStageLayout(6)).toThrow(/stage/);
++    expect(() => computeStageLayout(7)).toThrow(/stage/);
+ 
+     // Stage 2: 4 layers -> 4 rings, both backends on Ring 1's left arc.
+     const stage2 = computeStageLayout(2, 5);
+diff --git a/test/panel/model-stage6.test.js b/test/panel/model-stage6.test.js
+new file mode 100644
+index 0000000..8ba22f4
+--- /dev/null
++++ b/test/panel/model-stage6.test.js
+@@ -0,0 +1,188 @@
++import { describe, it, expect } from 'vitest';
++import { describeSnapshot, totalHopsFor } from '../../js/panel/model.js';
++import { formatComponentState, componentTitle } from '../../js/panel/inspector-state.js';
++import { computeStageLayout } from '../../js/panel/layout.js';
++
++// Stage-boundary extraction (guard-file-size): the Stage 6 DNS/Router
++// narrative-branch pins live here so model.test.js keeps its Stage 1/2
++// scope. All three brief contracts are pinned with their named
++// counter-examples.
++const baseTrace = {
++  method: 'GET',
++  path: '/about',
++  request: 'GET /about',
++  from: '10.2',
++  targetServer: '10.11',
++  cacheStatus: 'HIT',
++  dbOp: null,
++  dbStale: false,
++  asyncJob: false,
++  response: '200 This is the about page',
++  status: 200,
++  body: 'This is the about page',
++  routeId: 'about',
++};
++
++const stage5Snapshot = (trace) => ({
++  stage: 5,
++  tick: 1,
++  users: 5,
++  serverAddress: '10.1',
++  queueDepth: 0,
++  served: 1,
++  avgLatencyTicks: 1,
++  workerQueue: {
++    address: '10.40',
++    workerAddress: '10.41',
++    jobDurationTicks: 2,
++    enqueued: 0,
++    completed: 0,
++    activeJob: null,
++    pendingJobs: [],
++    lastJobResult: null,
++  },
++  trace,
++});
++
++const stage6Snapshot = (trace) => ({
++  ...stage5Snapshot(trace),
++  stage: 6,
++  dns: {
++    address: '10.60',
++    ttlTicks: 300,
++    lookups: 1,
++    cachedHits: 0,
++    authoritative: 1,
++    evictions: 0,
++    lastLookup: { name: 'example.com', status: 'MISS', target: '10.1', atTick: 0 },
++    cache: [{ name: 'example.com', target: '10.1', expiresAtTick: 300, ttlRemaining: 300 }],
++  },
++  router: { leftAddress: '10.65', rightAddress: '20.1', routed: 0, lastRoute: null },
++});
++
++const hopAt = (snapshot, hop) =>
++  describeSnapshot({ ...snapshot, trace: { ...snapshot.trace, hop } }).hopStatus;
++
++describe('stage 6 narrative branches', () => {
++  // PINS: negative-case contract — GET /about on Stage 6 keeps the Stage 5
++  // hop story byte-identical, sentence for sentence, and totals 8 hops.
++  it('GET /about on stage 6 keeps the stage-5 hop story byte-identical — no DNS hop', () => {
++    const trace = { ...baseTrace, hosted: false, nx: false };
++    const stage6 = describeSnapshot(stage6Snapshot(trace));
++    expect(stage6.totalHops).toBe(8);
++    for (let hop = 1; hop <= 8; hop++) {
++      expect(hopAt(stage6Snapshot(trace), hop)).toBe(hopAt(stage5Snapshot(trace), hop));
++    }
++    expect(hopAt(stage6Snapshot(trace), 1)).toBe('Hop 1/8: Browser (10.2) emits "GET /about"');
++    expect(hopAt(stage6Snapshot(trace), 8)).toBe(
++      'Hop 8/8: Worker (10.41) idle — no async jobs in this trace',
++    );
++    expect(totalHopsFor(6, { hosted: false })).toBe(8);
++  });
++
++  // PINS: the hosted grammar — hop 1 is the DNS ask, hop 2 the answer, and
++  // the Stage 5 sentences repeat renumbered onto 10 hops; the total is
++  // Stage 5's 8 + exactly 2 DNS hops.
++  it('hosted example.com/about adds exactly 2 DNS hops to the stage-5 story', () => {
++    const trace = {
++      ...baseTrace,
++      path: 'example.com/about',
++      hosted: true,
++      nx: false,
++      dnsName: 'example.com',
++      dnsAddress: '10.60',
++      dnsAnswer: 'example.com is 10.1 (authoritative)',
++    };
++    const snap = stage6Snapshot(trace);
++    expect(describeSnapshot(snap).totalHops).toBe(10);
++    expect(hopAt(snap, 1)).toBe('Hop 1/10: Browser (10.2) asks DNS (10.60) for example.com');
++    expect(hopAt(snap, 2)).toBe(
++      'Hop 2/10: DNS (10.60) -> 10.2 | example.com is 10.1 (authoritative)',
++    );
++    expect(hopAt(snap, 3)).toBe('Hop 3/10: Browser (10.2) emits "GET /about"');
++    expect(hopAt(snap, 10)).toBe('Hop 10/10: Worker (10.41) idle — no async jobs in this trace');
++    expect(totalHopsFor(6, { hosted: true })).toBe(10);
++  });
++
++  // PINS: negative-case contract — the NX path never emits a GET: the
++  // narrative is ask, "NX no record" answer, and the browser rendering the
++  // NX card; the total is 3.
++  it('nope.example/about renders NX without emitting a GET', () => {
++    const trace = {
++      ...baseTrace,
++      path: 'nope.example/about',
++      request: 'GET nope.example/about',
++      response: 'NX no record',
++      status: 'NX',
++      body: 'no record',
++      hosted: true,
++      nx: true,
++      dnsName: 'nope.example',
++      dnsAddress: '10.60',
++      dnsAnswer: 'NX no record',
++      targetServer: null,
++    };
++    const snap = stage6Snapshot(trace);
++    expect(describeSnapshot(snap).totalHops).toBe(3);
++    expect(hopAt(snap, 1)).toBe('Hop 1/3: Browser (10.2) asks DNS (10.60) for nope.example');
++    expect(hopAt(snap, 2)).toBe('Hop 2/3: DNS (10.60) -> 10.2 | NX no record');
++    expect(hopAt(snap, 3)).toBe('Hop 3/3: Browser (10.2) renders NX — no record for nope.example');
++    expect(totalHopsFor(6, { hosted: true, nx: true })).toBe(3);
++    // Stage 5 has no NX branch: its total stays 8 whatever the trace says.
++    expect(totalHopsFor(5, { hosted: true, nx: true })).toBe(8);
++  });
++
++  it('exposes the DNS ledger and Router counters as labels and inspector state', () => {
++    const snap = stage6Snapshot({ ...baseTrace, hosted: false });
++    const labels = describeSnapshot(snap);
++    expect(labels.dnsStatsLabel).toBe('Lookups: 1 · Cached hits: 0 · TTL: 300t');
++    expect(labels.dnsEntries).toEqual(snap.dns.cache);
++    expect(labels.routerLabel).toBe('Routed: 0 · 10.65 ⇄ 20.1');
++
++    const dnsState = JSON.parse(formatComponentState(snap, 'dns'));
++    expect(dnsState).toEqual(snap.dns);
++    expect(componentTitle(snap, 'dns')).toBe('DNS — mini-IP 10.60');
++    const routerState = JSON.parse(formatComponentState(snap, 'router'));
++    expect(routerState).toEqual(snap.router);
++    expect(componentTitle(snap, 'router')).toBe('Router — 10.65 ⇄ 20.1');
++    const networkState = JSON.parse(formatComponentState(snap, 'network'));
++    expect(networkState.interfaces['10.60']).toBe('DNS');
++    expect(networkState.interfaces['10.65']).toBe('Router (left)');
++    expect(networkState.interfaces['20.1']).toBe('Router (right)');
++  });
++
++  it('lays out the eight-ring Stage 6 orrery with DNS on Ring 7 and the Router on Ring 6', () => {
++    const stage6 = computeStageLayout(6, 5);
++    expect(stage6.rings.map((r) => r.id)).toEqual([
++      'ring-db',
++      'ring-workers',
++      'ring-cache',
++      'ring-compute',
++      'ring-lb',
++      'ring-network',
++      'ring-dns',
++      'ring-clients',
++    ]);
++    expect(stage6.rings.map((r) => r.radius)).toEqual([
++      400, 800, 1200, 1600, 2000, 2400, 2800, 3200,
++    ]);
++    expect(stage6.nodes['node-dns']).toMatchObject({ x: -2800, y: 0, ring: 'ring-dns' });
++    expect(stage6.nodes['node-router']).toMatchObject({ ring: 'ring-network' });
++    expect(stage6.nodes['node-browser']).toMatchObject({ x: -3200, y: 0, ring: 'ring-clients' });
++    expect(stage6.wires.map((w) => w.id)).toEqual([
++      'wire-browser-network',
++      'wire-network-lb',
++      'wire-lb-webserver',
++      'wire-lb-webserver-2',
++      'wire-webserver-cache',
++      'wire-webserver-2-cache',
++      'wire-cache-db',
++      'wire-cache-queue',
++      'wire-queue-worker',
++      'wire-worker-db',
++      'wire-browser-dns',
++      'wire-network-router',
++    ]);
++    expect(stage6.bounds).toEqual({ minX: -3380, maxX: 120, minY: -540, maxY: 540 });
++  });
++});
+diff --git a/test/panel/teaching.test.js b/test/panel/teaching.test.js
+index 2a1560b..b62dfd3 100644
+--- a/test/panel/teaching.test.js
++++ b/test/panel/teaching.test.js
+@@ -7,9 +7,9 @@ import { STAGE_TEACHING, describeStageTeaching } from '../../js/panel/teaching.j
+ const PRIMER = 'https://github.com/donnemartin/system-design-primer#';
+ 
+ describe('per-stage teaching entries', () => {
+-  it('describes all five stages with a headline, three lists, a tradeoff, and a primerLink', () => {
+-    expect(Object.keys(STAGE_TEACHING).map(Number).sort()).toEqual([1, 2, 3, 4, 5]);
+-    for (const stage of [1, 2, 3, 4, 5]) {
++  it('describes all six stages with a headline, three lists, a tradeoff, and a primerLink', () => {
++    expect(Object.keys(STAGE_TEACHING).map(Number).sort()).toEqual([1, 2, 3, 4, 5, 6]);
++    for (const stage of [1, 2, 3, 4, 5, 6]) {
+       const entry = describeStageTeaching(stage);
+       expect(entry.headline.trim().length, `stage ${stage} headline`).toBeGreaterThan(0);
+       expect(Array.isArray(entry.teaches) && entry.teaches.length > 0).toBe(true);
+@@ -39,7 +39,7 @@ describe('per-stage teaching entries', () => {
+   // minimal pending placeholder — real headline with a pending marker, no
+   // entry lists, no throw — not a blank panel or a crash.
+   it('unknown stages degrade to a pending-entries placeholder, not a crash', () => {
+-    for (const stage of [0, 6, 9, 42, '9', 'bogus']) {
++    for (const stage of [0, 7, 9, 42, '9', 'bogus']) {
+       const entry = () => describeStageTeaching(stage);
+       expect(() => entry()).not.toThrow();
+       expect(entry().headline.toLowerCase()).toContain('pending');
+diff --git a/test/sim/database.test.js b/test/sim/database.test.js
+index fc26a7d..4e3a0df 100644
+--- a/test/sim/database.test.js
++++ b/test/sim/database.test.js
+@@ -179,7 +179,8 @@ describe('stage 4 database wiring', () => {
+     expect(createEngine({ stage: 2, arrivalProb: 0 }).snapshot().database).toBe(null);
+     expect(createEngine({ stage: 3, arrivalProb: 0 }).snapshot().database).toBe(null);
+ 
+-    // CHECKS: an out-of-range stage fails loud at construction.
+-    expect(() => createEngine({ stage: 6 })).toThrow(/stage/);
++    // CHECKS: an out-of-range stage fails loud at construction (6 became
++    // valid with Stage 6; 7 is not a shipped stage and still rejects).
++    expect(() => createEngine({ stage: 7 })).toThrow(/stage/);
+   });
+ });
+diff --git a/test/sim/dns.test.js b/test/sim/dns.test.js
+new file mode 100644
+index 0000000..427c65d
+--- /dev/null
++++ b/test/sim/dns.test.js
+@@ -0,0 +1,85 @@
++import { describe, it, expect } from 'vitest';
++import { createDns } from '../../js/sim/dns.js';
++
++describe('createDns', () => {
++  it('resolves example.com authoritatively on miss and records the ledger entry', () => {
++    const dns = createDns({ address: '10.60', ttlTicks: 300 });
++    const miss = dns.lookup('example.com', 0);
++    expect(miss).toEqual({ status: 'MISS', target: '10.1' });
++    expect(dns.snapshot(0)).toMatchObject({
++      address: '10.60',
++      ttlTicks: 300,
++      lookups: 1,
++      cachedHits: 0,
++      authoritative: 1,
++    });
++    expect(dns.snapshot(0).cache).toEqual([
++      { name: 'example.com', target: '10.1', expiresAtTick: 300, ttlRemaining: 300 },
++    ]);
++    expect(dns.snapshot(5).lastLookup).toEqual({
++      name: 'example.com',
++      status: 'MISS',
++      target: '10.1',
++      atTick: 0,
++    });
++  });
++
++  // PINS: negative-case contract — a hit inside ttlTicks increments
++  // cachedHits with NO authoritative consult (the authoritative counter
++  // stays at 1 after two lookups).
++  it('a DNS cache hit inside ttlTicks increments cachedHits with no authoritative consult', () => {
++    const dns = createDns({ ttlTicks: 300 });
++    dns.lookup('example.com', 0);
++    const hit = dns.lookup('example.com', 299);
++    expect(hit).toEqual({ status: 'HIT', target: '10.1' });
++    const snap = dns.snapshot(299);
++    expect(snap).toMatchObject({ lookups: 2, cachedHits: 1, authoritative: 1 });
++    expect(snap.lastLookup).toEqual({
++      name: 'example.com',
++      status: 'HIT',
++      target: '10.1',
++      atTick: 299,
++    });
++  });
++
++  // PINS: negative-case contract — an expired entry is dropped before it
++  // can answer, so the next lookup is an authoritative MISS, not a stale
++  // ledger hit; the in-TTL hit before it proves the branch order.
++  it('an expired entry never answers from the ledger', () => {
++    const dns = createDns({ ttlTicks: 10 });
++    dns.lookup('example.com', 0);
++    expect(dns.lookup('example.com', 5)).toEqual({ status: 'HIT', target: '10.1' });
++    // Tick 10 is the first tick the entry is gone (expiresAtTick = 10).
++    expect(dns.lookup('example.com', 10)).toEqual({ status: 'MISS', target: '10.1' });
++    const snap = dns.snapshot(10);
++    expect(snap).toMatchObject({ lookups: 3, cachedHits: 1, authoritative: 2, evictions: 1 });
++    expect(snap.cache).toEqual([
++      { name: 'example.com', target: '10.1', expiresAtTick: 20, ttlRemaining: 10 },
++    ]);
++    // A lookup past expiry inside the same call cannot double-evict.
++    dns.lookup('example.com', 25);
++    expect(dns.snapshot(25).evictions).toBe(2);
++  });
++
++  // PINS: negative-case contract — an unknown name answers { status: 'NX' }
++  // at the DNS layer (the browser renders the NX card); the DNS component
++  // itself does not throw, and the NX answer writes no ledger entry.
++  it('unknown names answer NX instead of throwing at the DNS layer', () => {
++    const dns = createDns();
++    expect(() => dns.lookup('nope.example', 0)).not.toThrow();
++    expect(dns.lookup('nope.example', 0)).toEqual({ status: 'NX' });
++    expect(dns.lookup('nope.example', 1)).toEqual({ status: 'NX' });
++    const snap = dns.snapshot(1);
++    expect(snap).toMatchObject({ lookups: 3, cachedHits: 0, authoritative: 3 });
++    expect(snap.cache).toEqual([]);
++    expect(snap.lastLookup).toEqual({ name: 'nope.example', status: 'NX', atTick: 1 });
++  });
++
++  // CHECKS: the constructor rejects a non-mini-IP address and a
++  // non-positive or non-integer ttlTicks (fail-loud over silent misconfig).
++  it('rejects a non mini-IP address and a non-positive or non-integer ttlTicks', () => {
++    expect(() => createDns({ address: '1060' })).toThrow(/invalid mini-IP/);
++    expect(() => createDns({ ttlTicks: 0 })).toThrow(/ttlTicks/);
++    expect(() => createDns({ ttlTicks: 2.5 })).toThrow(/ttlTicks/);
++  });
++});
+diff --git a/test/sim/loadbalancer.test.js b/test/sim/loadbalancer.test.js
+index 2a9b7c7..da4a8a2 100644
+--- a/test/sim/loadbalancer.test.js
++++ b/test/sim/loadbalancer.test.js
+@@ -108,7 +108,8 @@ describe('createLoadBalancer', () => {
+     expect(() => detached.handleRequest('GET /')).toThrow(/no network attached/);
+     expect(() => detached.enqueue({ id: '1:0', atTick: 1 })).toThrow(/no network attached/);
+     // CHECKS: an out-of-range stage fails loud (3 became valid with Stage 3;
+-    // 4 became valid with Stage 4; 5 is not a shipped stage and still rejects).
+-    expect(() => createEngine({ stage: 6 })).toThrow(/stage must be/);
++    // 4 became valid with Stage 4; 6 became valid with Stage 6; 7 is not a
++    // shipped stage and still rejects).
++    expect(() => createEngine({ stage: 7 })).toThrow(/stage must be/);
+   });
+ });
+diff --git a/test/sim/router.test.js b/test/sim/router.test.js
+new file mode 100644
+index 0000000..52556d2
+--- /dev/null
++++ b/test/sim/router.test.js
+@@ -0,0 +1,124 @@
++import { describe, it, expect } from 'vitest';
++import { createNetwork } from '../../js/sim/network.js';
++import { createRouter } from '../../js/sim/router.js';
++import { createWebServer } from '../../js/sim/webserver.js';
++
++describe('createRouter', () => {
++  // PINS: the same-subnet contract is untouched by the router's presence —
++  // send/deliverToQueue resolve locally, `routed` stays 0, and isYou marks
++  // the queue row exactly as before.
++  it('same-subnet sends keep the send and deliverToQueue contract unchanged', () => {
++    const left = createNetwork();
++    const server = createWebServer({ address: '10.1' });
++    left.registerServer('10.1', server);
++    const router = createRouter();
++    router.join(left, createNetwork({ subnet: '20' }));
++
++    expect(left.send({ from: '10.2', to: '10.1', request: 'GET /about' })).toEqual({
++      from: '10.2',
++      to: '10.1',
++      request: 'GET /about',
++      response: '200 This is the about page',
++    });
++    left.deliverToQueue({
++      id: 'q:1',
++      from: '10.2',
++      to: '10.1',
++      request: 'GET /about',
++      atTick: 1,
++      isYou: true,
++    });
++    expect(server.queueSnapshot()).toEqual([
++      { id: 'q:1', atTick: 1, from: '10.2', to: '10.1', request: 'GET /about', isYou: true },
++    ]);
++    expect(router.snapshot()).toMatchObject({ routed: 0, lastRoute: null });
++  });
++
++  // PINS: a cross-subnet frame crosses exactly one router hop — `routed`
++  // counts 1 — and the router's own 20-side interface is the reachable
++  // target in subnet 20 (Stage 6a's only tenant there).
++  it('cross-subnet frames take exactly one router hop through 10.65 ⇄ 20.1', () => {
++    const left = createNetwork();
++    const right = createNetwork({ subnet: '20' });
++    const router = createRouter();
++    router.join(left, right);
++
++    const reply = left.send({ from: '10.2', to: '20.1', request: 'GET /' });
++    expect(reply).toEqual({
++      from: '10.2',
++      to: '20.1',
++      request: 'GET /',
++      response: '200 router 20.1',
++    });
++    const snap = router.snapshot();
++    expect(snap.routed).toBe(1);
++    expect(snap.lastRoute).toBe('10.2 -> 20.1 via 10.65 ⇄ 20.1');
++
++    // The router's left interface answers same-subnet sends locally, with
++    // no routed hop.
++    expect(left.send({ from: '10.2', to: '10.65', request: 'GET /' })).toMatchObject({
++      to: '10.65',
++      response: '200 router 20.1',
++    });
++    expect(router.snapshot().routed).toBe(1);
++  });
++
++  // PINS: negative-case contract — a send into subnet 20 to an unregistered
++  // host throws (fail-loud, mirroring network.js's resolve); the error
++  // surfaces from the far network, and the frame still counted its single
++  // router hop on the way in.
++  it('a send into subnet 20 to an unregistered host 20.9 throws', () => {
++    const left = createNetwork();
++    const router = createRouter();
++    router.join(left, createNetwork({ subnet: '20' }));
++    expect(() => left.send({ from: '10.2', to: '20.9', request: 'GET /' })).toThrow(
++      /no server at 20\.9/,
++    );
++    expect(() =>
++      left.deliverToQueue({ id: 'q:1', from: '10.2', to: '20.9', request: 'GET /', atTick: 1 }),
++    ).toThrow(/no server at 20\.9/);
++    expect(router.snapshot().routed).toBe(2);
++  });
++
++  // PINS: `isYou` rides through the router untouched on cross-subnet queue
++  // delivery — the far network's enqueue receives the same record shape.
++  it('isYou rides through the router on cross-subnet queue delivery', () => {
++    const left = createNetwork();
++    const right = createNetwork({ subnet: '20' });
++    const router = createRouter();
++    router.join(left, right);
++    let received = null;
++    right.registerServer('20.5', {
++      handleRequest: () => '200 edge',
++      enqueue: (record) => {
++        received = record;
++      },
++    });
++    left.deliverToQueue({
++      id: 'you:1',
++      from: '10.2',
++      to: '20.5',
++      request: 'GET /edge',
++      atTick: 1,
++      isYou: true,
++    });
++    expect(received).toEqual({
++      id: 'you:1',
++      atTick: 1,
++      from: '10.2',
++      to: '20.5',
++      request: 'GET /edge',
++      isYou: true,
++    });
++    expect(router.snapshot().routed).toBe(1);
++  });
++
++  // CHECKS: the constructor rejects a non two-number mini-IP interface and
++  // two interfaces on the same subnet (fail-loud over silent misconfig).
++  it('rejects invalid mini-IP interfaces and a same-subnet pair', () => {
++    expect(() => createRouter({ leftAddress: '1065' })).toThrow(/mini-IP/);
++    expect(() => createRouter({ leftAddress: '10.65', rightAddress: '10.66' })).toThrow(
++      /both interfaces/,
++    );
++  });
++});
+diff --git a/test/sim/stage6.test.js b/test/sim/stage6.test.js
+new file mode 100644
+index 0000000..8b63f60
+--- /dev/null
++++ b/test/sim/stage6.test.js
+@@ -0,0 +1,115 @@
++import { describe, it, expect } from 'vitest';
++import { createEngine } from '../../js/sim/engine.js';
++
++describe('stage 6 engine — DNS ledger + hosted traces', () => {
++  // CHECKS: stage 6 instantiates DNS 10.60 and the Router (10.65 ⇄ 20.1)
++  // and exposes both on the snapshot; the stage range now validates 1-6
++  // with the same error shape.
++  it('stage 6 engine exposes DNS 10.60 and Router 10.65 ⇄ 20.1 in the snapshot', () => {
++    const snap = createEngine({ stage: 6 }).snapshot();
++    expect(snap.dns).toMatchObject({ address: '10.60', ttlTicks: 300, lookups: 0 });
++    expect(snap.router).toMatchObject({
++      leftAddress: '10.65',
++      rightAddress: '20.1',
++      routed: 0,
++    });
++    expect(createEngine({ stage: 5 }).snapshot().dns).toBe(null);
++    expect(createEngine({ stage: 5 }).snapshot().router).toBe(null);
++    expect(() => createEngine({ stage: 7 })).toThrow(/stage must be 1, 2, 3, 4, 5, or 6, got 7/);
++  });
++
++  // PINS: the hosted grammar — the browser URL splits host/path on the
++  // first "/", the ask rides Browser -> DNS, the answer rides DNS ->
++  // Browser, and only then does the browser emit the GET with the resolved
++  // target; the trace totals 10 hops (Stage 5's 8 + 2) and the ledger
++  // counts the authoritative consult.
++  it('hosted example.com/about adds exactly 2 DNS hops to the stage-5 story', () => {
++    const engine = createEngine({ stage: 6 });
++    engine.traceHop({ method: 'GET', path: 'example.com/about' });
++    let snap = engine.snapshot();
++    expect(snap.trace.hop).toBe(1);
++    expect(snap.trace.hosted).toBe(true);
++    expect(snap.lastFrame).toBe('10.2 -> 10.60 | resolve example.com');
++
++    engine.traceHop();
++    snap = engine.snapshot();
++    expect(snap.trace.hop).toBe(2);
++    expect(snap.lastFrame).toBe('10.60 -> 10.2 | example.com is 10.1 (authoritative)');
++
++    engine.traceHop();
++    snap = engine.snapshot();
++    expect(snap.trace.hop).toBe(3);
++    expect(snap.lastFrame).toBe('10.2 -> 10.1 | GET /about');
++
++    for (let i = 0; i < 7; i++) engine.traceHop();
++    snap = engine.snapshot();
++    expect(snap.trace.hop).toBe(10);
++    expect(snap.browserDisplay.body).toBe('This is the about page');
++    expect(snap.dns).toMatchObject({ lookups: 1, cachedHits: 0, authoritative: 1 });
++    expect(snap.dns.cache[0]).toMatchObject({ name: 'example.com', target: '10.1' });
++
++    // The second hosted trace's answer rides the ledger: cachedHits +1, no
++    // new authoritative consult.
++    engine.traceHop({ method: 'GET', path: 'example.com/about' });
++    engine.traceHop();
++    snap = engine.snapshot();
++    expect(snap.lastFrame).toBe('10.60 -> 10.2 | example.com is 10.1 (cache HIT)');
++    expect(snap.dns).toMatchObject({ lookups: 2, cachedHits: 1, authoritative: 1 });
++  });
++
++  // PINS: negative-case contract — an unknown name never emits a GET: the
++  // trace is the DNS ask plus the "NX no record" answer, the browser
++  // renders the NX card, no server queue row exists, and the NX answer
++  // writes no ledger entry.
++  it('nope.example/about never emits a GET — DNS ask plus NX answer only', () => {
++    const engine = createEngine({ stage: 6 });
++    engine.traceHop({ method: 'GET', path: 'nope.example/about' });
++    expect(engine.snapshot().lastFrame).toBe('10.2 -> 10.60 | resolve nope.example');
++    engine.traceHop();
++    expect(engine.snapshot().lastFrame).toBe('10.60 -> 10.2 | NX no record');
++    engine.traceHop();
++    const snap = engine.snapshot();
++    expect(snap.lastFrame).toBe('Browser 10.2 renders NX — no record for nope.example');
++    expect(snap.trace).toMatchObject({ hop: 3, hosted: true, nx: true, status: 'NX' });
++    expect(snap.browserDisplay).toMatchObject({ status: 'NX', body: 'no record' });
++    expect(snap.servers.every((s) => s.queueDepth === 0)).toBe(true);
++    expect(snap.served).toBe(0);
++    expect(snap.dns.cache).toEqual([]);
++  });
++
++  // PINS: negative-case contract — a host-less path on Stage 6 keeps the
++  // Stage 5 hop story byte-identical, frame for frame, and the DNS ledger
++  // is left untouched (no ask, no consult).
++  it('GET /about on stage 6 keeps the stage-5 hop story byte-identical — no DNS hop', () => {
++    const frames = (stage) => {
++      const engine = createEngine({ stage });
++      const out = [];
++      for (let i = 0; i < 8; i++) {
++        engine.traceHop({ method: 'GET', path: '/about' });
++        out.push(engine.snapshot().lastFrame);
++      }
++      return out;
++    };
++    const stage5 = frames(5);
++    const stage6 = frames(6);
++    expect(stage6).toEqual(stage5);
++    expect(stage6[0]).toBe('10.2 -> 10.1 | GET /about');
++    const snap = createEngine({ stage: 6 }).snapshot();
++    expect(snap.trace).toMatchObject({ hosted: false, hop: 0 });
++    expect(snap.dns.lookups).toBe(0);
++  });
++
++  // Stage 6 keeps the whole Stage 5 async story for a hosted POST too: the
++  // 2 DNS hops ride ahead, the 202 path and the worker commit stay intact.
++  it('hosted POST /jobs keeps the async story behind the 2 DNS hops', () => {
++    const engine = createEngine({ stage: 6 });
++    engine.traceHop({ method: 'POST', path: 'example.com/jobs' });
++    engine.traceHop();
++    for (let i = 0; i < 8; i++) engine.traceHop();
++    const snap = engine.snapshot();
++    expect(snap.trace.hop).toBe(10);
++    expect(snap.trace.asyncJob).toBe(true);
++    expect(snap.browserDisplay.body).toBe('{"jobId": 1, "status": "queued"}');
++    expect(snap.workerQueue.enqueued).toBe(1);
++  });
++});

@@ -27,6 +27,17 @@ const PORT_BASE =
 const SEED = 20261112;
 const ARMS = ['A', 'B', 'C'];
 const RUNS_PER_ARM = 3;
+// per-change run budget (protocol §7.2.4: largest original + 50%)
+const BUDGETS = {
+  C10: { turns: 105, wallMin: 15 },
+  C07: { turns: 369, wallMin: 55 },
+  C08: { turns: 131, wallMin: 16 },
+  C09: { turns: 449, wallMin: 71 },
+  C19: { turns: 75, wallMin: 11 },
+  C24: { turns: 57, wallMin: 32 },
+  C27: { turns: 77, wallMin: 12 },
+};
+const BUDGET = BUDGETS[CHANGE] ?? { turns: 369, wallMin: 55 };
 
 const startSha = readFileSync(EXP + '/' + CHANGE + '/start.sha', 'utf8').trim();
 
@@ -207,10 +218,10 @@ function measure(arm, n, sid) {
   const questions = (finalText.match(/\?/g) ?? []).length;
   const assumptions = (finalText.match(/assum\w*/gi) ?? []).length;
 
-  // stop reason (§7.2.4 limits: 105 turns / 15 min for this change)
+  // stop reason (§7.2.4 limits: per-change budget from BUDGETS)
   let stopReason = 'finished';
-  if (asst.length > 105) stopReason = 'turn limit';
-  if (wallMin > 15) stopReason = 'time limit';
+  if (asst.length > BUDGET.turns) stopReason = 'turn limit';
+  if (wallMin > BUDGET.wallMin) stopReason = 'time limit';
 
   const runJson = {
     change_id: CHANGE,

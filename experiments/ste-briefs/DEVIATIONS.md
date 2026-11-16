@@ -163,3 +163,17 @@ gemini-4-argon-contributor` was planned but is not dispatchable; used
     dispatched 2026-11-15 with 3-concurrent pacing so one window is not
     consumed by 9 parallel executors. Lesson recorded for the full run:
     concurrent-run count is a quota-pacing knob, not just a machine one.
+
+19. **Scorer instrument change under quota pressure (2026-11-16, human
+    approved).** The first C07 scoring batch (9 concurrent gemini-4-argon
+    scorers) consumed ~33% of the 5-hour Go window in minutes — the meter
+    is effectively token/credit-denominated and concurrency multiplies
+    burn. Three scores returned 0/68 on stale empty diffs (neutral copies
+    made mid-re-measurement); those grades are VOID, diffs re-copied.
+    Changes, human-approved: (a) scorer model gemini-4-argon ->
+    opencode-go/mimo-v2.6-flash — executor glm / rewriter qwen / scorer
+    mimo remain three different models (§8.2.2 satisfied); (b) reference.diff
+    dropped from scorer input (it was context-only); (c) concurrency cap
+    3 for all agents for the rest of the experiment. C10's scores stay
+    gemini-scored, recorded per-change in §9 limits. Full-run footprint
+    re-estimated ~2-3 five-hour windows.
