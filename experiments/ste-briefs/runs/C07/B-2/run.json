@@ -42,5 +42,8 @@
   "requirements_score": 65,
   "requirements_max": 68,
   "quality_checks_score": 6,
-  "scorer_policy": "rubric-v2.1-mimo"
+  "scorer_policy": "rubric-v2.1-mimo",
+  "quality_checks_max": 8,
+  "defects": null,
+  "defects_note": "per-item grades not retained by prior scoring session; point deficit 5 (3 req + 2 checks), defect count not reconstructible"
 }

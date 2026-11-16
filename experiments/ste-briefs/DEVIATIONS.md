@@ -189,3 +189,25 @@ gemini-4-argon-contributor` was planned but is not dispatchable; used
     wall-clock pacing for this handoff: ≤3 concurrent agents, no wave
     dispatched across the 23:30Z curfew, and a 15-minute margin after every
     dispatched wave. No quota error observed during this handoff.
+
+21. **C07 scoring concurrency briefly hit 4, cap is 3 (2026-11-16 ~22:52Z,
+    self-caught).** After a scorer completion I miscounted the live slots and
+    dispatched two scorers (run-6, run-7) into a single free slot, then one
+    more (run-8) with zero free slots. Four blind mimo scorers (run-4, run-6,
+    run-7, run-8) were concurrent for a few minutes, against the frozen cap
+    (§Frozen config + deviation #19 item (c)). No quota/limit error appeared in
+    the log; each scorer is an independent fresh session with no shared state,
+    so grades are unaffected. Correction: no further dispatch until live
+    scorers drop to ≤2; all remaining work holds ≤3. Recorded here per the
+    "record every deviation" rule.
+
+22. **Stale executor model label in measured artifacts (2026-11-16).**
+    `pilot-harness.mjs` `measure()` hardcodes a free-tier `executor_model`, so
+    all C07 `run.json` files and the generated `results.csv` name
+    `opencode/glm-5.3-flash-free` even though DEVIATIONS #13 switched the whole
+    change to the paid `opencode-go/glm-5.3-flash`. The label is recorded
+    as-is rather than rewritten, to keep measured artifacts untouched; the
+    actual executor is stated in `runs/C07/RESULTS.md`. No run data depends on
+    the label. Curfew deferral of C09/C19/C24 is a pacing-rule decision, not a
+    protocol deviation, and is recorded in the `runs/C07/RESULTS.md` handoff
+    note.
