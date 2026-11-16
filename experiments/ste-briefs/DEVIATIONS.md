@@ -177,3 +177,15 @@ gemini-4-argon-contributor` was planned but is not dispatchable; used
     3 for all agents for the rest of the experiment. C10's scores stay
     gemini-scored, recorded per-change in §9 limits. Full-run footprint
     re-estimated ~2-3 five-hour windows.
+
+## 2026-11-16 — run-controller handoff (scoring + tonight pacing)
+
+20. **Go-window percentage not locally readable (pacing rule #3).** No local
+    command exposes the Go window percentage. `opencode stats` reports
+    activity/token totals only, `opencode debug` has no quota subcommand, and
+    the Go provider surfaces quota in the log _only at exhaustion_ (last such
+    error here: 2026-11-15 09:22Z). The STATE.md #3 trigger (">70% → stop")
+    therefore cannot be evaluated directly. Substituted conservative
+    wall-clock pacing for this handoff: ≤3 concurrent agents, no wave
+    dispatched across the 23:30Z curfew, and a 15-minute margin after every
+    dispatched wave. No quota error observed during this handoff.
