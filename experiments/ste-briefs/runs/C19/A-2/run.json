@@ -23,5 +23,13 @@
   "wall_seconds": 476,
   "cost": 0,
   "stop_reason": "finished",
-  "gate_runs_seen": 2
+  "gate_runs_seen": 2,
+  "requirements_score": 34,
+  "requirements_max": 38,
+  "quality_checks_score": 8,
+  "quality_checks_max": 8,
+  "scorer_policy": "rubric-v2.1-mimo",
+  "defects": 3,
+  "requirement_grades": [2, 2, 2, 1, 2, 2, 2, 2, 2, 1, 0, 2, 2, 2, 2, 2, 2, 2, 2],
+  "check_grades": [2, 2, 2, 2]
 }
