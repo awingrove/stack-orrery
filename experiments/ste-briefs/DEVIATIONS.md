@@ -254,3 +254,16 @@ gemini-4-argon-contributor` was planned but is not dispatchable; used
     C24's blind scorer will be `opencode-go/qwen3.7-plus` (third family,
     dispatchable); prompt stays the v2.1 scorer template verbatim otherwise.
     C10/C07/C19 keep their mimo scores unchanged.
+27. **C24 C-2 audit false-positive overridden, run retained (2026-11-17).**
+    `audit-session.mjs` exited 1 for C-2, flagging one "HOOK-BYPASS" on the
+    command `cd /tmp/opencode/ste-runs/C24/C-2 && npm run guard && git config
+core.hooksPath; git status --short`. Inspection of all tool calls in the
+    session shows this is a read-only `git config` query (diagnostic after a
+    green guard), not a bypass: no `--no-verify` anywhere, no `hooksPath`
+    assignment, and the run commit `2a81222` was made with the default
+    `.githooks` hooks active (pre-commit hook ran green per the executor
+    report). The audit regex (`/hooksPath|(--no-verify)|no-verify/`) matches
+    the benign query. Discarding a valid run would breach the human's
+    ZERO-discards order, so C-2 is retained as data; this is a new false-
+    positive class alongside the relative-path case in STATE.md. The run's
+    diff, gate output and telemetry are otherwise clean.
