@@ -266,4 +266,7 @@ core.hooksPath; git status --short`. Inspection of all tool calls in the
     the benign query. Discarding a valid run would breach the human's
     ZERO-discards order, so C-2 is retained as data; this is a new false-
     positive class alongside the relative-path case in STATE.md. The run's
-    diff, gate output and telemetry are otherwise clean.
+    diff, gate output and telemetry are otherwise clean. The same false
+    positive recurred on C24 B-2 (read-only `git config core.hooksPath` in a
+    remote/log/status diagnostic; no bypass, commit made with `.githooks`
+    active); B-2 is likewise retained as data under the same rule.
