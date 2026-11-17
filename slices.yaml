@@ -299,6 +299,7 @@ allowlist:
   - README.md
   - docs/**
   - eslint.config.js
+  - experiments/**
   - package-lock.json
   - package.json
   - playwright.config.js

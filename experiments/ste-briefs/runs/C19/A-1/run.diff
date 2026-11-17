@@ -1,0 +1,334 @@
+diff --git a/docs/plans/2026-11-01-r1a-stage6-lb-hop-unification.md b/docs/plans/2026-11-01-r1a-stage6-lb-hop-unification.md
+index df11bda..5e9b4dc 100644
+--- a/docs/plans/2026-11-01-r1a-stage6-lb-hop-unification.md
++++ b/docs/plans/2026-11-01-r1a-stage6-lb-hop-unification.md
+@@ -87,5 +87,5 @@ serverAddress, target, trace.request, lb.lastSkip?.())`.
+ ## Ticks
+ 
+ - [x] Step 1 (Lead session): human design sign-off (2026-11-01, orchestrating session; no DESIGN.md amendment — sim wiring only, no visual pattern).
+-- [ ] Step 2 (Executor sub-agent): cold implementation from the contracts, tests + manifests + green `npm run verify`; tick and commit.
++- [x] Step 2 (Executor sub-agent): cold implementation from the contracts, tests + manifests + green `npm run verify`; tick and commit.
+ - [ ] Step 3 (Lead session): `npm run metrics:extract -- <sessionID>`, append entry `R1A-STAGE6-LB-HOP` to docs/factory/slice-metrics.yaml, tick, commit.
+diff --git a/js/sim/trace-helpers.js b/js/sim/trace-helpers.js
+index 4d8d56c..61a138a 100644
+--- a/js/sim/trace-helpers.js
++++ b/js/sim/trace-helpers.js
+@@ -62,6 +62,43 @@ export function lbRefusedFrame(serverAddress, record, request) {
+   return `LB ${serverAddress} -> ${record.to} | ${request} => connection refused (nothing enqueued)`;
+ }
+ 
++// DOCUMENTS: lbEnqueueHop — the one LB-hop hop site shared by trace.js's
++// stages 2-5 branch and trace-stage6.js's chainStep(2) (R1a, finding 1-01):
++// the enqueue runs the real round-robin selection over the live pool, the
++// frame is minted from the LB's own record, and the caller's trace mutates
++// in place (same seam discipline as the helpers above — no engine
++// closures). Returns { frame, refused }; the caller's final-hop logic
++// reads its own trace state.
++//
++// CHECKS: an all-down pool's refusal record aborts the trace at this hop —
++// trace.refused flips true, onRefusal fires, the frame names the refusal
++// and nothing was enqueued (no "[object Object]" token, no phantom chain);
++// a one-down pool narrates the crossed seat from lastSkip() ("— 10.11 is
++// down — skipped"); both backends up keeps the clean "LB ... queued" byte
++// shape. The skippedAt consult happens on the enqueued path only — a
++// refusal record read no cursor seat, so no skip text can ride it.
++export function lbEnqueueHop(trace, { serverAddress, lb, bumpTick, onRefusal }) {
++  const atTick = bumpTick();
++  const target = lb.enqueue({
++    id: `you:${atTick}`,
++    from: trace.from,
++    to: serverAddress,
++    request: trace.request,
++    atTick,
++    isYou: true,
++  });
++  if (target?.refused === true) {
++    trace.refused = true;
++    onRefusal?.(target);
++    return { frame: lbRefusedFrame(serverAddress, target, trace.request), refused: true };
++  }
++  trace.targetServer = target;
++  return {
++    frame: lbEnqueuedFrame(serverAddress, target, trace.request, lb.lastSkip?.()),
++    refused: false,
++  };
++}
++
+ // CHECKS: B-6e — the stage-5 worker-tail frame (hop 8/8), minted from the
+ // live queue record: an async trace tails with the worker's commit, a
+ // synchronous trace finds the worker idle. While the worker is crashed the
+diff --git a/js/sim/trace-stage6.js b/js/sim/trace-stage6.js
+index 29cfa40..d45cde1 100644
+--- a/js/sim/trace-stage6.js
++++ b/js/sim/trace-stage6.js
+@@ -41,6 +41,7 @@ import {
+   dbHopFrame,
+   serveCacheSuffix,
+   workerTailFrame,
++  lbEnqueueHop,
+ } from './trace-helpers.js';
+ 
+ const subnetOf = (address) => String(address).split('.')[0];
+@@ -60,6 +61,7 @@ export function createStage6Trace({
+   onServe,
+   onFinish,
+   onDnsFail,
++  onRefusal,
+ }) {
+   if (!dns) {
+     throw new Error('trace: stage 6 requires a DNS component');
+@@ -105,6 +107,12 @@ export function createStage6Trace({
+       dbOp: null,
+       dbStale: false,
+       asyncJob: false,
++      // CHECKS: the stage-6 trace record carries the same `refused`
++      // vocabulary as the stage-1..5 freshTrace shape — snapshot consumers
++      // read one field name across stages (R1a, finding 1-02); a normal
++      // run ends refused === false, an all-down LB hop flips it true and
++      // the walk terminates at hop 3.
++      refused: false,
+       response: null,
+       status: null,
+       body: null,
+@@ -122,17 +130,13 @@ export function createStage6Trace({
+       return `routed ${trace.from} -> ${serverAddress} (${trace.request}) to LoadBalancer`;
+     }
+     if (s5 === 2) {
+-      const atTick = bumpTick();
+-      const target = lb.enqueue({
+-        id: `you:${atTick}`,
+-        from: trace.from,
+-        to: serverAddress,
+-        request: trace.request,
+-        atTick,
+-        isYou: true,
+-      });
+-      trace.targetServer = target;
+-      return `LB ${serverAddress} -> ${target} (${trace.request}) queued`;
++      // The LB hop is the stages 2-5 machine's one implementation
++      // (trace-helpers.js lbEnqueueHop): the refusal record aborts here
++      // with no enqueued request and the skip narration rides the same
++      // frame — the old inline 'LB ... queued' literal re-implemented the
++      // branch and narrated "[object Object]" on an all-down pool (R1a,
++      // finding 1-01).
++      return lbEnqueueHop(trace, { serverAddress, lb, bumpTick, onRefusal }).frame;
+     }
+     if (s5 === 3) {
+       const backend = backendFor(servers, trace.targetServer);
+@@ -176,19 +180,23 @@ export function createStage6Trace({
+ 
+   return {
+     step({ method = 'GET', path = '/about', from = '10.2' } = {}) {
+-      // Final hop count comes from the live trace shape: 2 once the answer
+-      // says NX, 6 for a CDN GET served from the edge ledger (HIT), 9 for a
+-      // CDN MISS or non-GET pass-through, 9 for other hosted paths, 8
+-      // host-less.
+-      const finalHop = trace.nx
+-        ? 2
+-        : trace.cdn
+-          ? trace.edgeStatus === 'HIT'
+-            ? 6
+-            : 9
+-          : trace.host
+-            ? 9
+-            : 8;
++      // Final hop count comes from the live trace shape: 3 once an all-down
++      // LB hop set `refused` (the stage-2 machine's refusal-informed final
++      // hop — the next traceHop() restarts a fresh trace, it cannot walk a
++      // phantom chain past the refusal), 2 once the answer says NX, 6 for
++      // a CDN GET served from the edge ledger (HIT), 9 for a CDN MISS or
++      // non-GET pass-through, 9 for other hosted paths, 8 host-less.
++      const finalHop = trace.refused
++        ? 3
++        : trace.nx
++          ? 2
++          : trace.cdn
++            ? trace.edgeStatus === 'HIT'
++              ? 6
++              : 9
++            : trace.host
++              ? 9
++              : 8;
+       let frame;
+       if (trace.hop === 0 || trace.hop >= finalHop) {
+         // Emission parses the typed path into host + resource path on the
+diff --git a/js/sim/trace.js b/js/sim/trace.js
+index 72e23fd..e4b397f 100644
+--- a/js/sim/trace.js
++++ b/js/sim/trace.js
+@@ -59,6 +59,7 @@ export function createTraceMachine({
+       onServe,
+       onFinish,
+       onDnsFail,
++      onRefusal,
+     });
+   }
+   const RESET_FIELDS = {
+@@ -149,27 +150,13 @@ export function createTraceMachine({
+         frame = `routed ${trace.from} -> ${serverAddress} (${trace.request}) to LoadBalancer`;
+       } else if (trace.hop === 2) {
+         trace.hop = 3;
+-        const atTick = bumpTick();
+-        const target = lb.enqueue({
+-          id: `you:${atTick}`,
+-          from: trace.from,
+-          to: serverAddress,
+-          request: trace.request,
+-          atTick,
+-          isYou: true,
+-        });
+         // CHECKS (B-6b): the frame reads the LB's own selection state —
+         // lastSkip() names the crossed seat (no skip keeps the byte shape),
+-        // and an all-down record aborts here with no served data.
+-        if (target?.refused === true) {
+-          trace.refused = true;
+-          onRefusal?.(target);
+-          frame = hops.lbRefusedFrame(serverAddress, target, trace.request);
+-        } else {
+-          const skippedAt = lb.lastSkip?.();
+-          trace.targetServer = target;
+-          frame = hops.lbEnqueuedFrame(serverAddress, target, trace.request, skippedAt);
+-        }
++        // and an all-down record aborts here with no served data. The one
++        // implementation lives in trace-helpers.js lbEnqueueHop — the
++        // stage-6 machine's chainStep(2) runs it too (R1a, finding 1-01),
++        // so refusal + skip parity is structural, not narrated.
++        frame = hops.lbEnqueueHop(trace, { serverAddress, lb, bumpTick, onRefusal }).frame;
+       } else if (stage === 2 && trace.hop === 3) {
+         trace.hop = 4;
+         const backend = backendFor(servers, trace.targetServer);
+diff --git a/slices.yaml b/slices.yaml
+index e2905ce..ab57a19 100644
+--- a/slices.yaml
++++ b/slices.yaml
+@@ -116,6 +116,10 @@ slices:
+       - unit: test/sim/engine.test.js::serves a second cd.example.com trace from the ledger in 6 hops (edge HIT)
+       - unit: test/sim/engine.test.js::keeps an origin write stale at the edge inside the TTL and pulls the new bytes after expiry
+       - unit: test/sim/engine.test.js::passes a POST through to the origin without touching the edge ledger
++      - unit: "test/sim/engine.test.js::DL-3 counter-example — an all-down stage-6 pool aborts the trace at the LB hop with the stage-2 machine's refusal card: neither [object Object] nor a phantom chain"
++      - unit: "test/sim/engine.test.js::the stage-6 all-down refusal frame is byte-identical to the stage-2 machine's for the same request"
++      - unit: test/sim/engine.test.js::a one-down stage-6 pool narrates the crossed seat in the LB frame
++      - unit: test/sim/engine.test.js::the stage-6 trace record exposes the same refused vocabulary as stages 1-5
+     entry_point: n/a (engine logic; rendered by PANEL-1)
+ 
+   - id: PANEL
+diff --git a/storymap.yaml b/storymap.yaml
+index 1396591..b4fed26 100644
+--- a/storymap.yaml
++++ b/storymap.yaml
+@@ -6,7 +6,7 @@ meta:
+     A runnable orrery of a web stack: simulated components driven by a
+     discrete tick queue, making scaling dynamics visible instead of
+     described.
+-  last_updated: 2026-10-31
++  last_updated: 2026-11-01
+ 
+ activities:
+   - name: 'Stage 1 — Single server under load'
+@@ -438,6 +438,19 @@ activities:
+               - unit: 'test/sim/dns-ledger-drop.test.js::DL counter-example — a restored run narrates a fresh AUTH answer then the 200, no NX residue'
+               - unit: test/sim/dns-ledger-drop.test.js::same seed replays the identical tick sequence with the fault off (stage 6)
+ 
++      - id: SIM-7
++        name: Unify the stage-6 LB-hop story with the stages 2-5 machine
++        entry_point: n/a (engine behavior, not navigable)
++        stories:
++          - title: 'LB-hop story parity — stage 6 aborts on an all-down pool with the stages 2-5 refusal card and narrates the crossed seat'
++            status: done
++            priority: high
++            tests:
++              - unit: "test/sim/engine.test.js::DL-3 counter-example — an all-down stage-6 pool aborts the trace at the LB hop with the stage-2 machine's refusal card: neither [object Object] nor a phantom chain"
++              - unit: "test/sim/engine.test.js::the stage-6 all-down refusal frame is byte-identical to the stage-2 machine's for the same request"
++              - unit: test/sim/engine.test.js::a one-down stage-6 pool narrates the crossed seat in the LB frame
++              - unit: test/sim/engine.test.js::the stage-6 trace record exposes the same refused vocabulary as stages 1-5
++
+       - id: PANEL-6
+         name: Switch to Stage 6 and trace the DNS-ledger orrery
+         entry_point: index.html -> Diagram Panel link -> 6 · Multi-Net / CDN pill
+diff --git a/test/sim/engine.test.js b/test/sim/engine.test.js
+index 81e7e6c..cbc9782 100644
+--- a/test/sim/engine.test.js
++++ b/test/sim/engine.test.js
+@@ -351,3 +351,82 @@ describe('createEngine stage 6b — the CDN edge at 20.1', () => {
+     expect(snap.cdn).toMatchObject({ hits: 0, misses: 0, fills: 0, ledger: [] });
+   });
+ });
++
++// PINS: R1a (finding 1-01) — the stage-6 machine's LB hop is the stages 2-5
++// machine's one implementation (trace-helpers.js lbEnqueueHop), so the
++// refusal record aborts the walk, the crossed seat is narrated, and the
++// `refused` field name matches across stages.
++describe('createEngine stage 6 — LB-hop parity with the stages 2-5 machine', () => {
++  it("DL-3 counter-example — an all-down stage-6 pool aborts the trace at the LB hop with the stage-2 machine's refusal card: neither [object Object] nor a phantom chain", () => {
++    const engine = createEngine({ seed: 42, stage: 6, arrivalProb: 0 });
++    engine.setServerDown('10.11', true);
++    engine.setServerDown('10.12', true);
++    let snap;
++    for (let hop = 1; hop <= 4; hop++) {
++      snap = engine.traceHop({ method: 'GET', path: 'example.com/about' });
++      expect(snap.trace.hop).toBe(hop);
++    }
++    // Hop 4 is the LB hop on a hosted path (ask + answer prelude first).
++    expect(snap.lastFrame).toBe(
++      'LB 10.1 -> 10.11 | GET /about => connection refused (nothing enqueued)',
++    );
++    expect(snap.trace.refused).toBe(true);
++    expect(snap.trace.targetServer).toBe(null);
++    expect(snap.trace.status).toBe(null);
++    expect(snap.refusedCount).toBe(1);
++    // The next traceHop() restarts clean at hop 1 — the walk ended at the
++    // refusal hop, so no phantom hop 5 of the dead trace exists.
++    snap = engine.traceHop();
++    expect(snap.trace.hop).toBe(1);
++    expect(snap.lastFrame).toBe('10.2 -> 10.1 | GET /about');
++    expect(engine.snapshot().served).toBe(0);
++  });
++
++  it("the stage-6 all-down refusal frame is byte-identical to the stage-2 machine's for the same request", () => {
++    const s2 = createEngine({ seed: 42, stage: 2, arrivalProb: 0 });
++    s2.setServerDown('10.11', true);
++    s2.setServerDown('10.12', true);
++    s2.traceHop(); // hop 1 — the emit estimate
++    s2.traceHop(); // hop 2 — routed to the LoadBalancer
++    const stage2 = s2.traceHop(); // hop 3 — the LB hop, all-down
++    expect(stage2.trace.hop).toBe(3);
++    const s6 = createEngine({ seed: 42, stage: 6, arrivalProb: 0 });
++    s6.setServerDown('10.11', true);
++    s6.setServerDown('10.12', true);
++    s6.traceHop({ method: 'GET', path: 'example.com/about' }); // hop 1 — the DNS ask
++    s6.traceHop(); // hop 2 — the ledger answer
++    s6.traceHop(); // hop 3 — routed to the LoadBalancer
++    const stage6 = s6.traceHop(); // hop 4 — the LB hop, all-down
++    expect(stage6.trace.hop).toBe(4);
++    // One request, one pool state: the two machines mint one frame string.
++    expect(stage2.lastFrame).toBe(stage6.lastFrame);
++    expect(stage6.lastFrame).toBe(
++      'LB 10.1 -> 10.11 | GET /about => connection refused (nothing enqueued)',
++    );
++  });
++
++  it('a one-down stage-6 pool narrates the crossed seat in the LB frame', () => {
++    const engine = createEngine({ seed: 42, stage: 6, arrivalProb: 0 });
++    engine.setServerDown('10.11', true);
++    let snap;
++    for (let hop = 1; hop <= 4; hop++) {
++      snap = engine.traceHop({ method: 'GET', path: 'example.com/about' });
++      expect(snap.trace.hop).toBe(hop);
++    }
++    expect(snap.lastFrame).toBe('LB 10.1 -> 10.12 (GET /about) queued — 10.11 is down — skipped');
++    expect(snap.trace.refused).toBe(false);
++    // The healthy-path pin lives in the DNS-prelude test's sibling frames —
++    // both-up keeps the clean "LB ... queued" byte shape (no new test).
++  });
++
++  it('the stage-6 trace record exposes the same refused vocabulary as stages 1-5', () => {
++    const engine = createEngine({ seed: 42, stage: 6 });
++    let snap;
++    for (let hop = 1; hop <= 9; hop++) {
++      snap = engine.traceHop({ method: 'GET', path: 'example.com/about' });
++      expect(snap.trace.hop).toBe(hop);
++    }
++    expect(snap.browserDisplay.status).toBe(200);
++    expect(engine.snapshot().trace.refused).toBe(false);
++  });
++});

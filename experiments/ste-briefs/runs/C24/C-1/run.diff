@@ -1,0 +1,172 @@
+diff --git a/docs/plans/2026-11-02-r2c-pool-truth.md b/docs/plans/2026-11-02-r2c-pool-truth.md
+index b532b79..cc12c53 100644
+--- a/docs/plans/2026-11-02-r2c-pool-truth.md
++++ b/docs/plans/2026-11-02-r2c-pool-truth.md
+@@ -103,9 +103,9 @@ serverSnapshots[0].files` (same one-line-pair engine.js records; ±0 net
+ 
+ ## Ticks
+ 
+-- [ ] Step 1 (Lead session): human design sign-off (2026-11-02; the
++- [x] Step 1 (Lead session): human design sign-off (2026-11-02; the
+       walk-scope ledger done first per the R2a lesson).
+-- [ ] Step 2 (Executor sub-agent): cold implementation; `npm run verify`
++- [x] Step 2 (Executor sub-agent): cold implementation; `npm run verify`
+       green; tick and commit.
+ - [ ] Step 3 (Lead session): `npm run metrics:extract -- <sessionID>`,
+       append entry `R2C-POOL-TRUTH`, tick, commit.
+diff --git a/js/panel/inspector-state.js b/js/panel/inspector-state.js
+index 491dd48..7ff48fd 100644
+--- a/js/panel/inspector-state.js
++++ b/js/panel/inspector-state.js
+@@ -168,13 +168,17 @@ const STATE_BUILDERS = {
+   webserver: (snapshot) => {
+     const base = {
+       address: snapshot.serverAddress ?? '10.1',
++      // The primary backend's own address — whose queue/files the keys below narrate.
++      serverAddress: snapshot.servers?.[0]?.address ?? '10.1',
+       serviceRate: snapshot.serviceRate ?? DEFAULT_SERVICE_RATE,
+       queueDepth: snapshot.queueDepth,
+-      queuedRequests: (snapshot.queue ?? []).slice(0, 8).map((q) => `${q.from} -> ${q.request}`),
++      queuedRequests: (snapshot.primaryQueue ?? [])
++        .slice(0, 8)
++        .map((q) => `${q.from} -> ${q.request}`),
+       servedTotal: snapshot.served,
+       lastMatchedRoute: snapshot.lastMatchedRoute ?? null,
+     };
+-    if (snapshot.files) base.files = snapshot.files;
++    if (snapshot.primaryFiles) base.files = snapshot.primaryFiles;
+     if (snapshot.stage >= 2 && Array.isArray(snapshot.servers)) {
+       base.instances = snapshot.servers.map((s) => ({
+         address: s.address,
+diff --git a/js/panel/render.js b/js/panel/render.js
+index c1b4ebc..c6546c1 100644
+--- a/js/panel/render.js
++++ b/js/panel/render.js
+@@ -208,7 +208,7 @@ export function render(snapshot, selectedComponent, { layout, activeAddress = '1
+     ? `${display.status} (${display.request})`
+     : 'No response yet';
+   els.statusBadge.className = `status-badge${badgeClass(display)}`;
+-  renderQueueInto(els.queueList, snapshot.queue ?? []);
++  renderQueueInto(els.queueList, snapshot.primaryQueue ?? []);
+   renderQueueInto(els.queueList2, snapshot.servers?.[1]?.queue ?? []);
+   // The filesystem rows rebuild from the snapshot each pass and must land
+   // BEFORE renderRoutes() — fresh rows carry no .matched-route state of
+diff --git a/js/sim/engine.js b/js/sim/engine.js
+index 1a7403f..1d24d50 100644
+--- a/js/sim/engine.js
++++ b/js/sim/engine.js
+@@ -278,8 +278,9 @@ export function createEngine({
+         crashed: workerQueue?.isCrashed?.() ?? false,
+         redelivered: workerQueue?.redelivered?.() ?? 0,
+         lastExchange,
+-        queue: serverSnapshots[0].queue,
+-        files: serverSnapshots[0].files,
++        // CHECKS: top-level shape = the pool's primary backend; per-server shapes live on snapshot.servers[i]; a merged aggregate is rejected — fs-editor already routes per-server (finding 1-06 contract).
++        primaryQueue: serverSnapshots[0].queue,
++        primaryFiles: serverSnapshots[0].files,
+         servers: serverSnapshots,
+         loadBalancer: lb ? lb.snapshot() : null,
+         cache: cache ? cache.snapshot(tick) : null,
+diff --git a/slices.yaml b/slices.yaml
+index 2f20233..309beb7 100644
+--- a/slices.yaml
++++ b/slices.yaml
+@@ -34,6 +34,7 @@ slices:
+     calls: []
+     tests:
+       - unit: test/sim/engine.test.js::same seed replays the identical tick sequence
++      - unit: test/sim/pool-truth.test.js::the primary shape names itself — 'primaryQueue' / 'primaryFiles' - the pool's primary-backend story, not an aggregate
+       - unit: test/sim/webserver.test.js::queue depth climbs when arrival rate exceeds service rate
+       - unit: test/sim/network.test.js::browser sends slim GET over network mini-IP and parses 200 and 404 responses
+       - unit: test/sim/webserver.test.js::handleRequest routes slim GET paths to 200 or 404 and rejects non-GET with 405
+diff --git a/storymap.yaml b/storymap.yaml
+index b85a880..1f7b889 100644
+--- a/storymap.yaml
++++ b/storymap.yaml
+@@ -36,6 +36,13 @@ activities:
+             tests:
+               - unit: "test/sim/defaults.test.js::teachable constants and topology addresses live in one sim home — the sim factories' constructor defaults agree with js/sim/defaults.js and js/sim/addresses.js, and the shared assert rejects a dotted-quad"
+               - unit: test/sim/webserver.test.js::throws on a non-mini-IP address at construction (fail-loud, cache/dns precedent)
++          - title: the primary shape names itself — 'primaryQueue' / 'primaryFiles' - the pool's primary-backend story, not an aggregate
++            status: done
++            priority: medium
++            tests:
++              - unit: test/sim/pool-truth.test.js::the primary shape names itself — 'primaryQueue' / 'primaryFiles' - the pool's primary-backend story, not an aggregate
++              - unit: test/sim/engine.test.js::ends an NX trace at the DNS answer hop without ever emitting a GET
++              - unit: test/sim/engine.test.js::routes the write to the server at the matching mini-IP address
+           - title: Watch queue depth climb when arrival rate exceeds service rate
+             status: done
+             priority: high
+diff --git a/test/panel/model.test.js b/test/panel/model.test.js
+index fda6431..c0917c0 100644
+--- a/test/panel/model.test.js
++++ b/test/panel/model.test.js
+@@ -159,13 +159,16 @@ describe('describeSnapshot', () => {
+           served: 1,
+           lastMatchedRoute: 'route-about',
+           users: 5,
+-          queue: [{ id: 'you:2', from: '10.2', to: '10.1', request: 'GET /about', isYou: true }],
++          primaryQueue: [
++            { id: 'you:2', from: '10.2', to: '10.1', request: 'GET /about', isYou: true },
++          ],
+         },
+         'webserver',
+       ),
+     );
+     expect(state).toEqual({
+       address: '10.1',
++      serverAddress: '10.1',
+       serviceRate: 4,
+       queueDepth: 1,
+       queuedRequests: ['10.2 -> GET /about'],
+diff --git a/test/sim/engine.test.js b/test/sim/engine.test.js
+index 3b9d3af..6cce911 100644
+--- a/test/sim/engine.test.js
++++ b/test/sim/engine.test.js
+@@ -133,7 +133,7 @@ describe('createEngine', () => {
+       body: 'NX no record — no GET emitted',
+     });
+     expect(snap.cache.entries).toEqual([]); // no GET ever reached the pool
+-    expect(snap.queue).toEqual([]);
++    expect(snap.primaryQueue).toEqual([]);
+ 
+     // A fresh traceHop restarts cleanly — hop 1 of a new emission.
+     snap = engine.traceHop({ method: 'GET', path: '/about' });
+@@ -241,7 +241,7 @@ describe('createEngine setWebFile', () => {
+ 
+     // The snapshot's files gain the new bytes without any shape change.
+     const before = engine.snapshot();
+-    expect(before.files).toEqual({ '/': 'Welcome to the home page', '/about': 'New body' });
++    expect(before.primaryFiles).toEqual({ '/': 'Welcome to the home page', '/about': 'New body' });
+     expect(before.servers[0].files['/about']).toBe('New body');
+ 
+     // The very next served GET record carries the new bytes on the wire
+diff --git a/test/sim/pool-truth.test.js b/test/sim/pool-truth.test.js
+new file mode 100644
+index 0000000..9858800
+--- /dev/null
++++ b/test/sim/pool-truth.test.js
+@@ -0,0 +1,23 @@
++import { describe, it, expect } from 'vitest';
++import { createEngine } from '../../js/sim/engine.js';
++
++// CHECKS: finding 1-06's acceptance pin — a 10.12-side fs edit lands ONLY in
++// servers[1].files: the top-level shape names the pool's primary backend
++// (10.11's story at stage 2, the whole story at stage 1), never a merged
++// aggregate.
++describe('engine snapshot pool truth', () => {
++  it("the primary shape names itself — 'primaryQueue' / 'primaryFiles' - the pool's primary-backend story, not an aggregate", () => {
++    const stage2 = createEngine({ seed: 42, stage: 2 });
++    stage2.setWebFile('10.12', '/about', 'New body');
++    const snap = stage2.snapshot();
++    expect(snap.primaryFiles['/about']).toBe('This is the about page');
++    expect(snap.servers[1].files['/about']).toBe('New body');
++    expect(snap.servers[0].files['/about']).toBe('This is the about page');
++
++    const stage1 = createEngine({ seed: 42, stage: 1 });
++    stage1.setWebFile('10.1', '/about', 'New body');
++    const solo = stage1.snapshot();
++    expect(solo.primaryFiles['/about']).toBe('New body');
++    expect(solo.servers[0].files['/about']).toBe('New body');
++  });
++});

@@ -1,0 +1,819 @@
+diff --git a/css/panel/nodes.css b/css/panel/nodes.css
+index ce21cfe..775df92 100644
+--- a/css/panel/nodes.css
++++ b/css/panel/nodes.css
+@@ -88,6 +88,92 @@
+   color: var(--text);
+ }
+ 
++/* Filesystem rows are the sim's own fs Map rendered per-card (fs-editor.js):
++   a two-column grid — the path column sized to its content, the body cell a
++   single-line ellipsis carrying the full text on its title tooltip. The
++   mini-IP-table parity stays: .fs-path takes the address-column accent, the
++   row renders on-surface white like the name column, and .matched-route
++   keeps its good-soft highlight on the rendered rows. */
++.fs-list .route-item {
++  position: relative;
++  display: grid;
++  grid-template-columns: max-content 1fr;
++  gap: 0.4rem;
++  align-items: baseline;
++  min-width: 0;
++  color: var(--text);
++}
++
++.fs-list .fs-body {
++  min-width: 0;
++  overflow: hidden;
++  text-overflow: ellipsis;
++  white-space: nowrap;
++}
++
++/* The pencil is a real button (fs-editor.js delegation, no inline handlers),
++   revealed on row hover or keyboard focus only. */
++.fs-edit {
++  position: absolute;
++  right: 0.4rem;
++  top: 50%;
++  transform: translateY(-50%);
++  padding: 0 0.2rem;
++  border: 0;
++  border-radius: 0.3rem;
++  background: none;
++  color: var(--accent);
++  font-family: var(--mono);
++  font-size: 0.7rem;
++  cursor: pointer;
++  opacity: 0;
++}
++
++.fs-list .route-item:hover .fs-edit,
++.fs-list .route-item:focus-within .fs-edit {
++  opacity: 1;
++}
++
++/* Inline edit row: "<input> + save + cancel" in place of the columns. */
++.fs-list .fs-editing {
++  grid-template-columns: minmax(0, 1fr) auto auto;
++  align-items: center;
++}
++
++.fs-input {
++  min-width: 0;
++  width: 100%;
++  padding: 0.1rem 0.3rem;
++  border: 1px solid var(--border);
++  border-radius: 0.3rem;
++  background: var(--surface-2);
++  color: var(--text);
++  font-family: var(--mono);
++  font-size: 0.72rem;
++}
++
++.fs-commit,
++.fs-cancel {
++  padding: 0 0.2rem;
++  border: 0;
++  border-radius: 0.3rem;
++  background: none;
++  color: var(--accent);
++  font-family: var(--mono);
++  font-size: 0.72rem;
++  cursor: pointer;
++}
++
++.fs-commit:disabled {
++  color: var(--text-muted);
++  cursor: default;
++  opacity: 0.4;
++}
++
++.fs-list .fs-path {
++  color: var(--accent);
++}
++
+ /* Stage 4 repl-lag rows: replica lagging primary shows the .you-pill
+    warning colors (DESIGN.md db-rows-list). */
+ .route-item.you-pill {
+diff --git a/e2e/fs-editor.spec.js b/e2e/fs-editor.spec.js
+new file mode 100644
+index 0000000..70b8f91
+--- /dev/null
++++ b/e2e/fs-editor.spec.js
+@@ -0,0 +1,128 @@
++import { test, expect } from '@playwright/test';
++
++// The editable filesystem (editable-fs brief): the rows are the sim's own
++// view — each card renders its snapshot server's fs Map (no static markup),
++// a pencil swaps one row per card into an inline editor, and a commit
++// writes through engine.setWebFile (invalidating nothing). Runs against the
++// real page and the seeded sim, so every exchange string below is fixed.
++
++test('should edit a file inline on Stage 1 and serve the new bytes', async ({ page }) => {
++  await page.goto('/panel.html');
++
++  // Rendered, not static: the two rows exist only because the snapshot's
++  // fs Map does (insertion order "/", "/about").
++  const list = page.getByTestId('server-fs-list');
++  await expect(list).toBeVisible();
++  await expect(list.locator('.route-item')).toHaveCount(2);
++
++  // Grid + ellipsis computeds (asserted once, per the brief): two columns,
++  // body cell single-line with hidden overflow + ellipsis.
++  const styles = await page.evaluate(() => {
++    const row = document.querySelector('#server-fs-list .route-item');
++    const body = row.querySelector('.fs-body');
++    return {
++      gridTemplateColumns: getComputedStyle(row).gridTemplateColumns,
++      overflowX: getComputedStyle(body).overflowX,
++      textOverflow: getComputedStyle(body).textOverflow,
++      whiteSpace: getComputedStyle(body).whiteSpace,
++    };
++  });
++  expect(styles.gridTemplateColumns.split(' ')).toHaveLength(2);
++  expect(styles.overflowX).toBe('hidden');
++  expect(styles.textOverflow).toBe('ellipsis');
++  expect(styles.whiteSpace).toBe('nowrap');
++
++  const aboutRow = list.locator('.route-item[data-file="route-about"]');
++  await expect(aboutRow).toContainText('This is the about page');
++  await aboutRow.hover();
++  await aboutRow.locator('.fs-edit').click();
++
++  const input = aboutRow.locator('.fs-input');
++  await expect(input).toBeVisible();
++  const save = aboutRow.locator('.fs-commit');
++  // Unchanged draft -> the save control waits (does not reach the engine).
++  await expect(save).toBeDisabled();
++  await input.fill('');
++  await expect(save).toBeDisabled(); // empty draft
++  await input.fill('New body');
++  await expect(save).toBeEnabled();
++  await input.press('Enter');
++
++  // The row re-renders from the new snapshot — editor closed, new bytes.
++  await expect(input).toHaveCount(0);
++  await expect(aboutRow).toContainText('New body');
++
++  // The sim actually serves them: the seeded first tick's GET /about.
++  await page.getByTestId('step-button').click();
++  await expect(page.getByTestId('exchange-inspector')).toContainText('GET /about => 200 New body');
++});
++
++test('should keep the edit cached-stale on Stage 3 until the TTL expires', async ({ page }) => {
++  // Counter-example pin (editable-fs brief): an edit is not a POST — the
++  // shared Cache is not invalidated. A GET inside the entry's TTL serves
++  // the OLD body on a HIT; the new bytes serve only after expiry.
++  await page.goto('/panel.html?stage=3');
++
++  // Warm the shared Cache on the first 6-hop trace (round-robin -> 10.11,
++  // cold MISS fills the entry from the fs Map).
++  for (let hop = 0; hop < 6; hop++) await page.getByTestId('btn-next-hop').click();
++  await expect(page.getByTestId('cache-stats')).toHaveText('Hits: 0 · Misses: 1 · TTL: 10t');
++
++  // Edit /about on WebServer-1's filesystem (10.11) to "New body".
++  const list = page.getByTestId('server-fs-list');
++  const aboutRow = list.locator('.route-item[data-file="route-about"]');
++  await aboutRow.hover();
++  await aboutRow.locator('.fs-edit').click();
++  const input = aboutRow.locator('.fs-input');
++  await input.fill('New body');
++  await input.press('Enter');
++  await expect(input).toHaveCount(0);
++  await expect(aboutRow).toContainText('New body');
++
++  // Inside the TTL (entry expires at tick 11, tick is 2 now): the second
++  // trace rides the shared entry on 10.12 and serves the OLD body — no
++  // write-through, the row is already the future, the cache is the past.
++  for (let hop = 0; hop < 6; hop++) await page.getByTestId('btn-next-hop').click();
++  await expect(page.getByTestId('browser-rendered-body')).toHaveText('This is the about page');
++  await expect(page.getByTestId('cache-stats')).toHaveText('Hits: 1 · Misses: 1 · TTL: 10t');
++
++  // Step the ticks past the entry's expiry (ttlTicks 10, cached @ tick 1):
++  // the aged-out entry is gone and only the fs Map now holds "New body".
++  for (let i = 0; i < 12; i++) await page.getByTestId('step-button').click();
++
++  // A post-expiry trace serves the NEW bytes.
++  for (let hop = 0; hop < 6; hop++) await page.getByTestId('btn-next-hop').click();
++  await expect(page.getByTestId('browser-rendered-body')).toHaveText('New body');
++});
++
++test('should cancel an inline edit with Escape and disable commit on an empty draft', async ({
++  page,
++}) => {
++  await page.goto('/panel.html');
++
++  const list = page.getByTestId('server-fs-list');
++  const aboutRow = list.locator('.route-item[data-file="route-about"]');
++  await aboutRow.hover();
++  await aboutRow.locator('.fs-edit').click();
++
++  const input = aboutRow.locator('.fs-input');
++  await expect(input).toBeVisible();
++  await expect(aboutRow.locator('.fs-commit')).toBeDisabled(); // unchanged draft
++  await input.fill('');
++  await expect(aboutRow.locator('.fs-commit')).toBeDisabled(); // empty draft
++  await input.fill('New body');
++  await expect(aboutRow.locator('.fs-commit')).toBeEnabled();
++  await input.press('Escape');
++
++  // Escape restores the row from the snapshot — no edit left open, no fs
++  // mutation of any kind.
++  await expect(input).toHaveCount(0);
++  await expect(aboutRow).toContainText('This is the about page');
++
++  // The sim really is untouched: the seeded tick-1 GET /about serves the
++  // original bytes (as it did before this slice existed).
++  await page.getByTestId('step-button').click();
++  await expect(page.getByTestId('exchange-inspector')).toContainText(
++    'GET /about => 200 This is the about page',
++  );
++});
+diff --git a/e2e/webserver-fs.spec.js b/e2e/webserver-fs.spec.js
+new file mode 100644
+index 0000000..f021f0f
+--- /dev/null
++++ b/e2e/webserver-fs.spec.js
+@@ -0,0 +1,25 @@
++import { test, expect } from '@playwright/test';
++
++// PINS: the parity contract in DESIGN.md "Filesystem & Interface Tables" —
++// each WebServer filesystem row (`.fs-list`) shares the Network mini-IP
++// table's two-part look: the file path carries the same address-column
++// color a `.mini-table` row gives a mini-IP, and the served body renders
++// the same on-surface text color as the table's name column. Asserted as
++// equality with the live tokens so any future palette retune keeps parity.
++test('should style WebServer filesystem rows like the Network mini-IP table', async ({ page }) => {
++  await page.goto('/panel.html');
++  await expect(page.getByTestId('node-webserver')).toBeVisible();
++
++  const colors = await page.evaluate(() => {
++    const cs = (el) => getComputedStyle(el).color;
++    return {
++      netAddress: cs(document.querySelector('.mini-table td:first-child')),
++      netName: cs(document.querySelector('.mini-table td:not(:first-child)')),
++      fsPath: cs(document.querySelector('#node-webserver .fs-path')),
++      fsBody: cs(document.querySelector('#route-about')),
++    };
++  });
++
++  expect(colors.fsPath).toBe(colors.netAddress);
++  expect(colors.fsBody).toBe(colors.netName);
++});
+diff --git a/js/panel/fs-editor.js b/js/panel/fs-editor.js
+new file mode 100644
+index 0000000..4c81b71
+--- /dev/null
++++ b/js/panel/fs-editor.js
+@@ -0,0 +1,216 @@
++// DOCUMENTS: the editable filesystem renderer — every WebServer card's
++// filesystem list (#server-fs-list / #server-2-fs-list) renders its own
++// snapshot server's live fs Map (insertion order: "/", "/about"), so the
++// panel rows are the sim's view, not static markup. Rows are a two-column
++// grid (path sized to content; body single-line with ellipsis and the full
++// text on the row's title tooltip) and carry a hover/focus-revealed pencil
++// that swaps that row into an inline editor: "<input> + save + cancel",
++// Enter commits, Escape cancels, and save is disabled while the draft is
++// unchanged or empty. Commit writes through engine.setWebFile
++// (invalidating nothing — the cache ages out by TTL), then re-renders from
++// the fresh snapshot. All behavior is delegated with addEventListener (no
++// inline handlers — AGENTS.md CSP rule) and lives in this module; panel.js
++// supplies only the engine accessor and the re-render callback.
++//
++// CHECKS: one edit in flight per card max; route-id attribute parity with
++// the static rows — stage-1 server rows keep id + `data-file="route-*"`,
++// the server-2 card keeps `data-file-2="route-*"` — so renderRoutes()'s
++// .matched-route good-soft highlight behaves on rendered rows exactly as
++// on the old static markup. Counter-example (pinned): an Escape or a
++// saved-empty draft never reaches the engine — setWebFile is called only
++// for a changed, non-empty draft.
++
++const CARDS = [
++  { listId: 'server-fs-list', serverIndex: 0, serverAttr: 'data-file' },
++  { listId: 'server-2-fs-list', serverIndex: 1, serverAttr: 'data-file-2' },
++];
++
++// routeIdFor mirrors the sim's routeId rule (webserver.js routeIdFor): the
++// served GET's routeId is what renderRoutes() matches against the row.
++const routeIdFor = (path) => (path === '/' ? 'route-home' : `route-${path.slice(1)}`);
++
++// One edit in flight per card: the fs path being edited. The draft lives in
++// the input element itself, so crowd-tick re-renders mid-edit keep typing,
++// focus and caret — the mount keeps the live editor row element across
++// render passes instead of rebuilding it.
++const editingPath = {};
++for (const card of CARDS) editingPath[card.listId] = null;
++
++let lastSnapshot = null;
++
++function displayRowFor(path, body, { serverAttr, isServer1 }) {
++  const li = document.createElement('li');
++  li.className = 'route-item';
++  li.dataset.fsPath = path;
++  const routeId = routeIdFor(path);
++  if (isServer1) {
++    li.id = routeId;
++    li.setAttribute(serverAttr, routeId);
++  } else {
++    li.setAttribute(serverAttr, routeId);
++  }
++
++  const pathSpan = document.createElement('span');
++  pathSpan.className = 'fs-path';
++  pathSpan.textContent = path;
++
++  const bodySpan = document.createElement('span');
++  bodySpan.className = 'fs-body';
++  bodySpan.textContent = body;
++  bodySpan.title = body;
++
++  const pencil = document.createElement('button');
++  pencil.type = 'button';
++  pencil.className = 'fs-edit';
++  pencil.textContent = '✎';
++  pencil.title = 'Edit file body';
++  pencil.setAttribute('aria-label', `Edit ${path}`);
++
++  li.append(pathSpan, bodySpan, pencil);
++  return li;
++}
++
++function editorRowFor(path, originalBody, { serverAttr, isServer1 }) {
++  const li = document.createElement('li');
++  li.className = 'route-item fs-editing';
++  li.dataset.fsPath = path;
++  const routeId = routeIdFor(path);
++  if (isServer1) {
++    li.id = routeId;
++    li.setAttribute(serverAttr, routeId);
++  } else {
++    li.setAttribute(serverAttr, routeId);
++  }
++
++  const input = document.createElement('input');
++  input.type = 'text';
++  input.className = 'fs-input';
++  input.value = originalBody;
++  input.dataset.fsOriginal = originalBody;
++  input.setAttribute('aria-label', `New content for ${path}`);
++
++  const commit = document.createElement('button');
++  commit.type = 'button';
++  commit.className = 'fs-commit';
++  commit.textContent = '✔';
++  commit.title = 'Save file';
++  commit.setAttribute('aria-label', `Save ${path}`);
++  // Unchanged draft -> wait for a real edit; the input delegation flips it.
++  commit.disabled = true;
++
++  const cancel = document.createElement('button');
++  cancel.type = 'button';
++  cancel.className = 'fs-cancel';
++  cancel.textContent = '✕';
++  cancel.title = 'Cancel editing';
++  cancel.setAttribute('aria-label', `Cancel editing ${path}`);
++
++  li.append(input, commit, cancel);
++  return li;
++}
++
++function renderCard(container, card, server, liveEditor) {
++  const files = Object.entries(server?.files ?? {});
++  const isNew = !liveEditor;
++  container.replaceChildren(
++    ...files.flatMap(([path, body]) => {
++      if (editingPath[card.listId] !== path) {
++        return [
++          displayRowFor(path, body, {
++            serverAttr: card.serverAttr,
++            isServer1: card.serverIndex === 0,
++          }),
++        ];
++      }
++      // Edit in flight: keep the live editor row element across passes so
++      // typing, focus and caret survive crowd ticks.
++      return isNew
++        ? [
++            editorRowFor(path, body, {
++              serverAttr: card.serverAttr,
++              isServer1: card.serverIndex === 0,
++            }),
++          ]
++        : [liveEditor];
++    }),
++  );
++}
++
++// Every render pass: both cards rebuild from the snapshot's own servers —
++// on Stage 1 the second card renders empty (its server does not exist).
++export function renderFilesystems(snapshot) {
++  lastSnapshot = snapshot;
++  const servers = snapshot.servers ?? [];
++  for (const card of CARDS) {
++    const container = document.getElementById(card.listId);
++    if (!container) continue;
++    const server = servers[card.serverIndex] ?? null;
++    container.dataset.serverAddress = server ? server.address : '';
++    const liveEditor = container.querySelector('.fs-editing');
++    renderCard(container, card, server, liveEditor);
++  }
++}
++
++function startEdit(listId, path) {
++  editingPath[listId] = path;
++  renderFilesystems(lastSnapshot);
++  document.getElementById(listId)?.querySelector('.fs-input')?.focus();
++}
++
++function closeEdit(listId, rerender) {
++  editingPath[listId] = null;
++  // Escape re-renders from the EXISTING snapshot — the fs was not touched.
++  rerender(lastSnapshot);
++}
++
++function commitEdit(listId, getEngine, rerender) {
++  const container = document.getElementById(listId);
++  const input = container?.querySelector('.fs-input');
++  const commit = container?.querySelector('.fs-commit');
++  if (!input || !commit || commit.disabled) return;
++  getEngine().setWebFile(container.dataset.serverAddress, editingPath[listId], input.value);
++  editingPath[listId] = null;
++  rerender(getEngine().snapshot());
++}
++
++function wireCard(container, listId, getEngine, rerender) {
++  container.addEventListener('click', (e) => {
++    if (e.target.closest('.fs-edit')) {
++      const path = e.target.closest('.route-item').dataset.fsPath;
++      if (editingPath[listId] === null) startEdit(listId, path);
++      return;
++    }
++    if (e.target.closest('.fs-cancel')) {
++      closeEdit(listId, rerender);
++      return;
++    }
++    if (e.target.closest('.fs-commit')) commitEdit(listId, getEngine, rerender);
++  });
++
++  container.addEventListener('input', (e) => {
++    const input = e.target.closest('.fs-input');
++    if (!input) return;
++    const commit = container.querySelector('.fs-commit');
++    // Disabled while the draft is unchanged or empty — an unchanged or
++    // empty draft must not reach the sim.
++    commit.disabled = input.value === input.dataset.fsOriginal || input.value.length === 0;
++  });
++
++  container.addEventListener('keydown', (e) => {
++    if (e.target.closest('.fs-input') === null) return;
++    if (e.key === 'Enter') {
++      // commitEdit is a no-op while the save is disabled (unchanged/empty
++      // draft) — the disabled control does not reach the engine.
++      commitEdit(listId, getEngine, rerender);
++      return;
++    }
++    if (e.key === 'Escape') closeEdit(listId, rerender);
++  });
++}
++
++export function initFilesystemEditor({ getEngine, rerender }) {
++  for (const card of CARDS) {
++    const container = document.getElementById(card.listId);
++    if (container) wireCard(container, card.listId, getEngine, rerender);
++  }
++}
+diff --git a/js/panel/panel.js b/js/panel/panel.js
+index 77a4894..51d7745 100644
+--- a/js/panel/panel.js
++++ b/js/panel/panel.js
+@@ -9,6 +9,7 @@ import { COMPONENT_SOURCE } from './inspector-source.js';
+ import { $, els, addToJourney, relabelJourneyRun, render, renderInspector } from './render.js';
+ import { renderStageTopology, onStageRendered } from './render-stage.js';
+ import { ensureStage6Dom } from './stage6-registry.js';
++import { initFilesystemEditor } from './fs-editor.js';
+ import { initViewport } from './viewport.js';
+ import { initTeachingDrawer, renderTeaching } from './teaching-drawer.js';
+ 
+@@ -254,6 +255,18 @@ $('legend-toggle').addEventListener('click', () => {
+ // legend drawer above for the toggle pattern).
+ initTeachingDrawer();
+ 
++// CHECKS: the filesystem lists are the sim's own view — the editor module
++// (fs-editor.js) renders both cards' rows from snapshot.servers[i].files and
++// wires its pencil/input/buttons by delegation on those shells; a commit
++// writes engine.setWebFile and updateView re-renders from the fresh
++// snapshot, so the row, the next served record and the browser viewport all
++// read the new bytes (brief negative case). panel.js passes only the engine
++// accessor and the re-render callback; no inline handlers anywhere.
++initFilesystemEditor({
++  getEngine: () => engine,
++  rerender: (snapshot) => updateView(snapshot),
++});
++
+ // Boot: Stage 1 is active by default so existing Stage 1 tests run unchanged,
+ // except where the URL deep-links a live stage and user count (?stage=N&
+ // users=U) — those restore shared states on load. The viewport fits the
+diff --git a/js/panel/render.js b/js/panel/render.js
+index 1fea847..f90444b 100644
+--- a/js/panel/render.js
++++ b/js/panel/render.js
+@@ -5,6 +5,7 @@
+ import { describeSnapshot, orderJourneyEntries } from './model.js';
+ import { COMPONENT_SOURCE } from './inspector-source.js';
+ import { componentTitle, formatComponentState } from './inspector-state.js';
++import { renderFilesystems } from './fs-editor.js';
+ import { renderHopHighlights, renderDots, renderRingBrowsers } from './render-stage.js';
+ 
+ export const $ = (id) => document.getElementById(id);
+@@ -249,6 +250,10 @@ export function render(snapshot, selectedComponent, { layout, activeAddress = '1
+   els.statusBadge.className = `status-badge${badgeClass(display)}`;
+   renderQueueInto(els.queueList, snapshot.queue ?? []);
+   renderQueueInto(els.queueList2, snapshot.servers?.[1]?.queue ?? []);
++  // The filesystem rows rebuild from the snapshot each pass and must land
++  // BEFORE renderRoutes() — fresh rows carry no .matched-route state of
++  // their own, so the served-file highlight is re-applied after them.
++  renderFilesystems(snapshot);
+   renderRoutes(labels.matchedRouteId, snapshot);
+   if (snapshot.stage >= 2) {
+     els.server2Address.textContent = labels.server2Address;
+diff --git a/js/sim/engine.js b/js/sim/engine.js
+index 9f7d030..6cc54bf 100644
+--- a/js/sim/engine.js
++++ b/js/sim/engine.js
+@@ -204,6 +204,19 @@ export function createEngine({
+       userPool.setCount(n);
+     },
+ 
++    // CHECKS: setWebFile routes an fs edit to the server whose address
++    // matches — an unknown mini-IP throws (fail-loud over a silent no-op)
++    // and nothing else moves (no snapshot-shape change: servers[i].files
++    // already carries the fs Map). The edit itself invalidates nothing, so
++    // a stage-3+ cache keeps serving its OLD body until the TTL expires.
++    setWebFile(address, path, body) {
++      const server = servers.find((s) => s.address === address);
++      if (!server) {
++        throw new Error(`engine: setWebFile — no server at mini-IP ${address}`);
++      }
++      server.writeFile(path, body);
++    },
++
+     snapshot() {
+       const serverSnapshots = servers.map((s) => ({
+         address: s.address,
+diff --git a/js/sim/webserver.js b/js/sim/webserver.js
+index d5ba9f0..dfdf1b4 100644
+--- a/js/sim/webserver.js
++++ b/js/sim/webserver.js
+@@ -16,6 +16,10 @@
+ // a stale replica read is served but not cached, so the entry only warms
+ // from rows the replica has already caught up to.
+ //
++// Editable fs: writeFile(path, body) mutates this server's fs Map (the panel
++// filesystem rows are the sim's own view). An edit is explicitly NOT a POST:
++// it invalidates nothing — cached copies age out by their TTL only.
++//
+ // CHECKS: constructor rejects a non-positive/non-integer serviceRate
+ // (fail-loud over silent-slow).
+ const DEFAULT_FILES = {
+@@ -189,6 +193,21 @@ export function createWebServer({
+       return Object.fromEntries(fs);
+     },
+ 
++    // CHECKS: writeFile mutates only this server's fs Map — an existing fs
++    // key plus a non-empty string body; anything else throws (fail-loud
++    // over a silent bogus write). Deliberately no cache invalidation and no
++    // clock: cached copies age out by their TTL alone (the stage-3
++    // stale-read branch), and the Map's insertion order survives a re-set.
++    writeFile(path, body) {
++      if (!fs.has(path)) {
++        throw new Error(`webserver: writeFile — unknown fs path "${path}"`);
++      }
++      if (typeof body !== 'string' || body.length === 0) {
++        throw new Error(`webserver: writeFile — body must be a non-empty string`);
++      }
++      fs.set(path, body);
++    },
++
+     // `isYou` marks the learner's own interactive-browser request so
+     // visible queue rows can highlight it (DESIGN.md queue-pill-you).
+     enqueue({ id, atTick, from = '10.2', to = address, request = 'GET /', isYou = false }) {
+diff --git a/panel.html b/panel.html
+index 3721d72..cf07582 100644
+--- a/panel.html
++++ b/panel.html
+@@ -183,13 +183,11 @@
+             viewBox="-4800 -4800 9600 9600"
+             aria-hidden="true"
+           ></svg>
+-
+           <div
+             id="browser-ring-nodes"
+             data-testid="browser-ring-nodes"
+             class="browser-ring-nodes"
+           ></div>
+-
+           <article
+             class="node-card"
+             id="node-browser"
+@@ -340,14 +338,12 @@ Send a request or step a hop to render a response.</pre>
+               <div class="queue-track" aria-hidden="true">
+                 <div id="queue-bar" class="queue-fill" data-testid="queue-bar"></div>
+               </div>
+-              <ul class="route-list" aria-label="Filesystem">
+-                <li id="route-home" data-file="route-home" class="route-item">
+-                  / — "Welcome to the home page"
+-                </li>
+-                <li id="route-about" data-file="route-about" class="route-item">
+-                  /about — "This is the about page"
+-                </li>
+-              </ul>
++              <ul
++                id="server-fs-list"
++                class="route-list fs-list"
++                aria-label="Filesystem"
++                data-testid="server-fs-list"
++              ></ul>
+             </article>
+             <article
+               class="node-card"
+@@ -370,12 +366,12 @@ Send a request or step a hop to render a response.</pre>
+               <div class="queue-track" aria-hidden="true">
+                 <div id="queue-bar-2" class="queue-fill" data-testid="queue-bar-2"></div>
+               </div>
+-              <ul class="route-list" aria-label="Filesystem">
+-                <li data-file-2="route-home" class="route-item">/ — "Welcome to the home page"</li>
+-                <li data-file-2="route-about" class="route-item">
+-                  /about — "This is the about page"
+-                </li>
+-              </ul>
++              <ul
++                id="server-2-fs-list"
++                class="route-list fs-list"
++                aria-label="Filesystem"
++                data-testid="server-2-fs-list"
++              ></ul>
+             </article>
+           </div>
+ 
+diff --git a/slices.yaml b/slices.yaml
+index b42430f..0848da2 100644
+--- a/slices.yaml
++++ b/slices.yaml
+@@ -68,6 +68,8 @@ slices:
+         - test/panel/**
+       e2e_specs:
+         - e2e/panel.spec.js
++        - e2e/webserver-fs.spec.js
++        - e2e/fs-editor.spec.js
+         - e2e/panel-stage6.spec.js
+         - e2e/orrery-plane.spec.js
+         - e2e/teaching.spec.js
+diff --git a/storymap.yaml b/storymap.yaml
+index 5ed6f7f..da05362 100644
+--- a/storymap.yaml
++++ b/storymap.yaml
+@@ -102,6 +102,20 @@ activities:
+               - unit: test/panel/render.test.js::within one run, hop entries order ascending regardless of emission order
+               - unit: test/panel/render.test.js::a newer run floats above an older one; entries stay whole per run
+               - e2e: panel::should render a full-trace journey log with hop 1/4 to 4/4 in ascending order
++          - title: Edit any WebServer file inline and read the sim's live fs Map — bytes served on the next GET, stale only inside the cache TTL
++            status: done
++            priority: medium
++            tests:
++              - unit: test/sim/webserver.test.js::writes an existing fs key so GET serves the new body from the Map
++              - unit: test/sim/webserver.test.js::throws on an unknown fs path and on an empty or non-string body (fail loud)
++              - unit: test/sim/webserver.test.js::keeps a stage-3 cached copy stale until the TTL expires (no write-through invalidation)
++              - unit: test/sim/engine.test.js::routes the write to the server at the matching mini-IP address
++              - unit: test/sim/engine.test.js::hits only the addressed server — the other backend's fs is untouched
++              - unit: test/sim/engine.test.js::throws for an unknown server address instead of writing nothing silently
++              - e2e: webserver-fs::should style WebServer filesystem rows like the Network mini-IP table
++              - e2e: fs-editor::should edit a file inline on Stage 1 and serve the new bytes
++              - e2e: fs-editor::should keep the edit cached-stale on Stage 3 until the TTL expires
++              - e2e: fs-editor::should cancel an inline edit with Escape and disable commit on an empty draft
+           - title: Read a legend drawer naming the tick clock, the cache stats trio, the Ring 3 site chips, and the wire-lane labels
+             status: done
+             priority: medium
+diff --git a/test/sim/engine.test.js b/test/sim/engine.test.js
+index 2c43546..0c41a43 100644
+--- a/test/sim/engine.test.js
++++ b/test/sim/engine.test.js
+@@ -147,3 +147,47 @@ describe('createEngine', () => {
+     expect(snap.browserDisplay.status).toBe(200);
+   });
+ });
++
++// The editable filesystem (editable-fs brief): setWebFile routes the write
++// to the server whose address matches and throws on a miss — no silent
++// no-op. DL-1 counter-example pinned: after the write, the snapshot's own
++// files, the next served GET record, and the browser's rendered body all
++// carry the new bytes.
++describe('createEngine setWebFile', () => {
++  it('routes the write to the server at the matching mini-IP address', () => {
++    const engine = createEngine({ seed: 42, stage: 1 });
++    engine.setWebFile('10.1', '/about', 'New body');
++
++    // The snapshot's files gain the new bytes without any shape change.
++    const before = engine.snapshot();
++    expect(before.files).toEqual({ '/': 'Welcome to the home page', '/about': 'New body' });
++    expect(before.servers[0].files['/about']).toBe('New body');
++
++    // The very next served GET record carries the new bytes on the wire
++    // (seeded tick 1: 10.6 -> 10.1 GET /about, the same pin as the e2e).
++    engine.step();
++    const after = engine.snapshot();
++    expect(after.lastExchange.request).toBe('GET /about');
++    expect(after.lastExchange.response).toBe('200 New body');
++    expect(after.lastMatchedRoute).toBe('route-about');
++
++    // And the learner's own browser reads the new body off the trace.
++    for (let hop = 0; hop < 4; hop++) engine.traceHop({ method: 'GET', path: '/about' });
++    expect(engine.snapshot().browserDisplay.body).toBe('New body');
++  });
++
++  it("hits only the addressed server — the other backend's fs is untouched", () => {
++    const engine = createEngine({ seed: 42, stage: 2 });
++    engine.setWebFile('10.12', '/about', 'New body');
++    const snap = engine.snapshot();
++    expect(snap.servers[1].files['/about']).toBe('New body');
++    expect(snap.servers[0].files['/about']).toBe('This is the about page');
++  });
++
++  it('throws for an unknown server address instead of writing nothing silently', () => {
++    const engine = createEngine({ seed: 42, stage: 1 });
++    expect(() => engine.setWebFile('10.99', '/about', 'New body')).toThrow(
++      /no server at mini-IP 10\.99/,
++    );
++  });
++});
+diff --git a/test/sim/webserver.test.js b/test/sim/webserver.test.js
+index 095741a..79a1c99 100644
+--- a/test/sim/webserver.test.js
++++ b/test/sim/webserver.test.js
+@@ -1,5 +1,6 @@
+ import { describe, it, expect } from 'vitest';
+ import { createWebServer } from '../../js/sim/webserver.js';
++import { createCache } from '../../js/sim/cache.js';
+ 
+ describe('createWebServer', () => {
+   it('queue depth climbs when arrival rate exceeds service rate', () => {
+@@ -88,3 +89,60 @@ describe('createWebServer', () => {
+     expect(server.matchRoute('POST /status').routeId).toBe(null);
+   });
+ });
++
++// The editable filesystem (editable-fs brief): writeFile mutates the fs
++// Map an existing key with a non-empty string body and throws otherwise; an
++// edit is NOT a POST — the cache keeps its old bytes until the TTL expires.
++describe('writeFile (editable WebServer filesystem)', () => {
++  it('writes an existing fs key so GET serves the new body from the Map', () => {
++    const server = createWebServer({ address: '10.1' });
++    server.writeFile('/about', 'New body');
++
++    // The Map mutates in place: new bytes on the wire, insertion order kept.
++    expect(server.filesSnapshot()).toEqual({
++      '/': 'Welcome to the home page',
++      '/about': 'New body',
++    });
++    expect(Object.keys(server.filesSnapshot())).toEqual(['/', '/about']);
++    expect(server.handleRequest('GET /about')).toBe('200 New body');
++    expect(server.matchRoute('GET /about').routeId).toBe('route-about');
++  });
++
++  it('throws on an unknown fs path and on an empty or non-string body (fail loud)', () => {
++    const server = createWebServer({ address: '10.1' });
++    expect(() => server.writeFile('/missing', 'New body')).toThrow(/unknown fs path/);
++    expect(() => server.writeFile('/about', '')).toThrow(/non-empty string/);
++    expect(() => server.writeFile('/about', 42)).toThrow(/non-empty string/);
++    // A throw is a no-op: the fs stays exactly as it was.
++    expect(server.filesSnapshot()).toEqual({
++      '/': 'Welcome to the home page',
++      '/about': 'This is the about page',
++    });
++  });
++
++  it('keeps a stage-3 cached copy stale until the TTL expires (no write-through invalidation)', () => {
++    const cache = createCache({ address: '10.20', ttlTicks: 10 });
++    const server = createWebServer({ address: '10.11', cache });
++    server.enqueue({ id: '1:a', atTick: 1, request: 'GET /about' });
++    server.step(1); // cold MISS warms the cache from the fs Map
++
++    server.writeFile('/about', 'New body');
++    // Inside the entry's TTL the lookup is a HIT serving the OLD body —
++    // the edit did not invalidate anything (an edit is not a POST: no
++    // write-through, no cache.del — the invalidation stays a POST path).
++    server.enqueue({ id: '5:a', atTick: 5, request: 'GET /about' });
++    const stale = server.step(5);
++    expect(stale).toHaveLength(1);
++    expect(stale[0].cacheStatus).toBe('HIT');
++    expect(stale[0].body).toBe('This is the about page');
++    expect(cache.has('/about', 5)).toBe(true);
++
++    // After the TTL expires the next lookup misses and re-fills from the
++    // edited Map: the NEW bytes serve only post-expiry.
++    server.enqueue({ id: '15:a', atTick: 15, request: 'GET /about' });
++    const fresh = server.step(15);
++    expect(fresh).toHaveLength(1);
++    expect(fresh[0].cacheStatus).toBe('MISS');
++    expect(fresh[0].body).toBe('New body');
++  });
++});
