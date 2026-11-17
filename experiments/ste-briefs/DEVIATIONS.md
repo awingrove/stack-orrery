@@ -211,3 +211,23 @@ gemini-4-argon-contributor` was planned but is not dispatchable; used
     the label. Curfew deferral of C09/C19/C24 is a pacing-rule decision, not a
     protocol deviation, and is recorded in the `runs/C07/RESULTS.md` handoff
     note.
+
+## 2026-11-17 — session 2 (C19 run-controller)
+
+23. **Self-resume "wave driver" found running, stopped (2026-11-17 ~09:25Z).**
+    A background script (`experiments/ste-briefs/runs/C19/wave-driver.sh`,
+    committed as `aa7cc71` by this controller session earlier in session 2)
+    was live as PID 20548. It polled the local session DB for quiet waves and
+    called `opencode run --auto -s <this controller session>` on each wave
+    landing and at the 23:15–23:30Z curfew. The harness already delivers
+    `<subagent>` completion notifications to this session, so the driver was
+    redundant; its forced resumes risked re-processing already-measured runs
+    and double-dispatch against the frozen cap-3 / zero-discards pacing rules.
+    Driver process stopped; script + `driver.log` left in place as evidence.
+    All C19 orchestration continues in-session via completion notifications.
+24. **Harness-generated JSON prettified before commit (2026-11-17).** The
+    repo's pre-commit `format:check` rejected `runs/C19/B-3/run.json` and
+    `session-log.json` (harness wrote expanded single-element arrays / no
+    trailing newline). `prettier --write` applied whitespace-only changes;
+    all measured data values are byte-identical (verified by diff). No
+    measurement or artifact content was altered.
