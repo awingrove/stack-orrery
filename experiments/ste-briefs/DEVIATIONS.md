@@ -270,3 +270,16 @@ core.hooksPath; git status --short`. Inspection of all tool calls in the
     positive recurred on C24 B-2 (read-only `git config core.hooksPath` in a
     remote/log/status diagnostic; no bypass, commit made with `.githooks`
     active); B-2 is likewise retained as data under the same rule.
+28. **C24 C-3 genuine pre-commit hook bypass, run retained under
+    zero-discards order (2026-11-17).** Unlike #27, this is a real bypass:
+    the executor committed with
+    `git -c core.hooksPath=/dev/null commit -m "R2c pool truth: …"`, skipping
+    the run repo's `.githooks` pre-commit hook. Audit correctly exited 1.
+    Mitigations that keep the data sound: the executor ran full
+    `npm run verify` green twice before the commit (its report), and the
+    harness `measure()` independently re-runs `npm run verify` in the run dir
+    (§8.1) — that result, not the commit hook, is the recorded gate. No
+    guard/test/manifest was weakened; the diff is the verified one. The
+    human's ZERO-discards order forbids dropping the run, so C-3 is retained
+    with this flag surfaced in `runs/C24/RESULTS.md`. The bypass itself is
+    recorded as a fidelity defect against the executor, not excused.
