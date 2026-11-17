@@ -71,22 +71,24 @@ you stop when all three changes are complete and measured+scored.
 - **C08**: setup DONE (dirs + npm ci, ports 4400-4406) but C08 is DROPPED
   from the slate (human decision 2026-11-16: remaining = C09, C19, C24).
   Leave its dirs; do not run it.
-- **Remaining slate**: C09, C19, C24 (3 changes × 9 runs).
+- **Remaining slate (updated 2026-11-17, human-approved)**: **C19 first**
+  (75 turns/11 min — completes surely), then **C24 CONDITIONAL** (57
+  turns/32 min; mimo-v2.6-flash executor — the only non-glm family left;
+  run it only if the 5-hour meter reads <55% after C19 is fully scored).
+  **C09 and C08 are DROPPED** — do not run them. Quota stop rule: any
+  usage-limit error = STOP dispatching immediately, record in
+  DEVIATIONS.md, end cleanly. Monthly remainder ≈ 4.2M tokens (24.9M used
+  ≈ 86%).
 
-## Pacing for tonight (wifi curfew 23:30 — a run crossing it dies and is
+## Pacing (curfew 23:30 — a run crossing it dies and is discarded; the
 
-## discarded; the human has ordered ZERO discarded sessions)
+## human has ordered ZERO discarded sessions)
 
-1. FIRST: complete C07 scoring (8 remaining runs, 3 scorers at a time) —
-   light (~2% window each), ~15 min total.
-2. Then only dispatch runs whose full budget fits the remaining time with a
-   15-minute margin: C19 (11-min budget) always OK; C24 (32-min budget) OK
-   if ≥50 min remain; C09 (71-min budget) NOT tonight unless ≥90 min remain.
-3. If the 5-hour Go window reads >70% at any point, stop dispatching and
-   record in DEVIATIONS.md.
-4. Do not leave a wave dispatched across the curfew. End cleanly: measure
-   everything landed, commit, write a handoff note in the newest
-   RESULTS.md or DEVIATIONS.md entry.
+1. C19: setup → 9 runs (3 at a time; 11-min budget each — always fits
+   before curfew) → audit → measure → score (9 scorers, 3 at a time).
+2. Then check the 5-hour meter: <55% → C24 setup + runs; ≥55% → stop.
+3. Do not leave a wave dispatched across the curfew. End cleanly: measure
+   everything landed, commit, write a handoff note in DEVIATIONS.md.
 
 ## Hard rules (protocol §3 + deviations)
 
