@@ -94,5 +94,6 @@ contract 3 below.
       approved with batch-note scope restricted to fresh state + STATE.md.
 - [x] Step 2 (Executor sub-agent): implement contracts 1-6, `npm run verify`
       green in stack-orrery, both PRs opened; tick and commit.
-- [ ] Step 3 (Lead session): `npm run metrics:extract -- <sessionID>`, append
-      entry to docs/factory/slice-metrics.yaml (slice SIM), tick, commit.
+- [x] Step 3 (Lead session): `npm run metrics:extract -- ses_df5c3e15cffenNkgqMDUmunusM`,
+      entry STE-LEARNINGS-CAPTURE appended to docs/factory/slice-metrics.yaml
+      (slice SIM), contracts reviewed against both repo diffs, ticked, committed.
