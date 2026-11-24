@@ -332,3 +332,28 @@ defects:
       overscroll-behavior: contain, and e2e/camera-drawer.spec.js pins
       drawer-scroll-without-zoom, drag-touches-nothing, and the control pin
       that the plane's own wheel still zooms.
+  - id: DL-6
+    title: >-
+      Brief clauses naming manifest fields or ids had no satisfiability check, so C19's
+      unsatisfiable "story with the next unused id" clause docked 6 of 9 runs
+    found: 2026-11-17
+    injection_stage: >-
+      Step 1 brief authoring — the unsatisfiable clause passed human design sign-off
+    detection_stage: >-
+      Experiment blind scoring (ste-brief-experiment C19; settled by the final report,
+      2026-11-17): 6 of 9 runs docked on requirements 10/11, each failing differently
+      by how it tried to comply
+    what: >-
+      C19's arm-A brief demanded a "story with the next unused id" that the storymap
+      grammar cannot express — ids live on tasks, not stories — so every run had to
+      guess at an impossible requirement; the brief-contract defect cost more than any
+      prose-style difference the experiment measured.
+    systemic_gap: >-
+      Missing rule — grammar references in briefs had no satisfiability check. The
+      DL-3/DL-4 negative-case discipline covered behavior branches, but nothing
+      required every manifest field/id/test-ref named by a brief to be satisfiable in
+      the repo's actual manifest grammar, and Step-1 review had no satisfiability pass.
+    closed_in: >-
+      awingrove/factory-kit#9 (ee6225f) — PLAN-FORMAT.md "Boundary contracts and
+      counter-examples" adds the satisfiability clause (Step-1 authoring/review
+      discipline, no mechanical prose checker), pairing with this row.

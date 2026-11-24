@@ -105,9 +105,16 @@ Fragments fine. Technical terms stay exact; code blocks unchanged.
    unprompted human intervention correcting a code or process miss outside
    scheduled human gates — whose root cause reveals a systemic gap updates
    `docs/factory/technical-debt.yaml` (`DL-\d+`) and the rule doc in the same
-   change (kit DEBT-REGISTER). Every completed brief records its intervention
-   counts and sub-agent session telemetry (`opencode session export <id>`) in
-   `docs/factory/slice-metrics.yaml` (kit METRICS).
+   change (kit DEBT-REGISTER). Same-repo capture stays **same commit or
+   immediate follow-up**. Cross-repo capture — a gap whose rule doc lives in
+   another repo — requires both changes with reciprocal citations: the
+   register row's `systemic_gap`/`closed_in` names the kit PR/commit, the kit
+   change names the `DL-\d+` id; neither counts done until both land (the
+   kit's DEBT-REGISTER.md post-mortem section mirrors this rule text, so a
+   divergence between the two is a reportable defect). Every completed brief
+   records its intervention counts and sub-agent session telemetry
+   (`opencode session export <id>`) in `docs/factory/slice-metrics.yaml`
+   (kit METRICS).
 5. **Claim vocabulary:** guarantee-comments carry `CHECKS:` / `PINS:` /
    `DOCUMENTS:` — guarantee-language outside a claim is a review defect
    (kit CLAIM-LANGUAGE). A `PINS:` claim must name a real, resolvable pin

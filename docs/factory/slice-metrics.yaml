@@ -1488,3 +1488,42 @@ entries:
       missions, cross-stage rows intact. Console-lattice complete:
       transport refusal, health-skip, miss storm, write fail, queue
       pause, pre-transport NX.
+  - id: STE-LEARNINGS-CAPTURE
+    slice:
+      - SIM
+    name: >-
+      STE-experiment learnings captured into kit + app rule docs — paired DL-6,
+      cross-repo capture rule, audit instrument, rubric policy, session-handoff note
+    brief: docs/plans/2026-11-23-ste-learnings-capture.md
+    agent: cheap
+    lead_model: opencode-go/hy4-flash-free
+    agent_model: opencode/mimo-v2.6-flash-free
+    session_id: ses_df5c3e15cffenNkgqMDUmunusM
+    tokens_input: 99607
+    tokens_output: 12404
+    tokens_reasoning: 23874
+    tokens_cache_read: 3882560
+    cost_usd: 0
+    human_interventions: 0
+    agent_review_rounds: 0
+    guardrail_failures: 1
+    fix_commits: 0
+    defects_escaped: 0
+    notes: >-
+      Docs-only change across two repos, dispatched on the standing ratified
+      free fallback (mimo-v2.6-flash-free, 2026-10-29): the paid Go executor
+      tier was exhausted. Executor: 0 red gate runs, npm run verify green on
+      first direct run (unit 214, guard 10/10, e2e 65); factory-kit has no
+      package.json / no gate (docs-only, stated in both PRs). The 1 recorded
+      guardrail failure is lead-side, at Step 1: the brief commit was rejected
+      once by pre-commit format:check (prettier), fixed by prettier --write and
+      recommitted with the full verify chain green — no guardrail weakened.
+      Step-3 lead review matched all six brief contracts against both repo
+      diffs; no reopen. Two PRs with reciprocal citations (factory-kit#9 <-> 
+      stack-orrery#44), awingrove requested as reviewer on both via REST;
+      cross-repo capture rule dogfooded by this very change. DL-6 records a
+      historical finding (found 2026-11-17) in the accepted C19 brief; it is
+      not a defect in this docs-only delivery, so defects_escaped is 0.
+      Human design sign-off at Step 1 included the scope decision to restrict
+      BATCH-OPS.md to fresh state + STATE.md handoff (quota/curfew/concurrency
+      excluded as environment-specific) — a scheduled gate, not an intervention.
